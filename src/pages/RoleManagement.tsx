@@ -67,7 +67,7 @@ export default function RoleManagement() {
   const [loading, setLoading] = useState(true);
   const [savingUserId, setSavingUserId] = useState<string | null>(null);
 
-  // State untuk Form Create
+  // State untuk Form Create (Tambah Akses)
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [newUserId, setNewUserId] = useState("");
   const [newRole, setNewRole] = useState<AppRole>("staff");
@@ -77,7 +77,7 @@ export default function RoleManagement() {
     loadUsers();
   }, []);
 
-  // 1. READ: Memuat seluruh daftar user
+  // 1. READ: Memuat seluruh daftar user dari database
   const loadUsers = async () => {
     setLoading(true);
     try {
@@ -98,11 +98,11 @@ export default function RoleManagement() {
     }
   };
 
-  // 2. CREATE: Menambahkan baris hak akses baru
+  // 2. CREATE: Menambahkan baris hak akses baru menggunakan ID dari akun terpih
   const handleAddUserRole = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newUserId.trim()) {
-      toast({ title: "ID User Wajib Diisi", variant: "destructive" });
+    if (!newUserId) {
+      toast({ title: "Silakan pilih akun terlebih dahulu", variant: "destructive" });
       return;
     }
 
@@ -111,7 +111,7 @@ export default function RoleManagement() {
       const { error } = await supabase
         .from("user_roles")
         .insert({
-          user_id: newUserId.trim(),
+          user_id: newUserId,
           role: newRole
         });
 
@@ -119,16 +119,16 @@ export default function RoleManagement() {
 
       toast({
         title: "Akses Berhasil Ditambahkan",
-        description: `User ID tersebut kini memiliki hak akses sebagai ${roleLabels[newRole]}.`,
+        description: `Akun tersebut kini aktif sebagai anggota tim ${roleLabels[newRole]}.`,
       });
       
       setIsAddDialogOpen(false);
       setNewUserId("");
-      loadUsers();
+      loadUsers(); // Muat ulang tabel
     } catch (error: any) {
       toast({
         title: "Gagal menambahkan akses",
-        description: error.message || "Pastikan UUID User ID valid dan terdaftar di sistem Auth.",
+        description: error.message,
         variant: "destructive",
       });
     } finally {
@@ -159,7 +159,7 @@ export default function RoleManagement() {
     }
   };
 
-  // 4. DELETE: Mencabut hak akses menggunakan RPC admin_delete_user_role yang aman
+  // 4. DELETE: Mencabut hak akses menggunakan RPC admin_delete_user_role
   const handleDeleteUserRole = async (userId: string, email: string) => {
     try {
       const { error } = await (supabase as any).rpc("admin_delete_user_role", {
@@ -182,9 +182,8 @@ export default function RoleManagement() {
     }
   };
 
-  // PERBAIKAN UTAMA DI SINI: Saring otomatis user yang tidak punya role aktif
+  // Saring otomatis user aktif (punya role admin/staff) untuk tabel utama
   const filteredUsers = useMemo(() => {
-    // Hanya masukkan user yang array roles-nya tidak kosong (artinya dia punya role admin atau staff)
     const activeTeamMembers = users.filter((user) => user.roles && user.roles.length > 0);
 
     const query = search.toLowerCase().trim();
@@ -195,15 +194,24 @@ export default function RoleManagement() {
     });
   }, [users, search]);
 
+  // PILIHAN UTAMA: Saring akun yang BARU mendaftar dan rolenya masih kosong untuk masuk Dropdown Pilihan
+  const availableNewUsers = useMemo(() => {
+    return users.filter((user) => !user.roles || user.roles.length === 0);
+  }, [users]);
+
   return (
     <DashboardLayout>
       <div className="mx-auto max-w-6xl space-y-6">
+        
+        {/* Header Section */}
         <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
           <div>
             <h1 className="font-heading text-2xl font-bold text-foreground">Role Management</h1>
             <p className="text-sm text-muted-foreground">Kelola hak akses penuh akun Admin, Staff, atau User lapangan.</p>
           </div>
           <div className="flex gap-2">
+            
+            {/* Dialog Create / Tambah Akses */}
             <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
               <DialogTrigger asChild>
                 <Button className="bg-primary hover:bg-primary/90 text-white flex items-center gap-2">
@@ -215,19 +223,24 @@ export default function RoleManagement() {
                   <DialogHeader>
                     <DialogTitle>Tambah Akses User</DialogTitle>
                     <DialogDescription>
-                      Masukkan User ID (UUID) dari pengguna yang sudah terdaftar untuk diberikan hak akses khusus.
+                      Pilih nama akun terdaftar di bawah ini untuk diberikan hak akses tim manajemen khusus.
                     </DialogDescription>
                   </DialogHeader>
                   <div className="grid gap-4 py-4">
                     <div className="grid gap-2">
-                      <Label htmlFor="userId">User ID (UUID)</Label>
-                      <Input
-                        id="userId"
-                        value={newUserId}
-                        onChange={(e) => setNewUserId(e.target.value)}
-                        placeholder="Contoh: 123e4567-e89b-12d3-a456-426614174000"
-                        required
-                      />
+                      <Label htmlFor="userSelect">Pilih Akun Pengguna</Label>
+                      <Select value={newUserId} onValueChange={setNewUserId}>
+                        <SelectTrigger id="userSelect">
+                          <SelectValue placeholder={availableNewUsers.length === 0 ? "Tidak ada pendaftar baru tersedia" : "Pilih akun..."} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {availableNewUsers.map((u) => (
+                            <SelectItem key={u.user_id} value={u.user_id}>
+                              {u.email}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
                     <div className="grid gap-2">
                       <Label htmlFor="role">Pilih Tingkat Akses (Role)</Label>
@@ -247,7 +260,7 @@ export default function RoleManagement() {
                     <Button type="button" variant="outline" onClick={() => setIsAddDialogOpen(false)}>
                       Batal
                     </Button>
-                    <Button type="submit" disabled={isCreating} className="bg-primary text-white">
+                    <Button type="submit" disabled={isCreating || availableNewUsers.length === 0} className="bg-primary text-white">
                       {isCreating ? "Menyimpan..." : "Simpan Akses"}
                     </Button>
                   </DialogFooter>
@@ -261,6 +274,7 @@ export default function RoleManagement() {
           </div>
         </div>
 
+        {/* Search Bar Container */}
         <div className="glass-card rounded-lg p-5">
           <div className="mb-4 flex items-center gap-2">
             <Search className="h-5 w-5 text-primary" />
@@ -276,6 +290,7 @@ export default function RoleManagement() {
           </div>
         </div>
 
+        {/* CRUD Table List */}
         <div className="glass-card overflow-hidden rounded-lg">
           <div className="flex items-center justify-between border-b border-border p-5">
             <div className="flex items-center gap-2">
