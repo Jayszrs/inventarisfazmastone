@@ -90,7 +90,9 @@ const formatDateInput = (date?: string) => {
 
 const generateInvoiceNumber = () => {
   const date = new Date();
-  return `INV/${String(date.getMonth() + 1).padStart(2, "0")}${String(date.getFullYear()).slice(-2)}/${String(Date.now()).slice(-5)}`;
+  const period = `${String(date.getMonth() + 1).padStart(2, "0")}${String(date.getFullYear()).slice(-2)}`;
+  const suffix = String(Date.now()).slice(-5).padStart(5, "0");
+  return `FZ/${period}/${suffix}`;
 };
 
 const generateDeliveryNumber = (invoiceNumber?: string) =>

@@ -242,7 +242,7 @@ export default function Dokumentasi() {
           <div className="grid gap-4 md:grid-cols-4">
             <div className="space-y-2 md:col-span-2">
               <Label>Cari Nomor Invoice / Nama Pelanggan</Label>
-              <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Contoh: INV/0526 atau nama pelanggan" />
+              <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Contoh: FZ/0526 atau nama pelanggan" />
             </div>
             <div className="space-y-2">
               <Label>Dari Tanggal</Label>

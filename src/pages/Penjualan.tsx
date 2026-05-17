@@ -80,7 +80,9 @@ export default function Penjualan() {
 
   const generateNoNota = () => {
     const d = new Date();
-    const no = `INV/${String(d.getMonth() + 1).padStart(2, "0")}${String(d.getFullYear()).slice(-2)}/${String(Date.now()).slice(-5)}`;
+    const period = `${String(d.getMonth() + 1).padStart(2, "0")}${String(d.getFullYear()).slice(-2)}`;
+    const suffix = String(Date.now()).slice(-5).padStart(5, "0");
+    const no = `FZ/${period}/${suffix}`;
     setFormData((prev) => ({ ...prev, no_nota: no }));
   };
 
