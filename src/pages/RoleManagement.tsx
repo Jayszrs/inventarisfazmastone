@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
+import { createClient } from "@supabase/supabase-js";
 import { 
   Dialog, 
   DialogContent, 
@@ -67,9 +68,10 @@ export default function RoleManagement() {
   const [loading, setLoading] = useState(true);
   const [savingUserId, setSavingUserId] = useState<string | null>(null);
 
-  // State untuk Form Create (Tambah Akses)
+  // State Form Pendaftaran Menggunakan Username & Password
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const [newUserId, setNewUserId] = useState("");
+  const [newUsername, setNewUsername] = useState("");
+  const [newPassword, setNewPassword] = useState("");
   const [newRole, setNewRole] = useState<AppRole>("staff");
   const [isCreating, setIsCreating] = useState(false);
 
@@ -77,7 +79,7 @@ export default function RoleManagement() {
     loadUsers();
   }, []);
 
-  // 1. READ: Memuat seluruh daftar user dari database
+  // 1. READ: Memuat seluruh daftar anggota tim
   const loadUsers = async () => {
     setLoading(true);
     try {
@@ -98,37 +100,77 @@ export default function RoleManagement() {
     }
   };
 
-  // 2. CREATE: Menambahkan baris hak akses baru menggunakan ID dari akun terpih
+  // 2. CREATE: Membuat Akun Karyawan Langsung via Username & Password
   const handleAddUserRole = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newUserId) {
-      toast({ title: "Silakan pilih akun terlebih dahulu", variant: "destructive" });
+    
+    const usernameClean = newUsername.trim();
+    const passwordClean = newPassword.trim();
+
+    if (!usernameClean || !passwordClean) {
+      toast({ title: "Username & Password wajib diisi!", variant: "destructive" });
+      return;
+    }
+
+    if (passwordClean.length < 6) {
+      toast({ title: "Password minimal harus 6 karakter!", variant: "destructive" });
       return;
     }
 
     setIsCreating(true);
     try {
-      const { error } = await supabase
+      // Mengubah username murni menjadi email internal agar Supabase menerimanya
+      const targetEmail = usernameClean.includes("@") 
+        ? usernameClean.toLowerCase() 
+        : `${usernameClean.toLowerCase()}@fazmastone.com`;
+
+      // Klien Supabase terisolasi agar admin tidak logout saat membuat user baru
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+      const isolatedClient = createClient(supabaseUrl, supabaseKey, {
+        auth: { persistSession: false }
+      });
+
+      // A. Daftarkan akun baru
+      const { data: authData, error: authError } = await isolatedClient.auth.signUp({
+        email: targetEmail,
+        password: passwordClean,
+      });
+
+      if (authError) throw authError;
+      if (!authData.user?.id) throw new Error("Gagal mengesahkan user ID.");
+
+      // B. Aktivasi instan ke server database agar user langsung lunas verifikasi email
+      try {
+        await (supabase as any).rpc("confirm_allowed_admin_email", { target_email: targetEmail });
+      } catch (confirmErr) {
+        console.warn("Aktivasi dilewati:", confirmErr);
+      }
+
+      // C. Simpan penetapan tingkatan hak akses/role-nya
+      const { error: roleError } = await supabase
         .from("user_roles")
         .insert({
-          user_id: newUserId,
+          user_id: authData.user.id,
           role: newRole
         });
 
-      if (error) throw error;
+      if (roleError) throw roleError;
 
       toast({
-        title: "Akses Berhasil Ditambahkan",
-        description: `Akun tersebut kini aktif sebagai anggota tim ${roleLabels[newRole]}.`,
+        title: "Karyawan Berhasil Ditambahkan",
+        description: `Akun "${usernameClean}" sukses terdaftar sebagai ${roleLabels[newRole]}.`,
       });
       
+      // Reset Form & Muat ulang tabel data
       setIsAddDialogOpen(false);
-      setNewUserId("");
-      loadUsers(); // Muat ulang tabel
+      setNewUsername("");
+      setNewPassword("");
+      loadUsers();
     } catch (error: any) {
       toast({
-        title: "Gagal menambahkan akses",
-        description: error.message,
+        title: "Gagal mendaftarkan user baru",
+        description: error.message || "Pastikan format isian sudah benar.",
         variant: "destructive",
       });
     } finally {
@@ -136,7 +178,7 @@ export default function RoleManagement() {
     }
   };
 
-  // 3. UPDATE: Mengubah hak akses menggunakan RPC
+  // 3. UPDATE: Mengubah hak jabatan user lama
   const updateRole = async (user: ManagedUser, role: AppRole) => {
     setSavingUserId(user.user_id);
     try {
@@ -159,7 +201,7 @@ export default function RoleManagement() {
     }
   };
 
-  // 4. DELETE: Mencabut hak akses menggunakan RPC admin_delete_user_role
+  // 4. DELETE: Mencabut akses total karyawan
   const handleDeleteUserRole = async (userId: string, email: string) => {
     try {
       const { error } = await (supabase as any).rpc("admin_delete_user_role", {
@@ -176,13 +218,13 @@ export default function RoleManagement() {
     } catch (error: any) {
       toast({
         title: "Gagal mencabut akses",
-        description: error.message || "Terjadi kesalahan pada server database.",
+        description: error.message || "Terjadi kesalahan server.",
         variant: "destructive",
       });
     }
   };
 
-  // Saring otomatis user aktif (punya role admin/staff) untuk tabel utama
+  // Filter tabel utama: Hanya tampilkan pengguna yang memiliki hak akses aktif
   const filteredUsers = useMemo(() => {
     const activeTeamMembers = users.filter((user) => user.roles && user.roles.length > 0);
 
@@ -193,11 +235,6 @@ export default function RoleManagement() {
       return `${user.email} ${role}`.toLowerCase().includes(query);
     });
   }, [users, search]);
-
-  // PILIHAN UTAMA: Saring akun yang BARU mendaftar dan rolenya masih kosong untuk masuk Dropdown Pilihan
-  const availableNewUsers = useMemo(() => {
-    return users.filter((user) => !user.roles || user.roles.length === 0);
-  }, [users]);
 
   return (
     <DashboardLayout>
@@ -211,7 +248,7 @@ export default function RoleManagement() {
           </div>
           <div className="flex gap-2">
             
-            {/* Dialog Create / Tambah Akses */}
+            {/* Dialog Form Tambah Karyawan Baru */}
             <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
               <DialogTrigger asChild>
                 <Button className="bg-primary hover:bg-primary/90 text-white flex items-center gap-2">
@@ -221,29 +258,36 @@ export default function RoleManagement() {
               <DialogContent className="sm:max-w-[425px]">
                 <form onSubmit={handleAddUserRole}>
                   <DialogHeader>
-                    <DialogTitle>Tambah Akses User</DialogTitle>
+                    <DialogTitle>Buat Akun Karyawan Baru</DialogTitle>
                     <DialogDescription>
-                      Pilih nama akun terdaftar di bawah ini untuk diberikan hak akses tim manajemen khusus.
+                      Daftarkan langsung karyawan/staf baru Anda dengan Username dan Password pilihan di bawah ini.
                     </DialogDescription>
                   </DialogHeader>
                   <div className="grid gap-4 py-4">
                     <div className="grid gap-2">
-                      <Label htmlFor="userSelect">Pilih Akun Pengguna</Label>
-                      <Select value={newUserId} onValueChange={setNewUserId}>
-                        <SelectTrigger id="userSelect">
-                          <SelectValue placeholder={availableNewUsers.length === 0 ? "Tidak ada pendaftar baru tersedia" : "Pilih akun..."} />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {availableNewUsers.map((u) => (
-                            <SelectItem key={u.user_id} value={u.user_id}>
-                              {u.email}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <Label htmlFor="username">Username</Label>
+                      <Input
+                        id="username"
+                        value={newUsername}
+                        onChange={(e) => setNewUsername(e.target.value)}
+                        placeholder="Contoh: Ziaulhaq"
+                        required
+                        autoComplete="off"
+                      />
                     </div>
                     <div className="grid gap-2">
-                      <Label htmlFor="role">Pilih Tingkat Akses (Role)</Label>
+                      <Label htmlFor="password">Password</Label>
+                      <Input
+                        id="password"
+                        type="password"
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        placeholder="Minimal 6 karakter (Contoh: ziaZia2468)"
+                        required
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="role">Tingkat Jabatan (Role)</Label>
                       <Select value={newRole} onValueChange={(value) => setNewRole(value as AppRole)}>
                         <SelectTrigger id="role">
                           <SelectValue placeholder="Pilih Role" />
@@ -260,8 +304,8 @@ export default function RoleManagement() {
                     <Button type="button" variant="outline" onClick={() => setIsAddDialogOpen(false)}>
                       Batal
                     </Button>
-                    <Button type="submit" disabled={isCreating || availableNewUsers.length === 0} className="bg-primary text-white">
-                      {isCreating ? "Menyimpan..." : "Simpan Akses"}
+                    <Button type="submit" disabled={isCreating} className="bg-primary text-white">
+                      {isCreating ? "Mendaftarkan..." : "Simpan Akses"}
                     </Button>
                   </DialogFooter>
                 </form>
@@ -274,23 +318,23 @@ export default function RoleManagement() {
           </div>
         </div>
 
-        {/* Search Bar Container */}
+        {/* Search Input */}
         <div className="glass-card rounded-lg p-5">
           <div className="mb-4 flex items-center gap-2">
             <Search className="h-5 w-5 text-primary" />
             <h2 className="font-heading text-lg font-semibold">Cari Anggota Tim</h2>
           </div>
           <div className="space-y-2">
-            <Label>Email atau Role</Label>
+            <Label>Email atau Role Karyawan</Label>
             <Input 
               value={search} 
               onChange={(event) => setSearch(event.target.value)} 
-              placeholder="Ketik email atau tingkatan role untuk menyaring data..." 
+              placeholder="Ketik kata kunci pencarian..." 
             />
           </div>
         </div>
 
-        {/* CRUD Table List */}
+        {/* Daftar User Table */}
         <div className="glass-card overflow-hidden rounded-lg">
           <div className="flex items-center justify-between border-b border-border p-5">
             <div className="flex items-center gap-2">
@@ -298,7 +342,7 @@ export default function RoleManagement() {
               <h2 className="font-heading text-lg font-semibold">Daftar Pengguna Sistem</h2>
             </div>
             <Badge variant="outline" className="border-primary/20 bg-primary/10 text-primary px-3 py-1">
-              {filteredUsers.length} Terdaftar
+              {filteredUsers.length} Orang
             </Badge>
           </div>
 
@@ -306,21 +350,21 @@ export default function RoleManagement() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Alamat Email</TableHead>
-                  <TableHead>Tanggal Bergabung</TableHead>
-                  <TableHead>Status Jabatan</TableHead>
-                  <TableHead className="w-48">Ubah Jabatan</TableHead>
+                  <TableHead>Akun Pengguna</TableHead>
+                  <TableHead>Tanggal Terdaftar</TableHead>
+                  <TableHead>Status Hak Akses</TableHead>
+                  <TableHead className="w-48">Ubah Akses</TableHead>
                   <TableHead className="w-24 text-center">Tindakan</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {loading ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">Memuat baris data tim...</TableCell>
+                    <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">Memuat data tim...</TableCell>
                   </TableRow>
                 ) : filteredUsers.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">Tidak ada user dengan role khusus ditemukan</TableCell>
+                    <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">Belum ada karyawan dengan hak akses khusus.</TableCell>
                   </TableRow>
                 ) : (
                   filteredUsers.map((user) => {
