@@ -49,34 +49,89 @@ TO authenticated
 USING (auth.uid() = user_id);
 
 -- Admins can inspect and manage roles from the app.
+CREATE OR REPLACE FUNCTION public.is_admin_user(_user_id uuid)
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public, auth
+AS $$
+  SELECT
+    public.has_role(_user_id, 'admin')
+    OR EXISTS (
+      SELECT 1
+      FROM auth.users
+      WHERE id = _user_id
+        AND lower(email) IN (
+          'saputrajaelani423@gmail.com',
+          'jaelanisurya8@gmail.com'
+        )
+    );
+$$;
+
+CREATE OR REPLACE FUNCTION public.claim_allowed_admin_role()
+RETURNS public.app_role
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, auth
+AS $$
+DECLARE
+  current_email text;
+BEGIN
+  SELECT lower(email)
+  INTO current_email
+  FROM auth.users
+  WHERE id = auth.uid();
+
+  IF current_email IN ('saputrajaelani423@gmail.com', 'jaelanisurya8@gmail.com') THEN
+    INSERT INTO public.user_roles (user_id, role)
+    VALUES (auth.uid(), 'admin')
+    ON CONFLICT (user_id, role) DO NOTHING;
+
+    RETURN 'admin';
+  END IF;
+
+  RETURN COALESCE(
+    (
+      SELECT role
+      FROM public.user_roles
+      WHERE user_id = auth.uid()
+      ORDER BY CASE role WHEN 'admin' THEN 1 WHEN 'staff' THEN 2 ELSE 3 END
+      LIMIT 1
+    ),
+    'user'
+  );
+END;
+$$;
+
 DROP POLICY IF EXISTS "Admins can view all user roles" ON public.user_roles;
 CREATE POLICY "Admins can view all user roles"
 ON public.user_roles
 FOR SELECT
 TO authenticated
-USING (public.has_role(auth.uid(), 'admin'));
+USING (public.is_admin_user(auth.uid()));
 
 DROP POLICY IF EXISTS "Admins can insert user roles" ON public.user_roles;
 CREATE POLICY "Admins can insert user roles"
 ON public.user_roles
 FOR INSERT
 TO authenticated
-WITH CHECK (public.has_role(auth.uid(), 'admin'));
+WITH CHECK (public.is_admin_user(auth.uid()));
 
 DROP POLICY IF EXISTS "Admins can update user roles" ON public.user_roles;
 CREATE POLICY "Admins can update user roles"
 ON public.user_roles
 FOR UPDATE
 TO authenticated
-USING (public.has_role(auth.uid(), 'admin'))
-WITH CHECK (public.has_role(auth.uid(), 'admin'));
+USING (public.is_admin_user(auth.uid()))
+WITH CHECK (public.is_admin_user(auth.uid()));
 
 DROP POLICY IF EXISTS "Admins can delete user roles" ON public.user_roles;
 CREATE POLICY "Admins can delete user roles"
 ON public.user_roles
 FOR DELETE
 TO authenticated
-USING (public.has_role(auth.uid(), 'admin'));
+USING (public.is_admin_user(auth.uid()));
 
 CREATE OR REPLACE FUNCTION public.admin_list_users_with_roles()
 RETURNS TABLE (
@@ -99,7 +154,7 @@ AS $$
     ) AS roles
   FROM auth.users u
   LEFT JOIN public.user_roles ur ON ur.user_id = u.id
-  WHERE public.has_role(auth.uid(), 'admin')
+  WHERE public.is_admin_user(auth.uid())
   GROUP BY u.id, u.email, u.created_at
   ORDER BY u.created_at DESC;
 $$;
@@ -114,8 +169,8 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 BEGIN
-  IF NOT public.has_role(auth.uid(), 'admin') THEN
-    RAISE EXCEPTION 'Only admins can manage user roles';
+  IF NOT public.is_admin_user(auth.uid()) THEN
+    RAISE EXCEPTION 'Hanya admin yang dapat mengakses daftar user';
   END IF;
 
   DELETE FROM public.user_roles
@@ -128,3 +183,5 @@ $$;
 
 GRANT EXECUTE ON FUNCTION public.admin_list_users_with_roles() TO authenticated;
 GRANT EXECUTE ON FUNCTION public.admin_set_user_role(uuid, public.app_role) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.claim_allowed_admin_role() TO authenticated;
+GRANT EXECUTE ON FUNCTION public.is_admin_user(uuid) TO authenticated;

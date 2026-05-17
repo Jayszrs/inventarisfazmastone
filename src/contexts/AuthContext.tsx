@@ -1,16 +1,15 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
+import { defaultRoleForEmail, isAdminEmail } from '@/lib/admin';
 
 export type AppRole = 'admin' | 'staff' | 'user';
 
-const ADMIN_EMAILS = ['saputrajaelani423@gmail.com'];
-
 const resolveRole = (roles: AppRole[], email?: string | null): AppRole => {
-  if (email && ADMIN_EMAILS.includes(email.toLowerCase())) return 'admin';
+  if (isAdminEmail(email)) return 'admin';
   if (roles.includes('admin')) return 'admin';
   if (roles.includes('staff')) return 'staff';
-  return 'user';
+  return defaultRoleForEmail(email);
 };
 
 interface AuthContextType {
@@ -44,6 +43,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!targetUserId) {
       setRole(null);
       return null;
+    }
+
+    if (isAdminEmail(targetEmail)) {
+      await (supabase as any).rpc('claim_allowed_admin_role');
     }
 
     const { data, error } = await supabase

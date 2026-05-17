@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import LOGO_URL from "@/assets/logo-fazma.png";
+import { defaultRoleForEmail, isAdminEmail } from "@/lib/admin";
 
 type AuthMode = "login" | "signup" | "reset";
 
@@ -25,9 +26,24 @@ export default function Login() {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
     } catch (error: any) {
-      toast({ title: "Login gagal", description: error.message, variant: "destructive" });
+      const invalidCredentials = String(error.message || "").toLowerCase().includes("invalid login credentials");
+      toast({
+        title: "Login gagal",
+        description: invalidCredentials
+          ? "Email/password salah, akun belum terdaftar, atau email belum diverifikasi. Coba Buat Akun atau gunakan Lupa Password."
+          : error.message,
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const createDefaultRole = async (userId: string) => {
+    const role = defaultRoleForEmail(email);
+    const { error } = await supabase.from("user_roles").insert({ user_id: userId, role });
+    if (error && !String(error.message).toLowerCase().includes("duplicate")) {
+      console.warn("Role bootstrap skipped:", error.message);
     }
   };
 
@@ -37,17 +53,25 @@ export default function Login() {
 
     try {
       const emailRedirectTo = `${window.location.origin}/`;
-      const { error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: { data: { full_name: name }, emailRedirectTo },
       });
 
       if (error) throw error;
+      if (data.user?.id) {
+        await createDefaultRole(data.user.id);
+      }
+      if (data.session && isAdminEmail(email)) {
+        await (supabase as any).rpc("claim_allowed_admin_role");
+      }
 
       toast({
         title: "Akun berhasil dibuat",
-        description: "Akun Anda terdaftar sebagai User. Hubungi admin untuk peningkatan akses.",
+        description: isAdminEmail(email)
+          ? "Akun admin berhasil dibuat. Jika login belum bisa, cek email verifikasi atau gunakan Lupa Password."
+          : "Akun Anda terdaftar sebagai User. Hubungi admin untuk peningkatan akses.",
       });
       setMode("login");
       setPassword("");

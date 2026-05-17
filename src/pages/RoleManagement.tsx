@@ -53,6 +53,7 @@ export default function RoleManagement() {
   const loadUsers = async () => {
     setLoading(true);
     try {
+      await (supabase as any).rpc("claim_allowed_admin_role");
       const { data, error } = await (supabase as any).rpc("admin_list_users_with_roles");
       if (error) throw error;
       setUsers((data || []) as ManagedUser[]);
