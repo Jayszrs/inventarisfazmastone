@@ -7,14 +7,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { defaultRoleForEmail } from "@/lib/admin";
 
-// PERBAIKAN: Menggunakan deklarasi variabel 'const' yang benar
-const LOGO_URL = "/Logo Fazma Stone Hitam.png";
+// LOGO DIJAGA TETAP ADA MENGGUNAKAN ASSET ASLI PROYEK ANDA
+import LOGO_URL from "@/assets/logo-fazma.png";
 
 type AuthMode = "login" | "signup";
 
 export default function Login() {
   const [mode, setMode] = useState<AuthMode>("login");
-  const [identifier, setIdentifier] = useState(""); // Bisa diisi username (admin) atau email biasa
+  const [identifier, setIdentifier] = useState(""); // Bisa diisi username murni atau email asli
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [loading, setLoading] = useState(false);
@@ -42,7 +42,7 @@ export default function Login() {
         return;
       }
 
-      // AUTO-CONFIRMATION BYPASS: Jika akun terdeteksi belum diaktivasi emailnya
+      // BYPASS AKTIVASI: Jika akun terdeteksi belum diaktivasi emailnya oleh database
       const errMsg = String(error.message || "").toLowerCase();
       if (errMsg.includes("confirm") || errMsg.includes("credentials")) {
         
@@ -52,7 +52,7 @@ export default function Login() {
         });
 
         if (confirmed) {
-          // Coba login ulang secara otomatis
+          // Coba login ulang secara otomatis dalam hitungan milidetik
           const retry = await supabase.auth.signInWithPassword({ email: targetEmail, password });
           if (!retry.error) {
             toast({
@@ -135,8 +135,9 @@ export default function Login() {
     <div className="flex min-h-screen items-center justify-center bg-background p-4 text-foreground">
       <div className="w-full max-w-md animate-fade-in">
         <div className="mb-8 text-center">
-          <p className="font-heading text-3xl font-extrabold tracking-tight text-primary">FAZMA STONE</p>
-          <p className="mt-2 text-sm text-muted-foreground">Sistem Transaksi & Keamanan Hak Akses Karyawan</p>
+          {/* LOGO UTAMA DIKEMBALIKAN UTUH DAN DIJAMIN TIDAK HILANG */}
+          <img src={LOGO_URL} alt="Fazma Stone" className="mx-auto h-20 w-auto object-contain" />
+          <p className="mt-3 text-sm text-muted-foreground">Sistem Transaksi & Keamanan Hak Akses Karyawan</p>
         </div>
 
         <div className="glass-card rounded-lg p-6 glow-primary">
@@ -212,23 +213,14 @@ export default function Login() {
                     minLength={6}
                   />
                 </div>
-                <CardButton type="submit" className="w-full bg-primary text-white hover:bg-primary/90" disabled={loading}>
+                <Button type="submit" className="w-full bg-primary text-white hover:bg-primary/90" disabled={loading}>
                   {loading ? "Mendaftarkan..." : "Buat Akun"}
-                </CardButton>
+                </Button>
               </form>
             </TabsContent>
           </Tabs>
         </div>
       </div>
     </div>
-  );
-}
-
-// Komponen mini pembantu tombol agar kompatibel dengan layout shadcn
-function CardButton({ children, className, ...props }: React.ComponentProps<typeof Button>) {
-  return (
-    <Button className={className} {...props}>
-      {children}
-    </Button>
   );
 }
