@@ -6,9 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
-import Inventaris from "./pages/Inventaris";
-import Penjualan from "./pages/Penjualan";
-import Nota from "./pages/Nota";
+import Invoice from "./pages/Invoice";
 import Dokumentasi from "./pages/Dokumentasi";
 import NotFound from "./pages/NotFound";
 
@@ -44,9 +42,7 @@ const App = () => (
           <Routes>
             <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
             <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-            <Route path="/inventaris" element={<ProtectedRoute><Inventaris /></ProtectedRoute>} />
-            <Route path="/penjualan" element={<ProtectedRoute><Penjualan /></ProtectedRoute>} />
-            <Route path="/nota" element={<ProtectedRoute><Nota /></ProtectedRoute>} />
+            <Route path="/invoice" element={<ProtectedRoute><Invoice /></ProtectedRoute>} />
             <Route path="/dokumentasi" element={<ProtectedRoute><Dokumentasi /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>

@@ -6,26 +6,26 @@
 
 @layer base {
   :root {
-    --background: 235 30% 6%;
-    --foreground: 230 20% 92%;
+    --background: 0 0% 100%;
+    --foreground: 142 70% 10%;
 
-    --card: 235 28% 10%;
-    --card-foreground: 230 20% 92%;
+    --card: 0 0% 98%;
+    --card-foreground: 142 70% 10%;
 
-    --popover: 235 28% 10%;
-    --popover-foreground: 230 20% 92%;
+    --popover: 0 0% 98%;
+    --popover-foreground: 142 70% 10%;
 
-    --primary: 239 84% 67%;
+    --primary: 142 72% 29%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 235 25% 16%;
-    --secondary-foreground: 230 20% 85%;
+    --secondary: 142 20% 95%;
+    --secondary-foreground: 142 70% 10%;
 
-    --muted: 235 20% 14%;
-    --muted-foreground: 230 15% 55%;
+    --muted: 142 10% 95%;
+    --muted-foreground: 142 15% 40%;
 
-    --accent: 235 25% 18%;
-    --accent-foreground: 230 20% 92%;
+    --accent: 142 25% 92%;
+    --accent-foreground: 142 70% 10%;
 
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
@@ -36,28 +36,79 @@
     --warning: 38 92% 50%;
     --warning-foreground: 0 0% 0%;
 
-    --border: 235 20% 18%;
-    --input: 235 20% 18%;
-    --ring: 239 84% 67%;
+    --border: 142 15% 90%;
+    --input: 142 15% 90%;
+    --ring: 142 72% 29%;
 
     --radius: 0.75rem;
 
-    --sidebar-background: 235 30% 8%;
-    --sidebar-foreground: 230 15% 70%;
-    --sidebar-primary: 239 84% 67%;
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 142 25% 24%;
+    --sidebar-primary: 142 72% 29%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 235 25% 14%;
-    --sidebar-accent-foreground: 230 20% 92%;
-    --sidebar-border: 235 20% 15%;
-    --sidebar-ring: 239 84% 67%;
+    --sidebar-accent: 142 25% 92%;
+    --sidebar-accent-foreground: 142 70% 10%;
+    --sidebar-border: 142 15% 90%;
+    --sidebar-ring: 142 72% 29%;
 
-    --chart-1: 239 84% 67%;
-    --chart-2: 142 71% 45%;
+    --chart-1: 142 72% 29%;
+    --chart-2: 160 84% 39%;
     --chart-3: 38 92% 50%;
-    --chart-4: 330 80% 60%;
-    --chart-5: 200 80% 55%;
+    --chart-4: 173 80% 40%;
+    --chart-5: 110 60% 42%;
 
     font-family: 'Manrope', sans-serif;
+  }
+
+  .dark {
+    --background: 142 30% 4%;
+    --foreground: 142 20% 95%;
+
+    --card: 142 25% 7%;
+    --card-foreground: 142 20% 95%;
+
+    --popover: 142 25% 7%;
+    --popover-foreground: 142 20% 95%;
+
+    --primary: 142 71% 45%;
+    --primary-foreground: 0 0% 0%;
+
+    --secondary: 142 20% 12%;
+    --secondary-foreground: 142 20% 95%;
+
+    --muted: 142 15% 12%;
+    --muted-foreground: 142 10% 65%;
+
+    --accent: 142 20% 12%;
+    --accent-foreground: 142 20% 95%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+
+    --success: 142 71% 45%;
+    --success-foreground: 0 0% 0%;
+
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 0%;
+
+    --border: 142 15% 15%;
+    --input: 142 15% 15%;
+    --ring: 142 71% 45%;
+
+    --sidebar-background: 142 25% 6%;
+    --sidebar-foreground: 142 10% 72%;
+    --sidebar-primary: 142 71% 45%;
+    --sidebar-primary-foreground: 0 0% 0%;
+    --sidebar-accent: 142 20% 12%;
+    --sidebar-accent-foreground: 142 20% 95%;
+    --sidebar-border: 142 15% 15%;
+    --sidebar-ring: 142 71% 45%;
+
+    --chart-1: 142 71% 45%;
+    --chart-2: 160 84% 45%;
+    --chart-3: 38 92% 50%;
+    --chart-4: 173 80% 45%;
+    --chart-5: 110 60% 55%;
   }
 }
 
@@ -77,7 +128,7 @@
 
 @layer utilities {
   .glass-card {
-    @apply bg-card/80 backdrop-blur-xl border border-border/50 shadow-lg;
+    @apply bg-card/80 backdrop-blur-xl border border-border/70 shadow-lg shadow-primary/5;
   }
 
   .glow-primary {
@@ -85,14 +136,60 @@
   }
 
   .gradient-primary {
-    background: linear-gradient(135deg, hsl(var(--primary)), hsl(260 70% 55%));
+    background: linear-gradient(135deg, hsl(var(--primary)), hsl(160 84% 52%));
   }
 
   .gradient-text {
-    background: linear-gradient(135deg, hsl(var(--primary)), hsl(200 80% 65%));
+    background: linear-gradient(135deg, hsl(var(--primary)), hsl(160 84% 52%));
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
+  }
+}
+
+.print-area {
+  display: none;
+}
+
+@media print {
+  @page {
+    size: A4;
+    margin: 10mm;
+  }
+
+  html,
+  body {
+    background: white !important;
+  }
+
+  body * {
+    visibility: hidden !important;
+  }
+
+  .print-area,
+  .print-area * {
+    visibility: visible !important;
+  }
+
+  .print-area {
+    display: block !important;
+    position: absolute !important;
+    inset: 0 auto auto 0 !important;
+    width: 100% !important;
+    min-height: 100vh !important;
+    background: white !important;
+    color: #111827 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    z-index: 9999 !important;
+  }
+
+  .no-print,
+  [data-sidebar],
+  header,
+  nav,
+  button {
+    display: none !important;
   }
 }
 

@@ -1,11 +1,8 @@
 import {
   LayoutDashboard,
-  Package,
-  ShoppingCart,
   FileText,
   FolderOpen,
   LogOut,
-  Settings,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
@@ -25,9 +22,7 @@ import {
 
 const menuItems = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard },
-  { title: "Inventaris", url: "/inventaris", icon: Package },
-  { title: "Penjualan", url: "/penjualan", icon: ShoppingCart },
-  { title: "Nota", url: "/nota", icon: FileText },
+  { title: "Invoice", url: "/invoice", icon: FileText },
   { title: "Dokumentasi", url: "/dokumentasi", icon: FolderOpen },
 ];
 
