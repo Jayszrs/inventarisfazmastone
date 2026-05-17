@@ -3,7 +3,9 @@ import { DashboardLayout } from "@/components/DashboardLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Printer, Eye, CheckCircle2, Clock, AlertCircle } from "lucide-react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
 
 // Menggunakan encodeURI untuk menangani spasi pada nama file di folder public
 const LOGO_URL = encodeURI("/Logo Fazma Stone Hitam.png"); 
@@ -20,27 +22,49 @@ interface TransaksiDetail {
   metode_pembayaran: string;
   status: string;
   created_at: string;
-  items: { nama_barang: string; jumlah: number; harga: number }[];
+  nama_pelanggan?: string;
+  items: { nama_barang: string; jumlah: number; harga: number; ukuran?: string }[];
 }
 
 export default function Nota() {
-  const [transaksi, setTransaksi] = useState<any[]>([]);
+  const [transaksiList, setTransaksiList] = useState<any[]>([]);
   const [selectedNota, setSelectedNota] = useState<TransaksiDetail | null>(null);
   const [open, setOpen] = useState(false);
   const printRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => { loadTransaksi(); }, []);
+  useEffect(() => { 
+    loadTransaksi(); 
+
+    // Real-time subscription untuk otomatis me-refresh tabel saat ada insert baru dari kasir/penjualan
+    const channel = supabase
+      .channel('schema-db-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'transaksi'
+        },
+        () => {
+          loadTransaksi();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
 
   const loadTransaksi = async () => {
     const { data } = await supabase.from("transaksi").select("*").order("created_at", { ascending: false });
-    setTransaksi(data || []);
+    setTransaksiList(data || []);
   };
 
-  const getPaymentStatus = (total: number, bayar: number) => {
-    const paid = bayar || 0;
-    if (paid === 0) return { label: "Belum Bayar", color: "bg-red-100 text-red-700", icon: <AlertCircle size={12} /> };
-    if (paid < total) return { label: "Setengah / DP", color: "bg-orange-100 text-orange-700", icon: <Clock size={12} /> };
-    return { label: "Lunas", color: "bg-green-100 text-green-700", icon: <CheckCircle2 size={12} /> };
+  const getPaymentStatus = (status: string, total: number, bayar: number) => {
+    if (status === 'lunas' || bayar >= total) return { label: "Lunas", icon: <CheckCircle2 className="w-3 h-3 mr-1" />, color: "bg-green-100 text-green-700 hover:bg-green-200 border-none" };
+    if (status === 'dp' || (bayar > 0 && bayar < total)) return { label: "Piutang / DP", icon: <Clock className="w-3 h-3 mr-1" />, color: "bg-orange-100 text-orange-700 hover:bg-orange-200 border-none" };
+    return { label: "Belum Bayar", icon: <AlertCircle className="w-3 h-3 mr-1" />, color: "bg-red-100 text-red-700 hover:bg-red-200 border-none" };
   };
 
   const viewNota = async (t: any) => {
@@ -51,10 +75,13 @@ export default function Nota() {
 
     setSelectedNota({
       ...t,
+      // Fallback jika nama_pelanggan undefined / belum ada di schema
+      nama_pelanggan: t.nama_pelanggan || "PELANGGAN", 
       items: (details || []).map((d: any) => ({
         nama_barang: d.barang?.nama_barang || "Unknown",
         jumlah: d.jumlah,
         harga: d.harga,
+        ukuran: d.ukuran || "-", // Menangani ekstensi schema
       })),
     });
     setOpen(true);
@@ -106,7 +133,7 @@ export default function Nota() {
 
     printWindow.document.close();
     
-    // Memberikan waktu lebih lama (1.5 detik) agar gambar benar-benar termuat sebelum print
+    // Memberikan waktu agar gambar termuat sebelum print dialog muncul
     setTimeout(() => {
       printWindow.focus();
       printWindow.print();
@@ -118,49 +145,73 @@ export default function Nota() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
-        <div className="flex justify-between items-center">
-          <div>
-            <h1 className="text-2xl font-heading font-bold text-teal-900 tracking-tight">Nota & Invoice</h1>
-            <p className="text-muted-foreground text-sm">Kelola riwayat pembayaran Fazma Stone</p>
-          </div>
+      <div className="space-y-6 max-w-6xl mx-auto">
+        <div>
+          <h1 className="text-2xl font-heading font-bold text-teal-900 tracking-tight">Tabel Utama Invoice</h1>
+          <p className="text-muted-foreground text-sm">Riwayat penjualan dan nota pembayaran Fazma Stone</p>
         </div>
 
-        {/* Grid List Invoice */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-          {transaksi.map((t) => {
-            const status = getPaymentStatus(t.total, t.jumlah_bayar);
-            return (
-              <div 
-                key={t.id} 
-                className="bg-white border border-slate-200 rounded-2xl p-6 hover:shadow-md hover:border-teal-400 transition-all cursor-pointer group shadow-sm" 
-                onClick={() => viewNota(t)}
-              >
-                <div className="flex justify-between items-start mb-5">
-                  <div className="bg-teal-50 px-3 py-1 rounded-lg">
-                    <span className="text-xs font-mono font-bold text-teal-700">{t.nomor_invoice}</span>
-                  </div>
-                  <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider ${status.color}`}>
-                    {status.label}
-                  </span>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-2xl font-bold text-slate-800 group-hover:text-teal-700 transition-colors">
-                    {formatCurrency(t.total)}
-                  </p>
-                  <p className="text-[12px] text-slate-400 flex items-center gap-1">
-                    <Clock size={12} />
-                    {new Date(t.created_at).toLocaleDateString("id-ID", { day: '2-digit', month: 'long', year: 'numeric' })}
-                  </p>
-                </div>
-              </div>
-            );
-          })}
+        {/* Tabel Utama Riwayat Invoice */}
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader className="bg-slate-50 border-b border-slate-200">
+                <TableRow>
+                  <TableHead className="w-16 text-center">No</TableHead>
+                  <TableHead>No. Nota / Invoice</TableHead>
+                  <TableHead>Tanggal</TableHead>
+                  <TableHead>Nama Pelanggan</TableHead>
+                  <TableHead className="text-right">Total Pembayaran</TableHead>
+                  <TableHead className="text-center">Status</TableHead>
+                  <TableHead className="text-center w-28">Aksi</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {transaksiList.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={7} className="text-center h-40 text-slate-500">
+                      Belum ada riwayat invoice ditemukan
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  transaksiList.map((t, index) => {
+                    const status = getPaymentStatus(t.status, t.total, t.jumlah_bayar);
+                    return (
+                      <TableRow key={t.id} className="hover:bg-slate-50/50 transition-colors">
+                        <TableCell className="text-center text-slate-500">{index + 1}</TableCell>
+                        <TableCell className="font-mono font-medium text-teal-700">{t.nomor_invoice}</TableCell>
+                        <TableCell>{new Date(t.created_at).toLocaleDateString("id-ID", { day: '2-digit', month: 'short', year: 'numeric' })}</TableCell>
+                        <TableCell className="font-medium text-slate-700">{t.nama_pelanggan || "PELANGGAN"}</TableCell>
+                        <TableCell className="text-right font-bold text-slate-800">{formatCurrency(t.total)}</TableCell>
+                        <TableCell className="text-center">
+                          <Badge variant="outline" className={\`\${status.color} px-2.5 py-0.5 whitespace-nowrap\`}>
+                            <span className="flex items-center">
+                              {status.icon} {status.label}
+                            </span>
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <div className="flex justify-center gap-2">
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-teal-600 hover:text-teal-800 hover:bg-teal-50" onClick={() => viewNota(t)} title="Lihat Detail">
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-600 hover:text-slate-800 hover:bg-slate-100" onClick={() => { viewNota(t); setTimeout(handlePrint, 500); }} title="Cetak Nota">
+                              <Printer className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
+                )}
+              </TableBody>
+            </Table>
+          </div>
         </div>
 
         {/* Dialog / Modal Detail Nota */}
         <Dialog open={open} onOpenChange={setOpen}>
-          <DialogContent className="max-w-4xl max-h-[95vh] overflow-y-auto p-0 border-none rounded-3xl shadow-2xl">
+          <DialogContent className="max-w-4xl max-h-[95vh] overflow-y-auto p-0 border-none rounded-3xl shadow-2xl bg-white">
             <div className="p-10 sm:p-14 bg-white" ref={printRef}>
               {/* Header */}
               <div className="header flex justify-between items-start mb-8">
@@ -184,7 +235,7 @@ export default function Nota() {
               <div className="bill-section flex justify-between mb-8 border-y-2 border-teal-700 py-4">
                 <div>
                   <h4 className="bill-to-label text-teal-700 font-bold uppercase text-xs">Bill To</h4>
-                  <p className="font-bold text-lg text-slate-900">PELANGGAN</p>
+                  <p className="font-bold text-lg text-slate-900 uppercase">{selectedNota?.nama_pelanggan || "PELANGGAN"}</p>
                 </div>
                 <div className="text-right text-xs space-y-1.5">
                   <p><span className="text-teal-700 font-bold">Invoice No :</span> <span className="font-mono text-slate-600">{selectedNota?.nomor_invoice}</span></p>
@@ -198,6 +249,7 @@ export default function Nota() {
                   <tr>
                     <th className="w-12 text-center rounded-tl-lg">Sl.</th>
                     <th>Description</th>
+                    <th className="text-center">Size</th>
                     <th className="text-right">Qty</th>
                     <th className="text-right">Rate</th>
                     <th className="text-right rounded-tr-lg">Amount</th>
@@ -208,6 +260,7 @@ export default function Nota() {
                     <tr key={i} className="border-b border-slate-100">
                       <td className="text-center text-slate-400 font-mono">{i + 1}</td>
                       <td className="font-medium text-slate-700">{item.nama_barang}</td>
+                      <td className="text-center text-slate-500">{item.ukuran}</td>
                       <td className="text-right">{item.jumlah}</td>
                       <td className="text-right">{formatCurrency(item.harga)}</td>
                       <td className="text-right font-semibold">{formatCurrency(item.harga * item.jumlah)}</td>
@@ -242,7 +295,7 @@ export default function Nota() {
                   </div>
                   <div className="flex justify-between text-md font-bold text-teal-600 bg-teal-50 px-3 py-1 rounded-lg">
                     <span>Balance Due</span>
-                    <span>{formatCurrency((selectedNota?.total || 0) - (selectedNota?.jumlah_bayar || 0))}</span>
+                    <span>{formatCurrency(Math.max(0, (selectedNota?.total || 0) - (selectedNota?.jumlah_bayar || 0)))}</span>
                   </div>
                 </div>
               </div>

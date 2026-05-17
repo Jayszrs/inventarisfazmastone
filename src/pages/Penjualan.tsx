@@ -5,295 +5,359 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
-import { Plus, ShoppingCart, Trash2 } from "lucide-react";
+import { Plus, Save, Trash2 } from "lucide-react";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
-interface Barang {
+export interface Product {
   id: string;
-  nama_barang: string;
-  harga_jual: number;
+  nama_produk: string;
+  jenis_batu: string;
+  ukuran: string;
   stok: number;
+  harga_default: number;
 }
 
-interface CartItem {
-  barang: Barang;
-  jumlah: number;
+export interface InvoiceItem {
+  id_produk: string;
+  nama_produk: string;
+  ukuran: string;
+  kuantitas: number;
+  harga_satuan: number;
+  subtotal: number;
+}
+
+export interface InvoiceForm {
+  no_nota: string;
+  tanggal_transaksi: string;
+  nama_pelanggan: string;
+  metode_pembayaran: string;
+  status_pembayaran: string;
 }
 
 export default function Penjualan() {
-  const [barangList, setBarangList] = useState<Barang[]>([]);
-  const [cart, setCart] = useState<CartItem[]>([]);
-  const [selectedBarang, setSelectedBarang] = useState("");
-  const [jumlah, setJumlah] = useState(1);
-  const [diskon, setDiskon] = useState(0);
-  const [pajak, setPajak] = useState(0);
-  const [metodePembayaran, setMetodePembayaran] = useState("cash");
-  const [statusBayar, setStatusBayar] = useState<"belum_bayar" | "dp" | "lunas">("lunas");
-  const [jumlahBayar, setJumlahBayar] = useState(0);
-  const [open, setOpen] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [transaksiList, setTransaksiList] = useState<any[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [invoiceItems, setInvoiceItems] = useState<InvoiceItem[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
   const { user } = useAuth();
 
+  // Master Form State
+  const [formData, setFormData] = useState<InvoiceForm>({
+    no_nota: "",
+    tanggal_transaksi: new Date().toISOString().split("T")[0],
+    nama_pelanggan: "",
+    metode_pembayaran: "cash",
+    status_pembayaran: "lunas",
+  });
+
+  // Detail Item State
+  const [selectedProductId, setSelectedProductId] = useState<string>("");
+  const [itemUkuran, setItemUkuran] = useState<string>("");
+  const [itemKuantitas, setItemKuantitas] = useState<number>(1);
+  const [itemHarga, setItemHarga] = useState<number>(0);
+
   useEffect(() => {
-    loadBarang();
-    loadTransaksi();
+    loadProducts();
+    generateNoNota();
   }, []);
 
-  const loadBarang = async () => {
-    const { data } = await supabase.from("barang").select("id, nama_barang, harga_jual, stok").gt("stok", 0);
-    setBarangList(data || []);
-  };
-
-  const loadTransaksi = async () => {
-    const { data } = await supabase.from("transaksi").select("*").order("created_at", { ascending: false }).limit(20);
-    setTransaksiList(data || []);
-  };
-
-  const addToCart = () => {
-    const b = barangList.find((x) => x.id === selectedBarang);
-    if (!b) return;
-    const existing = cart.find((c) => c.barang.id === b.id);
-    if (existing) {
-      setCart(cart.map((c) => c.barang.id === b.id ? { ...c, jumlah: c.jumlah + jumlah } : c));
-    } else {
-      setCart([...cart, { barang: b, jumlah }]);
+  const loadProducts = async () => {
+    const { data, error } = await supabase.from("barang").select("*").gt("stok", 0);
+    if (data) {
+      const mapped: Product[] = data.map((b) => ({
+        id: b.id,
+        nama_produk: b.nama_barang,
+        jenis_batu: b.kategori || "-",
+        ukuran: "Custom", // default fallback
+        stok: b.stok,
+        harga_default: b.harga_jual,
+      }));
+      setProducts(mapped);
     }
-    setSelectedBarang("");
-    setJumlah(1);
   };
 
-  const removeFromCart = (id: string) => setCart(cart.filter((c) => c.barang.id !== id));
+  const generateNoNota = () => {
+    const d = new Date();
+    const no = `INV/${String(d.getMonth() + 1).padStart(2, "0")}${String(d.getFullYear()).slice(-2)}/${String(Date.now()).slice(-5)}`;
+    setFormData((prev) => ({ ...prev, no_nota: no }));
+  };
 
-  const subtotal = cart.reduce((s, c) => s + c.barang.harga_jual * c.jumlah, 0);
-  const diskonAmount = subtotal * (diskon / 100);
-  const pajakAmount = (subtotal - diskonAmount) * (pajak / 100);
-  const total = subtotal - diskonAmount + pajakAmount;
+  const handleProductSelect = (val: string) => {
+    setSelectedProductId(val);
+    const prod = products.find((p) => p.id === val);
+    if (prod) {
+      setItemUkuran(prod.ukuran);
+      setItemHarga(prod.harga_default);
+      setItemKuantitas(1);
+    }
+  };
+
+  const handleAddItem = () => {
+    if (!selectedProductId) {
+      toast({ title: "Validasi Gagal", description: "Pilih produk terlebih dahulu", variant: "destructive" });
+      return;
+    }
+    if (itemKuantitas <= 0 || itemHarga <= 0) {
+      toast({ title: "Validasi Gagal", description: "Kuantitas dan Harga harus lebih dari 0", variant: "destructive" });
+      return;
+    }
+
+    const prod = products.find((p) => p.id === selectedProductId);
+    if (!prod) return;
+
+    const newItem: InvoiceItem = {
+      id_produk: prod.id,
+      nama_produk: prod.nama_produk,
+      ukuran: itemUkuran,
+      kuantitas: itemKuantitas,
+      harga_satuan: itemHarga,
+      subtotal: itemKuantitas * itemHarga,
+    };
+
+    setInvoiceItems([...invoiceItems, newItem]);
+    
+    // Reset form item
+    setSelectedProductId("");
+    setItemUkuran("");
+    setItemKuantitas(1);
+    setItemHarga(0);
+  };
+
+  const handleRemoveItem = (index: number) => {
+    const newItems = [...invoiceItems];
+    newItems.splice(index, 1);
+    setInvoiceItems(newItems);
+  };
+
+  const grandTotal = invoiceItems.reduce((acc, curr) => acc + curr.subtotal, 0);
 
   const formatCurrency = (n: number) =>
     new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0 }).format(n);
 
-  const handleCheckout = async () => {
-    if (cart.length === 0) return;
-    setLoading(true);
+  const handleSubmitNota = async () => {
+    if (!formData.nama_pelanggan.trim()) {
+      toast({ title: "Validasi Gagal", description: "Nama Pelanggan wajib diisi", variant: "destructive" });
+      return;
+    }
+    if (invoiceItems.length === 0) {
+      toast({ title: "Validasi Gagal", description: "Keranjang masih kosong. Tambahkan minimal 1 item.", variant: "destructive" });
+      return;
+    }
+
+    setIsSubmitting(true);
     try {
-      const d = new Date();
-      const nomorInvoice = `FZ/${String(d.getMonth() + 1).padStart(2, "0")}${String(d.getFullYear()).slice(-2)}/${String(Date.now()).slice(-5)}`;
-      const bayar = statusBayar === "lunas" ? total : statusBayar === "belum_bayar" ? 0 : jumlahBayar;
-      const { data: transaksi, error: tErr } = await supabase.from("transaksi").insert({
-        nomor_invoice: nomorInvoice,
-        total,
-        subtotal,
-        diskon,
-        pajak,
-        metode_pembayaran: metodePembayaran,
-        status: statusBayar,
-        jumlah_bayar: bayar,
+      // Langkah 1 & 2: Insert Master
+      const jumlah_bayar = formData.status_pembayaran === "lunas" ? grandTotal : 0; 
+
+      const payloadMaster = {
+        nomor_invoice: formData.no_nota,
+        total: grandTotal,
+        subtotal: grandTotal,
+        diskon: 0,
+        pajak: 0,
+        metode_pembayaran: formData.metode_pembayaran,
+        status: formData.status_pembayaran,
+        jumlah_bayar,
         user_id: user?.id,
-      }).select().single();
+        nama_pelanggan: formData.nama_pelanggan
+      };
 
-      if (tErr) throw tErr;
+      const { data: transaksi, error: masterErr } = await supabase
+        .from("transaksi")
+        .insert(payloadMaster as any) // Type assertion ke any agar mendukung penambahan kolom baru
+        .select()
+        .single();
 
-      const details = cart.map((c) => ({
+      if (masterErr) throw masterErr;
+
+      // Langkah 3: Map Item
+      const details = invoiceItems.map((item) => ({
         transaksi_id: transaksi.id,
-        barang_id: c.barang.id,
-        jumlah: c.jumlah,
-        harga: c.barang.harga_jual,
+        barang_id: item.id_produk,
+        jumlah: item.kuantitas,
+        harga: item.harga_satuan,
+        ukuran: item.ukuran
       }));
-      const { error: dErr } = await supabase.from("detail_transaksi").insert(details);
-      if (dErr) throw dErr;
 
-      // Update stock
-      for (const c of cart) {
-        await supabase.from("barang").update({ stok: c.barang.stok - c.jumlah }).eq("id", c.barang.id);
+      // Langkah 4: Bulk Insert Detail
+      const { error: detailErr } = await supabase.from("detail_transaksi").insert(details as any);
+      if (detailErr) throw detailErr;
+
+      // Update Stock 
+      for (const item of invoiceItems) {
+        const prod = products.find(p => p.id === item.id_produk);
+        if (prod) {
+          await supabase.from("barang").update({ stok: prod.stok - item.kuantitas }).eq("id", item.id_produk);
+        }
       }
 
-      toast({ title: "Transaksi & Invoice Dibuat!", description: `Invoice: ${nomorInvoice}` });
-      setCart([]);
-      setDiskon(0);
-      setPajak(0);
-      setStatusBayar("lunas");
-      setJumlahBayar(0);
-      setOpen(false);
-      loadBarang();
-      loadTransaksi();
+      toast({ title: "Berhasil", description: `Nota ${formData.no_nota} berhasil disimpan.` });
+      
+      // Reset State
+      generateNoNota();
+      setFormData(prev => ({ ...prev, nama_pelanggan: "", status_pembayaran: "lunas" }));
+      setInvoiceItems([]);
+      loadProducts();
     } catch (error: any) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      toast({ title: "Gagal Menyimpan Nota", description: error.message, variant: "destructive" });
     } finally {
-      setLoading(false);
+      setIsSubmitting(false);
     }
   };
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-heading font-bold">Penjualan</h1>
-            <p className="text-muted-foreground">Buat transaksi penjualan baru</p>
-          </div>
-          <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>
-              <Button className="gradient-primary text-primary-foreground">
-                <Plus className="mr-2 h-4 w-4" /> Transaksi Baru
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="bg-card border-border max-w-2xl max-h-[90vh] overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle className="font-heading">Transaksi Baru</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4">
-                {/* Add item */}
-                <div className="flex gap-2">
-                  <Select value={selectedBarang} onValueChange={setSelectedBarang}>
-                    <SelectTrigger className="flex-1 bg-secondary border-border">
-                      <SelectValue placeholder="Pilih barang" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-card border-border">
-                      {barangList.map((b) => (
-                        <SelectItem key={b.id} value={b.id}>{b.nama_barang} ({b.stok})</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <Input type="number" value={jumlah} onChange={(e) => setJumlah(parseInt(e.target.value) || 1)} min={1} className="w-20 bg-secondary border-border" />
-                  <Button onClick={addToCart} disabled={!selectedBarang} variant="secondary">
-                    <Plus className="h-4 w-4" />
-                  </Button>
-                </div>
-
-                {/* Cart */}
-                {cart.length > 0 && (
-                  <div className="border border-border rounded-lg overflow-hidden">
-                    <table className="w-full text-sm">
-                      <thead>
-                        <tr className="border-b border-border bg-secondary/50">
-                          <th className="text-left p-3">Barang</th>
-                          <th className="text-right p-3">Harga</th>
-                          <th className="text-right p-3">Qty</th>
-                          <th className="text-right p-3">Total</th>
-                          <th className="p-3"></th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {cart.map((c) => (
-                          <tr key={c.barang.id} className="border-b border-border/50">
-                            <td className="p-3">{c.barang.nama_barang}</td>
-                            <td className="p-3 text-right">{formatCurrency(c.barang.harga_jual)}</td>
-                            <td className="p-3 text-right">{c.jumlah}</td>
-                            <td className="p-3 text-right">{formatCurrency(c.barang.harga_jual * c.jumlah)}</td>
-                            <td className="p-3">
-                              <Button variant="ghost" size="icon" onClick={() => removeFromCart(c.barang.id)} className="h-7 w-7 text-destructive">
-                                <Trash2 className="h-3 w-3" />
-                              </Button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-
-                {/* Totals */}
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <Label>Diskon (%)</Label>
-                    <Input type="number" value={diskon} onChange={(e) => setDiskon(parseFloat(e.target.value) || 0)} min={0} max={100} className="bg-secondary border-border mt-1" />
-                  </div>
-                  <div>
-                    <Label>Pajak (%)</Label>
-                    <Input type="number" value={pajak} onChange={(e) => setPajak(parseFloat(e.target.value) || 0)} min={0} className="bg-secondary border-border mt-1" />
-                  </div>
-                </div>
-
-                <div>
-                  <Label>Metode Pembayaran</Label>
-                  <Select value={metodePembayaran} onValueChange={setMetodePembayaran}>
-                    <SelectTrigger className="bg-secondary border-border mt-1">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent className="bg-card border-border">
-                      <SelectItem value="cash">Cash</SelectItem>
-                      <SelectItem value="transfer">Transfer</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div>
-                  <Label>Status Pembayaran</Label>
-                  <Select value={statusBayar} onValueChange={(v: any) => { setStatusBayar(v); if (v === "lunas") setJumlahBayar(total); else if (v === "belum_bayar") setJumlahBayar(0); }}>
-                    <SelectTrigger className="bg-secondary border-border mt-1">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent className="bg-card border-border">
-                      <SelectItem value="belum_bayar">Belum Bayar</SelectItem>
-                      <SelectItem value="dp">DP / Setengah</SelectItem>
-                      <SelectItem value="lunas">Lunas</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {statusBayar === "dp" && (
-                  <div>
-                    <Label>Jumlah Dibayar (DP)</Label>
-                    <Input type="number" value={jumlahBayar} onChange={(e) => setJumlahBayar(parseFloat(e.target.value) || 0)} min={0} max={total} className="bg-secondary border-border mt-1" />
-                    <p className="text-xs text-muted-foreground mt-1">Sisa: {formatCurrency(Math.max(0, total - jumlahBayar))}</p>
-                  </div>
-                )}
-
-                <div className="glass-card rounded-lg p-4 space-y-2">
-                  <div className="flex justify-between text-sm"><span className="text-muted-foreground">Subtotal</span><span>{formatCurrency(subtotal)}</span></div>
-                  {diskon > 0 && <div className="flex justify-between text-sm"><span className="text-muted-foreground">Diskon ({diskon}%)</span><span className="text-destructive">-{formatCurrency(diskonAmount)}</span></div>}
-                  {pajak > 0 && <div className="flex justify-between text-sm"><span className="text-muted-foreground">Pajak ({pajak}%)</span><span>+{formatCurrency(pajakAmount)}</span></div>}
-                  <div className="flex justify-between font-heading font-bold text-lg border-t border-border pt-2">
-                    <span>Total</span><span>{formatCurrency(total)}</span>
-                  </div>
-                </div>
-
-                <Button onClick={handleCheckout} className="w-full gradient-primary text-primary-foreground" disabled={loading || cart.length === 0}>
-                  <ShoppingCart className="mr-2 h-4 w-4" />
-                  {loading ? "Memproses..." : "Bayar Sekarang"}
-                </Button>
-              </div>
-            </DialogContent>
-          </Dialog>
+      <div className="space-y-6 max-w-5xl mx-auto">
+        <div>
+          <h1 className="text-2xl font-heading font-bold text-teal-900">Buat Nota Penjualan</h1>
+          <p className="text-muted-foreground text-sm">Form input master-detail transaksi baru</p>
         </div>
 
-        {/* Transaction List */}
-        <div className="glass-card rounded-lg overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-border">
-                  <th className="text-left p-4 text-sm font-medium text-muted-foreground">Invoice</th>
-                  <th className="text-left p-4 text-sm font-medium text-muted-foreground hidden sm:table-cell">Tanggal</th>
-                  <th className="text-left p-4 text-sm font-medium text-muted-foreground">Total</th>
-                  <th className="text-left p-4 text-sm font-medium text-muted-foreground hidden sm:table-cell">Pembayaran</th>
-                  <th className="text-left p-4 text-sm font-medium text-muted-foreground">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {transaksiList.length === 0 ? (
-                  <tr><td colSpan={5} className="p-8 text-center text-muted-foreground">Belum ada transaksi</td></tr>
-                ) : (
-                  transaksiList.map((t) => (
-                    <tr key={t.id} className="border-b border-border/50 hover:bg-accent/30 transition-colors">
-                      <td className="p-4 font-medium text-primary">{t.nomor_invoice}</td>
-                      <td className="p-4 hidden sm:table-cell text-muted-foreground">{new Date(t.created_at).toLocaleDateString("id-ID")}</td>
-                      <td className="p-4 font-medium">{formatCurrency(t.total)}</td>
-                      <td className="p-4 hidden sm:table-cell capitalize text-muted-foreground">{t.metode_pembayaran}</td>
-                      <td className="p-4">
-                        <span className={`text-xs px-2 py-1 rounded-full capitalize ${t.status === "lunas" ? "bg-success/10 text-success" : t.status === "dp" ? "bg-primary/10 text-primary" : "bg-destructive/10 text-destructive"}`}>
-                          {t.status === "belum_bayar" ? "Belum Bayar" : t.status === "dp" ? "DP" : "Lunas"}
-                        </span>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Master Form */}
+          <div className="lg:col-span-3 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+            <h2 className="font-semibold text-slate-800 border-b pb-2 mb-4">Informasi Nota Utama</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="space-y-2">
+                <Label>No. Nota</Label>
+                <Input value={formData.no_nota} readOnly className="bg-slate-50 font-mono text-sm border-slate-200" />
+              </div>
+              <div className="space-y-2">
+                <Label>Tanggal Transaksi</Label>
+                <Input type="date" value={formData.tanggal_transaksi} onChange={(e) => setFormData({...formData, tanggal_transaksi: e.target.value})} className="border-slate-200" />
+              </div>
+              <div className="space-y-2">
+                <Label>Nama Pelanggan</Label>
+                <Input placeholder="Contoh: Budi Santoso" value={formData.nama_pelanggan} onChange={(e) => setFormData({...formData, nama_pelanggan: e.target.value})} className="border-slate-200" />
+              </div>
+              <div className="space-y-2">
+                <Label>Metode Pembayaran</Label>
+                <Select value={formData.metode_pembayaran} onValueChange={(v) => setFormData({...formData, metode_pembayaran: v})}>
+                  <SelectTrigger className="border-slate-200"><SelectValue/></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="cash">Cash / Tunai</SelectItem>
+                    <SelectItem value="transfer">Transfer Bank</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2 lg:col-start-4">
+                <Label>Status Pembayaran</Label>
+                <Select value={formData.status_pembayaran} onValueChange={(v) => setFormData({...formData, status_pembayaran: v})}>
+                  <SelectTrigger className="border-slate-200"><SelectValue/></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="belum_bayar">Belum Bayar</SelectItem>
+                    <SelectItem value="dp">DP / Sebagian</SelectItem>
+                    <SelectItem value="lunas">Lunas</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </div>
+
+          {/* Form Input Item */}
+          <div className="lg:col-span-3 bg-teal-50/50 p-6 rounded-2xl border border-teal-100 shadow-sm space-y-4">
+            <h2 className="font-semibold text-teal-900 border-b border-teal-200 pb-2 mb-4">Tambah Item Produk</h2>
+            <div className="grid grid-cols-1 md:grid-cols-6 gap-4 items-end">
+              <div className="md:col-span-2 space-y-2">
+                <Label>Produk</Label>
+                <Select value={selectedProductId} onValueChange={handleProductSelect}>
+                  <SelectTrigger className="bg-white border-teal-200 focus:ring-teal-500"><SelectValue placeholder="Pilih produk dari database..."/></SelectTrigger>
+                  <SelectContent>
+                    {products.map((p) => (
+                      <SelectItem key={p.id} value={p.id}>{p.nama_produk} (Stok: {p.stok})</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Ukuran</Label>
+                <Input className="bg-white border-teal-200 focus:ring-teal-500" placeholder="Contoh: 30x30" value={itemUkuran} onChange={(e) => setItemUkuran(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label>Kuantitas</Label>
+                <Input className="bg-white border-teal-200 focus:ring-teal-500" type="number" min="1" value={itemKuantitas} onChange={(e) => setItemKuantitas(parseInt(e.target.value) || 0)} />
+              </div>
+              <div className="space-y-2">
+                <Label>Harga Satuan</Label>
+                <Input className="bg-white border-teal-200 focus:ring-teal-500" type="number" min="0" value={itemHarga} onChange={(e) => setItemHarga(parseInt(e.target.value) || 0)} />
+              </div>
+              <div className="space-y-2">
+                <Label>Subtotal (Auto)</Label>
+                <Input className="bg-slate-100/80 text-slate-600 font-semibold border-teal-100" value={formatCurrency(itemKuantitas * itemHarga)} readOnly tabIndex={-1} />
+              </div>
+            </div>
+            <div className="flex justify-end pt-2">
+              <Button onClick={handleAddItem} className="bg-teal-600 hover:bg-teal-700 text-white rounded-xl shadow-md transition-all">
+                <Plus className="w-4 h-4 mr-2" /> Tambah Ke Keranjang
+              </Button>
+            </div>
+          </div>
+
+          {/* Tabel Sementara (Cart) */}
+          <div className="lg:col-span-3 bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader className="bg-slate-50">
+                  <TableRow>
+                    <TableHead className="w-12 text-center">No</TableHead>
+                    <TableHead>Produk</TableHead>
+                    <TableHead>Ukuran</TableHead>
+                    <TableHead className="text-right">Kuantitas</TableHead>
+                    <TableHead className="text-right">Harga Satuan</TableHead>
+                    <TableHead className="text-right">Subtotal</TableHead>
+                    <TableHead className="w-16 text-center">Aksi</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {invoiceItems.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={7} className="text-center h-32 text-slate-500">
+                        Belum ada item ditambahkan ke keranjang belanja
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    invoiceItems.map((item, index) => (
+                      <TableRow key={index} className="hover:bg-slate-50/50">
+                        <TableCell className="text-center text-slate-500">{index + 1}</TableCell>
+                        <TableCell className="font-medium text-slate-800">{item.nama_produk}</TableCell>
+                        <TableCell className="text-slate-600">{item.ukuran}</TableCell>
+                        <TableCell className="text-right text-slate-800 font-medium">{item.kuantitas}</TableCell>
+                        <TableCell className="text-right text-slate-600">{formatCurrency(item.harga_satuan)}</TableCell>
+                        <TableCell className="text-right font-bold text-teal-700">{formatCurrency(item.subtotal)}</TableCell>
+                        <TableCell className="text-center">
+                          <Button variant="ghost" size="icon" className="text-red-500 hover:text-red-700 hover:bg-red-50 h-8 w-8" onClick={() => handleRemoveItem(index)}>
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+            
+            {/* Grand Total & Submit */}
+            <div className="p-6 bg-slate-50 border-t border-slate-200 mt-auto flex flex-col sm:flex-row justify-between items-center gap-4">
+              <div className="text-slate-600">
+                Total Item Pembelian: <span className="font-bold text-slate-900 bg-slate-200 px-2 py-0.5 rounded ml-2">{invoiceItems.length}</span>
+              </div>
+              <div className="flex flex-col sm:flex-row items-center gap-6">
+                <div className="text-right">
+                  <p className="text-sm text-slate-500 mb-0.5 font-medium uppercase tracking-wider">Grand Total</p>
+                  <p className="text-2xl font-black text-teal-800">{formatCurrency(grandTotal)}</p>
+                </div>
+                <Button 
+                  onClick={handleSubmitNota} 
+                  disabled={isSubmitting || invoiceItems.length === 0}
+                  className="bg-teal-700 hover:bg-teal-800 text-white h-12 px-8 rounded-xl shadow-lg transition-all active:scale-95 disabled:opacity-70 w-full sm:w-auto"
+                >
+                  <Save className="w-5 h-5 mr-2" /> 
+                  {isSubmitting ? "Menyimpan Data..." : "Simpan Nota Utama"}
+                </Button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
