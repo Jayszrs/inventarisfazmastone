@@ -10,11 +10,12 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
-import { CheckCircle2, ClipboardList, Clock, Eye, FileText, PackagePlus, Printer, Save, Send, Trash2, Truck } from "lucide-react";
+import { CheckCircle2, ClipboardList, Clock, Eye, PackagePlus, Pencil, Printer, Save, Send, Trash2, Truck } from "lucide-react";
 
 const LOGO_URL = encodeURI("/Logo Fazma Stone Hitam.png");
 const SIGNATURE_URL = encodeURI("/Signature.png");
 const DELIVERY_STORAGE_KEY = "fazma_delivery_notes";
+const CUSTOMER_STORAGE_KEY = "fazma_invoice_customers";
 
 type Barang = {
   id: string;
@@ -82,6 +83,11 @@ const formatDate = (date?: string) => {
   });
 };
 
+const formatDateInput = (date?: string) => {
+  if (!date) return today();
+  return new Date(date).toISOString().slice(0, 10);
+};
+
 const generateInvoiceNumber = () => {
   const date = new Date();
   return `INV/${String(date.getMonth() + 1).padStart(2, "0")}${String(date.getFullYear()).slice(-2)}/${String(Date.now()).slice(-5)}`;
@@ -104,6 +110,31 @@ const saveDeliveryArchive = (note: DeliveryNoteMeta) => {
   localStorage.setItem(DELIVERY_STORAGE_KEY, JSON.stringify(next));
 };
 
+const readCustomerCache = (): Record<string, string> => {
+  try {
+    return JSON.parse(localStorage.getItem(CUSTOMER_STORAGE_KEY) || "{}");
+  } catch {
+    return {};
+  }
+};
+
+const saveCustomerCache = (transactionId: string, invoiceNumber: string, customerName: string) => {
+  const cleanName = customerName.trim();
+  if (!cleanName) return;
+  const cache = readCustomerCache();
+  localStorage.setItem(CUSTOMER_STORAGE_KEY, JSON.stringify({
+    ...cache,
+    [transactionId]: cleanName,
+    [invoiceNumber]: cleanName,
+  }));
+};
+
+const getCachedCustomer = (transaction: Pick<TransaksiRow, "id" | "nomor_invoice" | "nama_pelanggan">) => {
+  if (transaction.nama_pelanggan?.trim()) return transaction.nama_pelanggan;
+  const cache = readCustomerCache();
+  return cache[transaction.id] || cache[transaction.nomor_invoice] || "";
+};
+
 export default function Invoice() {
   const { toast } = useToast();
   const { user } = useAuth();
@@ -116,7 +147,9 @@ export default function Invoice() {
   const [itemHarga, setItemHarga] = useState(0);
   const [detailOpen, setDetailOpen] = useState(false);
   const [deliveryOpen, setDeliveryOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<InvoiceDetail | null>(null);
+  const [editingInvoiceId, setEditingInvoiceId] = useState<string | null>(null);
   const [printMode, setPrintMode] = useState<PrintMode>(null);
   const [deliveryMeta, setDeliveryMeta] = useState<DeliveryNoteMeta | null>(null);
   const [form, setForm] = useState({
@@ -132,8 +165,21 @@ export default function Invoice() {
     lokasi_proyek: "",
     tanggal_pengiriman: today(),
   });
+  const [editForm, setEditForm] = useState({
+    nomor_invoice: "",
+    tanggal_transaksi: today(),
+    nama_pelanggan: "",
+    metode_pembayaran: "cash",
+    status: "lunas",
+  });
+  const [editCart, setEditCart] = useState<CartItem[]>([]);
+  const [editItemNamaBarang, setEditItemNamaBarang] = useState("");
+  const [editItemUkuran, setEditItemUkuran] = useState("");
+  const [editItemJumlah, setEditItemJumlah] = useState(1);
+  const [editItemHarga, setEditItemHarga] = useState(0);
 
   const grandTotal = useMemo(() => cart.reduce((sum, item) => sum + item.subtotal, 0), [cart]);
+  const editGrandTotal = useMemo(() => editCart.reduce((sum, item) => sum + item.subtotal, 0), [editCart]);
 
   useEffect(() => {
     loadTransactions();
@@ -163,7 +209,10 @@ export default function Invoice() {
       return;
     }
 
-    setTransactions((data || []) as TransaksiRow[]);
+    setTransactions(((data || []) as TransaksiRow[]).map((transaction) => ({
+      ...transaction,
+      nama_pelanggan: getCachedCustomer(transaction),
+    })));
   };
 
   const addCartItem = () => {
@@ -265,8 +314,8 @@ export default function Invoice() {
     };
   };
 
-  const insertDetailTransactions = async (transaksiId: string) => {
-    const resolvedItems = await Promise.all(cart.map(resolveBarangForItem));
+  const insertDetailTransactions = async (transaksiId: string, sourceItems = cart) => {
+    const resolvedItems = await Promise.all(sourceItems.map(resolveBarangForItem));
     const detailPayload = resolvedItems.map((item) => ({
       transaksi_id: transaksiId,
       barang_id: item.barang_id,
@@ -301,6 +350,7 @@ export default function Invoice() {
       const transaksi = await insertMasterTransaction();
       await insertDetailTransactions(transaksi.id);
 
+      saveCustomerCache(transaksi.id, transaksi.nomor_invoice, form.nama_pelanggan);
       toast({ title: "Invoice tersimpan", description: `${form.nomor_invoice} berhasil dibuat.` });
       setForm({
         nomor_invoice: generateInvoiceNumber(),
@@ -313,6 +363,142 @@ export default function Invoice() {
       loadTransactions();
     } catch (error: any) {
       toast({ title: "Gagal menyimpan invoice", description: error.message, variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const addEditCartItem = () => {
+    const namaBarang = editItemNamaBarang.trim();
+    if (!namaBarang) {
+      toast({ title: "Nama barang wajib diisi", variant: "destructive" });
+      return;
+    }
+
+    if (editItemJumlah <= 0 || editItemHarga <= 0) {
+      toast({ title: "Jumlah dan harga harus lebih dari 0", variant: "destructive" });
+      return;
+    }
+
+    setEditCart((items) => [
+      ...items,
+      {
+        nama_barang: namaBarang,
+        kategori: editItemUkuran || "-",
+        ukuran: editItemUkuran || "-",
+        jumlah: editItemJumlah,
+        harga: editItemHarga,
+        subtotal: editItemJumlah * editItemHarga,
+      },
+    ]);
+    setEditItemNamaBarang("");
+    setEditItemUkuran("");
+    setEditItemJumlah(1);
+    setEditItemHarga(0);
+  };
+
+  const removeEditCartItem = (index: number) => {
+    setEditCart((items) => items.filter((_, itemIndex) => itemIndex !== index));
+  };
+
+  const updateEditCartItem = (index: number, patch: Partial<CartItem>) => {
+    setEditCart((items) =>
+      items.map((item, itemIndex) => {
+        if (itemIndex !== index) return item;
+        const next = { ...item, ...patch };
+        return {
+          ...next,
+          subtotal: (next.jumlah || 0) * (next.harga || 0),
+        };
+      }),
+    );
+  };
+
+  const openEditInvoice = async (transaction: TransaksiRow) => {
+    const detail = await getInvoiceDetail(transaction);
+    if (!detail) return;
+
+    setEditingInvoiceId(detail.id);
+    setEditForm({
+      nomor_invoice: detail.nomor_invoice,
+      tanggal_transaksi: formatDateInput(detail.created_at),
+      nama_pelanggan: detail.nama_pelanggan || "",
+      metode_pembayaran: detail.metode_pembayaran || "cash",
+      status: detail.status || "lunas",
+    });
+    setEditCart(detail.items);
+    setEditOpen(true);
+  };
+
+  const updateMasterTransaction = async (transaksiId: string) => {
+    const payload = {
+      nomor_invoice: editForm.nomor_invoice,
+      created_at: `${editForm.tanggal_transaksi}T00:00:00`,
+      subtotal: editGrandTotal,
+      total: editGrandTotal,
+      metode_pembayaran: editForm.metode_pembayaran,
+      status: editForm.status,
+      jumlah_bayar: editForm.status === "lunas" ? editGrandTotal : 0,
+      nama_pelanggan: editForm.nama_pelanggan,
+    };
+
+    const first = await supabase.from("transaksi").update(payload as any).eq("id", transaksiId);
+    if (!first.error) return;
+
+    if (!first.error.message.toLowerCase().includes("nama_pelanggan")) throw first.error;
+
+    const { nama_pelanggan, ...fallbackPayload } = payload;
+    const second = await supabase.from("transaksi").update(fallbackPayload as any).eq("id", transaksiId);
+    if (second.error) throw second.error;
+  };
+
+  const replaceDetailTransactions = async (transaksiId: string) => {
+    const deleteResult = await supabase.from("detail_transaksi").delete().eq("transaksi_id", transaksiId);
+    if (deleteResult.error) throw deleteResult.error;
+    await insertDetailTransactions(transaksiId, editCart);
+  };
+
+  const submitEditInvoice = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!editingInvoiceId) return;
+    if (!editForm.nama_pelanggan.trim()) {
+      toast({ title: "Nama pelanggan wajib diisi", variant: "destructive" });
+      return;
+    }
+    if (editCart.length === 0) {
+      toast({ title: "Item invoice tidak boleh kosong", variant: "destructive" });
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await updateMasterTransaction(editingInvoiceId);
+      await replaceDetailTransactions(editingInvoiceId);
+      saveCustomerCache(editingInvoiceId, editForm.nomor_invoice, editForm.nama_pelanggan);
+      toast({ title: "Invoice diperbarui", description: `${editForm.nomor_invoice} berhasil disimpan.` });
+      setEditOpen(false);
+      setEditingInvoiceId(null);
+      setEditCart([]);
+      loadTransactions();
+    } catch (error: any) {
+      toast({ title: "Gagal mengedit invoice", description: error.message, variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const deleteInvoice = async (transaction: TransaksiRow) => {
+    const confirmed = window.confirm(`Hapus invoice ${transaction.nomor_invoice}? Detail transaksi akan ikut terhapus.`);
+    if (!confirmed) return;
+
+    setLoading(true);
+    try {
+      const { error } = await supabase.from("transaksi").delete().eq("id", transaction.id);
+      if (error) throw error;
+      toast({ title: "Invoice dihapus", description: `${transaction.nomor_invoice} sudah dihapus.` });
+      loadTransactions();
+    } catch (error: any) {
+      toast({ title: "Gagal menghapus invoice", description: error.message, variant: "destructive" });
     } finally {
       setLoading(false);
     }
@@ -339,7 +525,7 @@ export default function Invoice() {
       subtotal: (detail.jumlah || 0) * (detail.harga || 0),
     }));
 
-    return { ...transaction, nama_pelanggan: transaction.nama_pelanggan || "Pelanggan", items };
+    return { ...transaction, nama_pelanggan: getCachedCustomer(transaction), items };
   };
 
   const openInvoiceDetail = async (transaction: TransaksiRow) => {
@@ -405,7 +591,7 @@ export default function Invoice() {
 
   return (
     <DashboardLayout>
-      <div className="mx-auto max-w-7xl space-y-6">
+      <div className="no-print mx-auto max-w-7xl space-y-6">
         <div>
           <h1 className="font-heading text-2xl font-bold text-foreground">Invoice</h1>
           <p className="text-sm text-muted-foreground">Pusat pembuatan invoice, cetak nota, dan surat jalan Fazma Stone.</p>
@@ -579,8 +765,14 @@ export default function Invoice() {
                             <Button variant="outline" size="sm" onClick={() => openInvoiceDetail(transaction)}>
                               <Eye className="h-4 w-4" /> Detail Invoice
                             </Button>
+                            <Button variant="outline" size="sm" onClick={() => openEditInvoice(transaction)}>
+                              <Pencil className="h-4 w-4" /> Edit
+                            </Button>
                             <Button size="sm" onClick={() => openDeliveryDialog(transaction)}>
                               <Truck className="h-4 w-4" /> Surat Jalan
+                            </Button>
+                            <Button variant="destructive" size="sm" onClick={() => deleteInvoice(transaction)}>
+                              <Trash2 className="h-4 w-4" /> Hapus
                             </Button>
                           </div>
                         </TableCell>
@@ -639,10 +831,164 @@ export default function Invoice() {
           </DialogContent>
         </Dialog>
 
-        <div className="print-area">
-          {printMode === "invoice" && <PrintableInvoice invoice={selectedInvoice} />}
-          {printMode === "delivery" && <PrintableDeliveryNote invoice={selectedInvoice} delivery={deliveryMeta} />}
-        </div>
+        <Dialog open={editOpen} onOpenChange={setEditOpen}>
+          <DialogContent className="max-h-[92vh] max-w-5xl overflow-y-auto bg-background">
+            <DialogHeader>
+              <DialogTitle className="font-heading">Edit Invoice</DialogTitle>
+            </DialogHeader>
+            <form onSubmit={submitEditInvoice} className="space-y-5">
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+                <div className="space-y-2">
+                  <Label>No. Invoice</Label>
+                  <Input value={editForm.nomor_invoice} onChange={(e) => setEditForm({ ...editForm, nomor_invoice: e.target.value })} className="font-mono" />
+                </div>
+                <div className="space-y-2">
+                  <Label>Tanggal</Label>
+                  <Input type="date" value={editForm.tanggal_transaksi} onChange={(e) => setEditForm({ ...editForm, tanggal_transaksi: e.target.value })} />
+                </div>
+                <div className="space-y-2 lg:col-span-2">
+                  <Label>Nama Pelanggan</Label>
+                  <Input value={editForm.nama_pelanggan} onChange={(e) => setEditForm({ ...editForm, nama_pelanggan: e.target.value })} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Status</Label>
+                  <Select value={editForm.status} onValueChange={(value) => setEditForm({ ...editForm, status: value })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="lunas">Lunas</SelectItem>
+                      <SelectItem value="dp">DP / Sebagian</SelectItem>
+                      <SelectItem value="belum_bayar">Belum Bayar</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="grid gap-4 rounded-lg border border-border bg-secondary/50 p-4 md:grid-cols-2 lg:grid-cols-7">
+                <div className="space-y-2 lg:col-span-2">
+                  <Label>Nama Barang / Produk</Label>
+                  <Input value={editItemNamaBarang} onChange={(e) => setEditItemNamaBarang(e.target.value)} placeholder="Tambah item baru" />
+                </div>
+                <div className="space-y-2">
+                  <Label>Ukuran</Label>
+                  <Input value={editItemUkuran} onChange={(e) => setEditItemUkuran(e.target.value)} placeholder="30x30 / custom" />
+                </div>
+                <div className="space-y-2">
+                  <Label>Jumlah</Label>
+                  <Input type="number" min={1} value={editItemJumlah} onChange={(e) => setEditItemJumlah(Number(e.target.value) || 0)} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Harga</Label>
+                  <Input type="number" min={0} value={editItemHarga} onChange={(e) => setEditItemHarga(Number(e.target.value) || 0)} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Subtotal</Label>
+                  <Input value={formatCurrency(editItemJumlah * editItemHarga)} readOnly />
+                </div>
+                <div className="flex items-end">
+                  <Button type="button" onClick={addEditCartItem} className="w-full">
+                    <PackagePlus className="h-4 w-4" /> Tambah
+                  </Button>
+                </div>
+              </div>
+
+              <div className="overflow-hidden rounded-lg border border-border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-12 text-center">No</TableHead>
+                      <TableHead>Barang</TableHead>
+                      <TableHead>Ukuran</TableHead>
+                      <TableHead className="text-right">Qty</TableHead>
+                      <TableHead className="text-right">Harga</TableHead>
+                      <TableHead className="text-right">Subtotal</TableHead>
+                      <TableHead className="w-16 text-center">Aksi</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {editCart.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={7} className="h-20 text-center text-muted-foreground">Item invoice kosong</TableCell>
+                      </TableRow>
+                    ) : (
+                      editCart.map((item, index) => (
+                        <TableRow key={`${item.nama_barang}-${index}`}>
+                          <TableCell className="text-center">{index + 1}</TableCell>
+                          <TableCell>
+                            <Input
+                              value={item.nama_barang}
+                              onChange={(e) => updateEditCartItem(index, { nama_barang: e.target.value })}
+                              className="min-w-48"
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Input
+                              value={item.ukuran}
+                              onChange={(e) => updateEditCartItem(index, { ukuran: e.target.value, kategori: e.target.value || "-" })}
+                              className="min-w-32"
+                            />
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Input
+                              type="number"
+                              min={1}
+                              value={item.jumlah}
+                              onChange={(e) => updateEditCartItem(index, { jumlah: Number(e.target.value) || 0 })}
+                              className="ml-auto w-24 text-right"
+                            />
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Input
+                              type="number"
+                              min={0}
+                              value={item.harga}
+                              onChange={(e) => updateEditCartItem(index, { harga: Number(e.target.value) || 0 })}
+                              className="ml-auto w-32 text-right"
+                            />
+                          </TableCell>
+                          <TableCell className="text-right font-semibold">{formatCurrency(item.subtotal)}</TableCell>
+                          <TableCell className="text-center">
+                            <Button type="button" variant="ghost" size="icon" onClick={() => removeEditCartItem(index)} className="text-destructive">
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+
+              <div className="flex flex-col items-end gap-3 sm:flex-row sm:justify-between">
+                <div className="space-y-2">
+                  <Label>Metode Pembayaran</Label>
+                  <Select value={editForm.metode_pembayaran} onValueChange={(value) => setEditForm({ ...editForm, metode_pembayaran: value })}>
+                    <SelectTrigger className="w-56"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="cash">Cash / Tunai</SelectItem>
+                      <SelectItem value="transfer">Transfer Bank</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex flex-col items-end gap-3">
+                  <div className="text-right">
+                    <p className="text-xs uppercase text-muted-foreground">Grand Total</p>
+                    <p className="font-heading text-2xl font-bold text-primary">{formatCurrency(editGrandTotal)}</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button type="button" variant="outline" onClick={() => setEditOpen(false)}>Batal</Button>
+                    <Button type="submit" disabled={loading || editCart.length === 0}>
+                      <Save className="h-4 w-4" /> Simpan Perubahan
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </form>
+          </DialogContent>
+        </Dialog>
+      </div>
+      <div className="print-area">
+        {printMode === "invoice" && <PrintableInvoice invoice={selectedInvoice} />}
+        {printMode === "delivery" && <PrintableDeliveryNote invoice={selectedInvoice} delivery={deliveryMeta} />}
       </div>
     </DashboardLayout>
   );
@@ -667,7 +1013,7 @@ function InvoicePreview({ invoice }: { invoice: InvoiceDetail | null }) {
         <div className="flex justify-between gap-4">
           <div>
             <p className="text-xs font-bold uppercase text-primary">Bill To</p>
-            <p className="text-lg font-bold uppercase">{invoice.nama_pelanggan || "Pelanggan"}</p>
+            <p className="text-lg font-bold uppercase">{invoice.nama_pelanggan || "-"}</p>
           </div>
           <div className="text-right text-sm">
             <p><span className="font-bold text-primary">Invoice:</span> {invoice.nomor_invoice}</p>
@@ -739,7 +1085,7 @@ function PrintableInvoice({ invoice }: { invoice: InvoiceDetail | null }) {
         <div className="mb-5 flex justify-between border-y-2 border-emerald-800 py-3 print-avoid-break">
           <div>
             <p className="font-bold uppercase text-emerald-800">Bill To</p>
-            <p className="text-lg font-bold uppercase">{invoice.nama_pelanggan || "Pelanggan"}</p>
+            <p className="text-lg font-bold uppercase">{invoice.nama_pelanggan || "-"}</p>
           </div>
           <div className="text-right">
             <p><strong>Invoice No:</strong> {invoice.nomor_invoice}</p>

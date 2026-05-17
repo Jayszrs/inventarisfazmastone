@@ -3,6 +3,7 @@ import {
   FileText,
   FolderOpen,
   LogOut,
+  UserCog,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { AppRole, useAuth } from "@/contexts/AuthContext";
@@ -23,6 +24,7 @@ const menuItems: Array<{ title: string; url: string; icon: typeof LayoutDashboar
   { title: "Dashboard", url: "/", icon: LayoutDashboard },
   { title: "Invoice", url: "/invoice", icon: FileText, roles: ["admin", "staff"] },
   { title: "Dokumentasi", url: "/dokumentasi", icon: FolderOpen, roles: ["admin"] },
+  { title: "Role Management", url: "/roles", icon: UserCog, roles: ["admin"] },
 ];
 
 const LOGO_URL = encodeURI("/Logo Fazma Stone Hitam.png");

@@ -153,7 +153,7 @@
 
 @media print {
   @page {
-    size: auto;
+    size: A4 portrait;
     margin: 0mm;
   }
 
@@ -178,10 +178,10 @@
 
   .print-area {
     display: block !important;
-    position: absolute !important;
-    inset: 0 auto auto 0 !important;
+    position: fixed !important;
+    inset: 0 !important;
     width: 100% !important;
-    min-height: 0 !important;
+    height: 296mm !important;
     background: white !important;
     color: #111827 !important;
     padding: 0 !important;
@@ -192,14 +192,16 @@
 
   .print-sheet {
     position: relative !important;
+    box-sizing: border-box !important;
     width: 210mm !important;
-    min-height: 0 !important;
-    max-height: 297mm !important;
+    height: 296mm !important;
+    max-height: 296mm !important;
     margin: 0 auto !important;
-    padding: 10mm !important;
+    padding: 8mm !important;
     overflow: hidden !important;
     break-inside: avoid !important;
     page-break-inside: avoid !important;
+    page-break-after: avoid !important;
     background: white !important;
     color: #111827 !important;
   }

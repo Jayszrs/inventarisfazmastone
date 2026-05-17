@@ -13,6 +13,7 @@ import { Archive, CalendarDays, FileText, Printer, Search, Truck } from "lucide-
 const LOGO_URL = encodeURI("/Logo Fazma Stone Hitam.png");
 const SIGNATURE_URL = encodeURI("/Signature.png");
 const DELIVERY_STORAGE_KEY = "fazma_delivery_notes";
+const CUSTOMER_STORAGE_KEY = "fazma_invoice_customers";
 
 type TransaksiRow = {
   id: string;
@@ -81,6 +82,20 @@ const readDeliveryArchive = (): DeliveryNoteMeta[] => {
 
 const normalizeDate = (date: string) => new Date(date).toISOString().slice(0, 10);
 
+const readCustomerCache = (): Record<string, string> => {
+  try {
+    return JSON.parse(localStorage.getItem(CUSTOMER_STORAGE_KEY) || "{}");
+  } catch {
+    return {};
+  }
+};
+
+const getCachedCustomer = (transaction: Pick<TransaksiRow, "id" | "nomor_invoice" | "nama_pelanggan">) => {
+  if (transaction.nama_pelanggan?.trim()) return transaction.nama_pelanggan;
+  const cache = readCustomerCache();
+  return cache[transaction.id] || cache[transaction.nomor_invoice] || "";
+};
+
 export default function Dokumentasi() {
   const { toast } = useToast();
   const [transactions, setTransactions] = useState<TransaksiRow[]>([]);
@@ -112,7 +127,10 @@ export default function Dokumentasi() {
       return;
     }
 
-    setTransactions((data || []) as TransaksiRow[]);
+    setTransactions(((data || []) as TransaksiRow[]).map((transaction) => ({
+      ...transaction,
+      nama_pelanggan: getCachedCustomer(transaction),
+    })));
   };
 
   const filteredInvoices = useMemo(() => {
@@ -173,7 +191,7 @@ export default function Dokumentasi() {
       subtotal: (detail.jumlah || 0) * (detail.harga || 0),
     }));
 
-    return { ...transaction, nama_pelanggan: transaction.nama_pelanggan || "Pelanggan", items };
+    return { ...transaction, nama_pelanggan: getCachedCustomer(transaction), items };
   };
 
   const printInvoice = async (transaction: TransaksiRow) => {
@@ -210,7 +228,7 @@ export default function Dokumentasi() {
 
   return (
     <DashboardLayout>
-      <div className="mx-auto max-w-7xl space-y-6">
+      <div className="no-print mx-auto max-w-7xl space-y-6">
         <div>
           <h1 className="font-heading text-2xl font-bold text-foreground">Dokumentasi</h1>
           <p className="text-sm text-muted-foreground">Arsip Nota/Invoice dan Surat Jalan Fazma Stone.</p>
@@ -279,7 +297,7 @@ export default function Dokumentasi() {
                     filteredInvoices.map((transaction) => (
                       <TableRow key={transaction.id}>
                         <TableCell className="font-mono font-semibold text-primary">{transaction.nomor_invoice}</TableCell>
-                        <TableCell>{transaction.nama_pelanggan || "Pelanggan"}</TableCell>
+                        <TableCell>{transaction.nama_pelanggan || "-"}</TableCell>
                         <TableCell>{formatDate(transaction.created_at)}</TableCell>
                         <TableCell className="text-right font-semibold">{formatCurrency(transaction.total)}</TableCell>
                         <TableCell className="text-center">
@@ -344,11 +362,10 @@ export default function Dokumentasi() {
             </div>
           </TabsContent>
         </Tabs>
-
-        <div className="print-area">
-          {printMode === "invoice" && <PrintableInvoice invoice={selectedInvoice} />}
-          {printMode === "delivery" && <PrintableDeliveryNote invoice={selectedInvoice} delivery={selectedDelivery} />}
-        </div>
+      </div>
+      <div className="print-area">
+        {printMode === "invoice" && <PrintableInvoice invoice={selectedInvoice} />}
+        {printMode === "delivery" && <PrintableDeliveryNote invoice={selectedInvoice} delivery={selectedDelivery} />}
       </div>
     </DashboardLayout>
   );
@@ -413,7 +430,7 @@ function PrintableInvoice({ invoice }: { invoice: InvoiceDetail | null }) {
         <div className="mb-5 flex justify-between border-y-2 border-emerald-800 py-3 print-avoid-break">
           <div>
             <p className="font-bold uppercase text-emerald-800">Bill To</p>
-            <p className="text-lg font-bold uppercase">{invoice.nama_pelanggan || "Pelanggan"}</p>
+            <p className="text-lg font-bold uppercase">{invoice.nama_pelanggan || "-"}</p>
           </div>
           <div className="text-right">
             <p><strong>Invoice No:</strong> {invoice.nomor_invoice}</p>

@@ -8,6 +8,7 @@ import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Invoice from "./pages/Invoice";
 import Dokumentasi from "./pages/Dokumentasi";
+import RoleManagement from "./pages/RoleManagement";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -47,6 +48,7 @@ const App = () => (
             <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
             <Route path="/invoice" element={<ProtectedRoute allowedRoles={["admin", "staff"]}><Invoice /></ProtectedRoute>} />
             <Route path="/dokumentasi" element={<ProtectedRoute allowedRoles={["admin"]}><Dokumentasi /></ProtectedRoute>} />
+            <Route path="/roles" element={<ProtectedRoute allowedRoles={["admin"]}><RoleManagement /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>
