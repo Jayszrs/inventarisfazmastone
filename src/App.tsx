@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AppRole, AuthProvider, useAuth } from "@/contexts/AuthContext";
 import Login from "./pages/Login";
+import ResetPassword from "./pages/ResetPassword";
 import Dashboard from "./pages/Dashboard";
 import Invoice from "./pages/Invoice";
 import Dokumentasi from "./pages/Dokumentasi";
@@ -45,6 +46,7 @@ const App = () => (
         <AuthProvider>
           <Routes>
             <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
+            <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
             <Route path="/invoice" element={<ProtectedRoute allowedRoles={["admin", "staff"]}><Invoice /></ProtectedRoute>} />
             <Route path="/dokumentasi" element={<ProtectedRoute allowedRoles={["admin"]}><Dokumentasi /></ProtectedRoute>} />

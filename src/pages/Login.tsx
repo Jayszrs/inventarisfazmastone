@@ -7,7 +7,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 
 const LOGO_URL = encodeURI("/Logo Fazma Stone Hitam.png");
-const ADMIN_EMAILS = ["saputrajaelani423@gmail.com"];
 
 type AuthMode = "login" | "signup" | "reset";
 
@@ -18,18 +17,6 @@ export default function Login() {
   const [name, setName] = useState("");
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
-
-  const createDefaultRole = async (userId: string) => {
-    const defaultRole = ADMIN_EMAILS.includes(email.toLowerCase()) ? "admin" : "staff";
-    const { error } = await supabase.from("user_roles").insert({
-      user_id: userId,
-      role: defaultRole,
-    });
-
-    if (error && !error.message.toLowerCase().includes("duplicate")) {
-      throw error;
-    }
-  };
 
   const handleLogin = async (event: FormEvent) => {
     event.preventDefault();
@@ -50,20 +37,18 @@ export default function Login() {
     setLoading(true);
 
     try {
-      const { data, error } = await supabase.auth.signUp({
+      const emailRedirectTo = `${window.location.origin}/`;
+      const { error } = await supabase.auth.signUp({
         email,
         password,
-        options: { data: { full_name: name } },
+        options: { data: { full_name: name }, emailRedirectTo },
       });
 
       if (error) throw error;
-      if (data.user?.id) {
-        await createDefaultRole(data.user.id);
-      }
 
       toast({
         title: "Akun berhasil dibuat",
-        description: "Role default staff sudah disiapkan. Silakan cek email jika verifikasi aktif.",
+        description: "Akun Anda terdaftar sebagai User. Hubungi admin untuk peningkatan akses.",
       });
       setMode("login");
       setPassword("");
@@ -79,7 +64,7 @@ export default function Login() {
     setLoading(true);
 
     try {
-      const redirectTo = `${window.location.origin}/login`;
+      const redirectTo = `${window.location.origin}/reset-password`;
       const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
       if (error) throw error;
 
@@ -195,7 +180,7 @@ export default function Login() {
                     />
                   </div>
                   <Button type="submit" className="w-full" disabled={loading}>
-                    {loading ? "Mendaftarkan..." : "Buat Akun Staff"}
+                    {loading ? "Mendaftarkan..." : "Buat Akun"}
                   </Button>
                 </form>
               </TabsContent>
