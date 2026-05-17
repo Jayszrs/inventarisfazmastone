@@ -3,24 +3,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { defaultRoleForEmail } from "@/lib/admin";
-import {
-  Boxes,
-  ChevronLeft,
-  Compass,
-  Gem,
-  Layers,
-  Lock,
-  Mail,
-  ShieldCheck,
-  User,
-  Warehouse,
-} from "lucide-react";
+import { ArrowLeft, ChevronLeft, Lock, Mail, ShieldCheck, User } from "lucide-react";
 
 import LOGO_URL from "@/assets/logo-fazma.png";
+import STONE_TEXTURE_URL from "@/assets/natural-stone-texture.svg";
 
 type AuthMode = "login" | "signup" | "reset";
 
@@ -148,277 +136,229 @@ export default function Login() {
   };
 
   return (
-    <main className="relative flex min-h-screen overflow-hidden bg-[#f5fbf6] text-foreground">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_22%,rgba(34,197,94,0.16),transparent_28%),radial-gradient(circle_at_82%_8%,rgba(15,118,110,0.12),transparent_24%),linear-gradient(135deg,rgba(255,255,255,0.92),rgba(225,246,232,0.72))]" />
-
-      <section className="relative hidden min-h-screen w-[52%] flex-col justify-between overflow-hidden bg-[#0d3d27] px-12 py-10 text-white lg:flex xl:px-16">
-        <div className="absolute inset-0 bg-[linear-gradient(120deg,rgba(255,255,255,0.09)_0_1px,transparent_1px_78px),linear-gradient(35deg,transparent_0_38%,rgba(255,255,255,0.12)_39%,transparent_42%),radial-gradient(circle_at_72%_28%,rgba(187,247,208,0.22),transparent_34%)]" />
-        <div className="absolute -bottom-24 -left-20 h-80 w-80 rounded-full bg-emerald-300/12 blur-3xl" />
-        <div className="absolute bottom-14 right-10 h-72 w-56 rotate-6 rounded-[2rem] border border-white/15 bg-[linear-gradient(155deg,rgba(255,255,255,0.16),rgba(21,128,61,0.22)),linear-gradient(45deg,transparent_20%,rgba(255,255,255,0.22)_21%,transparent_25%,transparent_54%,rgba(255,255,255,0.14)_55%,transparent_60%)] shadow-2xl shadow-emerald-950/50" />
-        <div className="absolute bottom-24 right-44 h-44 w-72 -rotate-3 rounded-[1.75rem] border border-white/12 bg-[linear-gradient(135deg,rgba(22,101,52,0.75),rgba(240,253,244,0.1)),repeating-linear-gradient(115deg,rgba(255,255,255,0.16)_0_1px,transparent_1px_24px)] shadow-2xl shadow-emerald-950/40" />
-        <div className="absolute bottom-40 right-20 h-28 w-32 rotate-12 rounded-[1.5rem] border border-emerald-100/20 bg-white/10 backdrop-blur-sm" />
+    <main className="flex min-h-screen overflow-hidden bg-[#09100c] text-white">
+      <section className="relative hidden min-h-screen w-1/2 flex-col justify-between overflow-hidden bg-emerald-900 px-11 py-12 lg:flex">
+        <img
+          src={STONE_TEXTURE_URL}
+          alt=""
+          className="absolute inset-0 h-full w-full object-cover opacity-95"
+          aria-hidden="true"
+        />
+        <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(7,49,31,0.88),rgba(17,93,50,0.72)),radial-gradient(circle_at_18%_76%,rgba(34,197,94,0.34),transparent_30%)]" />
+        <div className="absolute -right-16 top-0 h-full w-44 bg-white/5 blur-3xl" />
 
         <div className="relative z-10 flex items-center gap-4">
-          <div className="flex h-16 w-36 items-center justify-center rounded-2xl border border-white/30 bg-white p-3 shadow-xl shadow-emerald-950/25">
-            <img src={LOGO_URL} alt="Fazma Stone" className="max-h-full w-auto object-contain" />
+          <div className="flex h-14 w-36 items-center justify-center rounded-lg bg-white px-4 shadow-xl shadow-emerald-950/30">
+            <img src={LOGO_URL} alt="Fazma Stone" className="max-h-9 w-auto object-contain" />
           </div>
           <div>
-            <p className="text-[11px] font-bold uppercase tracking-[0.32em] text-emerald-100/80">Natural Stone</p>
-            <p className="font-heading text-xl font-black tracking-tight">Fazma Stone</p>
+            <p className="font-heading text-lg font-black leading-none">FAZMA STONE</p>
+            <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.35em] text-emerald-100/75">Natural Stone</p>
           </div>
         </div>
 
-        <div className="relative z-10 max-w-2xl pb-10">
-          <Badge className="mb-7 gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-1.5 text-[11px] font-bold uppercase tracking-[0.24em] text-emerald-50 shadow-lg backdrop-blur-md hover:bg-white/10">
-            <Gem className="h-3.5 w-3.5 text-emerald-200" />
-            Area Terbatas
-          </Badge>
-
-          <h1 className="font-heading text-5xl font-black leading-[1.04] tracking-tight xl:text-6xl">
-            Inventaris Dashboard
-            <span className="block text-emerald-100">Fazma Stone</span>
+        <div className="relative z-10 max-w-xl pb-20">
+          <div className="mb-8 flex h-12 w-12 items-center justify-center rounded-2xl border border-emerald-100/30 bg-emerald-950/35 text-emerald-100 shadow-lg shadow-emerald-950/25 backdrop-blur">
+            <ShieldCheck className="h-7 w-7" />
+          </div>
+          <h1 className="font-heading text-4xl font-black leading-tight tracking-tight xl:text-5xl">
+            Dashboard Inventaris
+            <span className="block">Fazma Stone</span>
           </h1>
-
           <p className="mt-6 max-w-lg text-base leading-8 text-emerald-50/78">
-            Kelola stok batu alam, nota penjualan, dokumentasi gudang, dan akses tim dari satu ruang kerja yang rapi dan cepat.
+            Kelola stok batu alam, nota transaksi, dokumentasi gudang, dan akses karyawan dalam satu sistem operasional.
           </p>
 
-          <div className="mt-10 grid max-w-lg grid-cols-3 gap-3">
-            <div className="rounded-2xl border border-white/14 bg-white/10 p-4 backdrop-blur-sm">
-              <Warehouse className="mb-4 h-5 w-5 text-emerald-100" />
-              <p className="font-heading text-2xl font-black">Stok</p>
-              <p className="text-xs text-emerald-50/65">Gudang</p>
-            </div>
-            <div className="rounded-2xl border border-white/14 bg-white/10 p-4 backdrop-blur-sm">
-              <Boxes className="mb-4 h-5 w-5 text-emerald-100" />
-              <p className="font-heading text-2xl font-black">Slab</p>
-              <p className="text-xs text-emerald-50/65">Material</p>
-            </div>
-            <div className="rounded-2xl border border-white/14 bg-white/10 p-4 backdrop-blur-sm">
-              <Compass className="mb-4 h-5 w-5 text-emerald-100" />
-              <p className="font-heading text-2xl font-black">Nota</p>
-              <p className="text-xs text-emerald-50/65">Transaksi</p>
-            </div>
+          <div className="mt-10 h-44 max-w-md overflow-hidden rounded-sm border border-white/15 shadow-2xl shadow-emerald-950/30">
+            <img src={STONE_TEXTURE_URL} alt="Tekstur batu alam hijau" className="h-full w-full object-cover" />
           </div>
         </div>
 
-        <div className="relative z-10 flex items-center justify-between text-[11px] font-semibold uppercase tracking-[0.22em] text-emerald-50/55">
-          <span>Secure warehouse access</span>
-          <span className="flex items-center gap-2">
-            <span className="h-2 w-2 rounded-full bg-emerald-200 shadow-[0_0_18px_rgba(187,247,208,0.9)]" />
-            Online
-          </span>
-        </div>
+        <p className="relative z-10 text-xs text-emerald-50/55">© {new Date().getFullYear()} Fazma Stone Inventory System</p>
       </section>
 
-      <section className="relative z-10 flex min-h-screen w-full items-center justify-start overflow-hidden px-4 py-24 sm:px-5 lg:w-[48%] lg:justify-center lg:px-12">
-        <div className="absolute left-5 top-5 flex h-14 w-32 items-center justify-center rounded-2xl border border-emerald-900/10 bg-white p-2.5 shadow-lg shadow-emerald-950/10 lg:hidden">
-          <img src={LOGO_URL} alt="Fazma Stone" className="max-h-full w-auto object-contain" />
+      <section className="relative flex min-h-screen w-full items-center justify-start overflow-hidden bg-[#08100c] px-6 py-20 lg:w-1/2 lg:justify-center lg:px-16">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_86%_92%,rgba(22,163,74,0.18),transparent_24%)]" />
+
+        <div className="absolute left-6 top-6 flex h-14 w-36 items-center justify-center rounded-lg bg-white px-4 shadow-lg shadow-black/20 lg:hidden">
+          <img src={LOGO_URL} alt="Fazma Stone" className="max-h-9 w-auto object-contain" />
         </div>
 
-        <div className="w-full min-w-0 max-w-[360px] animate-fade-in sm:max-w-[470px]">
-          <div className="mb-8">
-            <div className="mb-4 flex items-center gap-3">
-              <span className="h-px w-10 bg-emerald-600" />
-              <span className="text-xs font-black uppercase tracking-[0.28em] text-emerald-700">Area Terbatas</span>
+        <div className="relative z-10 w-full max-w-[342px] pt-14 sm:max-w-md lg:pt-0">
+          <div className="mb-10">
+            <a
+              href="/"
+              className="mb-9 inline-flex items-center gap-2 text-sm text-white/58 transition-colors hover:text-white"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Kembali ke beranda
+            </a>
+
+            <div className="mb-5 flex items-center gap-3">
+              <span className="h-px w-11 bg-emerald-500" />
+              <span className="text-xs font-black uppercase tracking-[0.36em] text-emerald-400">Area Terbatas</span>
             </div>
-            <h2 className="font-heading text-4xl font-black tracking-tight text-zinc-950">
-              {mode === "reset" ? "Reset Password" : "Login Admin"}
+            <h2 className="font-heading text-4xl font-black tracking-tight text-white">
+              {mode === "signup" ? "Buat Akun" : mode === "reset" ? "Reset Password" : "Login Admin"}
             </h2>
-            <p className="mt-3 text-sm leading-6 text-zinc-600">
-              {mode === "reset"
-                ? "Masukkan username atau email untuk menerima instruksi reset password."
-                : "Masuk untuk mengelola inventaris, transaksi, dan dashboard Fazma Stone."}
+            <p className="mt-3 text-base leading-7 text-white/58">
+              {mode === "signup"
+                ? "Daftarkan akses baru untuk tim Fazma Stone."
+                : mode === "reset"
+                  ? "Masukkan username atau email untuk menerima instruksi reset."
+                  : "Masuk untuk mengelola inventaris dan dashboard operasional."}
             </p>
           </div>
 
-          <div className="relative w-full overflow-hidden rounded-[1.75rem] border border-emerald-950/10 bg-[#07130e] p-5 text-white shadow-[0_28px_80px_rgba(6,78,59,0.28)] sm:rounded-[2rem] sm:p-8">
-            <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-emerald-300 via-white to-emerald-600" />
-
-            {mode === "reset" ? (
-              <form onSubmit={handleResetPassword} className="space-y-5">
-                <div className="space-y-2">
-                  <Label htmlFor="reset-identifier" className="text-xs font-black uppercase tracking-[0.16em] text-emerald-50">
-                    Username atau Email
-                  </Label>
-                  <div className="relative">
-                    <Mail className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-emerald-200/70" />
-                    <Input
-                      id="reset-identifier"
-                      type="text"
-                      value={identifier}
-                      onChange={(event) => setIdentifier(event.target.value)}
-                      placeholder="Contoh: admin"
-                      className="h-12 rounded-xl border-white/10 bg-white/[0.06] pl-11 text-white placeholder:text-white/35 focus-visible:ring-emerald-300"
-                      required
-                    />
-                  </div>
+          {mode === "reset" ? (
+            <form onSubmit={handleResetPassword} className="space-y-6">
+              <div className="space-y-3">
+                <Label htmlFor="reset-identifier" className="text-xs font-black uppercase tracking-wide text-white">
+                  Username atau Email
+                </Label>
+                <div className="relative">
+                  <Mail className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-white/42" />
+                  <Input
+                    id="reset-identifier"
+                    type="text"
+                    value={identifier}
+                    onChange={(event) => setIdentifier(event.target.value)}
+                    placeholder="admin atau email@fazmastone.com"
+                    className="h-12 rounded-none border-white/14 bg-transparent pl-11 text-white placeholder:text-white/42 focus-visible:ring-emerald-500"
+                    required
+                  />
                 </div>
+              </div>
 
-                <Button
-                  type="submit"
-                  className="h-12 w-full rounded-xl bg-emerald-600 text-sm font-black uppercase tracking-[0.14em] text-white shadow-lg shadow-emerald-950/40 hover:bg-emerald-500"
-                  disabled={loading}
-                >
-                  {loading ? "Mengirim Instruksi..." : "Kirim Link Reset"}
-                </Button>
+              <Button type="submit" className="h-12 w-full rounded-none bg-emerald-700 font-black uppercase tracking-wide text-white hover:bg-emerald-600" disabled={loading}>
+                {loading ? "Mengirim..." : "Kirim Link Reset"}
+              </Button>
 
-                <Button
-                  type="button"
-                  variant="ghost"
-                  className="h-11 w-full rounded-xl text-emerald-50/70 hover:bg-white/10 hover:text-white"
-                  onClick={() => setMode("login")}
-                >
-                  <ChevronLeft className="mr-2 h-4 w-4" />
-                  Kembali ke Login
-                </Button>
-              </form>
-            ) : (
-              <Tabs value={mode} onValueChange={(value) => setMode(value as AuthMode)} className="space-y-6">
-                <TabsList className="grid h-12 w-full grid-cols-2 rounded-xl border border-white/10 bg-white/[0.06] p-1">
-                  <TabsTrigger
-                    value="login"
-                    className="rounded-lg text-[11px] font-black uppercase tracking-[0.12em] text-white/55 data-[state=active]:bg-white data-[state=active]:text-emerald-950 sm:text-xs sm:tracking-[0.16em]"
-                  >
-                    Masuk
-                  </TabsTrigger>
-                  <TabsTrigger
-                    value="signup"
-                    className="rounded-lg text-[11px] font-black uppercase tracking-[0.12em] text-white/55 data-[state=active]:bg-white data-[state=active]:text-emerald-950 sm:text-xs sm:tracking-[0.16em]"
-                  >
-                    Buat Akun
-                  </TabsTrigger>
-                </TabsList>
+              <button type="button" className="mx-auto flex items-center gap-2 text-sm text-white/55 hover:text-white" onClick={() => setMode("login")}>
+                <ChevronLeft className="h-4 w-4" />
+                Kembali ke login
+              </button>
+            </form>
+          ) : mode === "signup" ? (
+            <form onSubmit={handleSignUp} className="space-y-6">
+              <div className="space-y-3">
+                <Label htmlFor="signup-name" className="text-xs font-black uppercase tracking-wide text-white">
+                  Nama Lengkap
+                </Label>
+                <Input
+                  id="signup-name"
+                  value={name}
+                  onChange={(event) => setName(event.target.value)}
+                  placeholder="Nama lengkap"
+                  className="h-12 rounded-none border-white/14 bg-transparent text-white placeholder:text-white/42 focus-visible:ring-emerald-500"
+                  required
+                />
+              </div>
 
-                <TabsContent value="login" className="mt-0">
-                  <form onSubmit={handleLogin} className="space-y-5">
-                    <div className="space-y-2">
-                      <Label htmlFor="login-identifier" className="text-xs font-black uppercase tracking-[0.16em] text-emerald-50">
-                        Username atau Email
-                      </Label>
-                      <div className="relative">
-                        <User className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-emerald-200/70" />
-                        <Input
-                          id="login-identifier"
-                          type="text"
-                          value={identifier}
-                          onChange={(event) => setIdentifier(event.target.value)}
-                          placeholder="admin atau email@domain.com"
-                          className="h-12 rounded-xl border-white/10 bg-white/[0.06] pl-11 text-white placeholder:text-white/35 focus-visible:ring-emerald-300"
-                          required
-                        />
-                      </div>
-                    </div>
+              <div className="space-y-3">
+                <Label htmlFor="signup-identifier" className="text-xs font-black uppercase tracking-wide text-white">
+                  Username atau Email Baru
+                </Label>
+                <div className="relative">
+                  <User className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-white/42" />
+                  <Input
+                    id="signup-identifier"
+                    type="text"
+                    value={identifier}
+                    onChange={(event) => setIdentifier(event.target.value)}
+                    placeholder="username baru"
+                    className="h-12 rounded-none border-white/14 bg-transparent pl-11 text-white placeholder:text-white/42 focus-visible:ring-emerald-500"
+                    required
+                  />
+                </div>
+              </div>
 
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between gap-4">
-                        <Label htmlFor="login-password" className="text-xs font-black uppercase tracking-[0.16em] text-emerald-50">
-                          Password
-                        </Label>
-                        <button
-                          type="button"
-                          onClick={() => setMode("reset")}
-                          className="shrink-0 text-[11px] font-bold text-emerald-300 transition-colors hover:text-white sm:text-xs"
-                        >
-                          Lupa password?
-                        </button>
-                      </div>
-                      <div className="relative">
-                        <Lock className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-emerald-200/70" />
-                        <Input
-                          id="login-password"
-                          type="password"
-                          value={password}
-                          onChange={(event) => setPassword(event.target.value)}
-                          placeholder="Masukkan password"
-                          className="h-12 rounded-xl border-white/10 bg-white/[0.06] pl-11 text-white placeholder:text-white/35 focus-visible:ring-emerald-300"
-                          required
-                          minLength={6}
-                        />
-                      </div>
-                    </div>
+              <div className="space-y-3">
+                <Label htmlFor="signup-password" className="text-xs font-black uppercase tracking-wide text-white">
+                  Password Baru
+                </Label>
+                <div className="relative">
+                  <Lock className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-white/42" />
+                  <Input
+                    id="signup-password"
+                    type="password"
+                    value={password}
+                    onChange={(event) => setPassword(event.target.value)}
+                    placeholder="Minimal 6 karakter"
+                    className="h-12 rounded-none border-white/14 bg-transparent pl-11 text-white placeholder:text-white/42 focus-visible:ring-emerald-500"
+                    required
+                    minLength={6}
+                  />
+                </div>
+              </div>
 
-                    <Button
-                      type="submit"
-                      className="h-12 w-full rounded-xl bg-emerald-600 text-xs font-black uppercase tracking-[0.1em] text-white shadow-lg shadow-emerald-950/40 hover:bg-emerald-500 sm:text-sm sm:tracking-[0.14em]"
-                      disabled={loading}
-                    >
-                      <ShieldCheck className="mr-2 h-4 w-4" />
-                      {loading ? "Otentikasi..." : "Masuk ke Dashboard"}
-                    </Button>
-                  </form>
-                </TabsContent>
+              <Button type="submit" className="h-12 w-full rounded-none bg-emerald-700 font-black uppercase tracking-wide text-white hover:bg-emerald-600" disabled={loading}>
+                {loading ? "Mendaftarkan..." : "Daftarkan Akun"}
+              </Button>
 
-                <TabsContent value="signup" className="mt-0">
-                  <form onSubmit={handleSignUp} className="space-y-5">
-                    <div className="space-y-2">
-                      <Label htmlFor="signup-name" className="text-xs font-black uppercase tracking-[0.16em] text-emerald-50">
-                        Nama Lengkap
-                      </Label>
-                      <Input
-                        id="signup-name"
-                        value={name}
-                        onChange={(event) => setName(event.target.value)}
-                        placeholder="Nama lengkap"
-                        className="h-12 rounded-xl border-white/10 bg-white/[0.06] text-white placeholder:text-white/35 focus-visible:ring-emerald-300"
-                        required
-                      />
-                    </div>
+              <p className="text-center text-sm text-white/52">
+                Sudah punya akun?{" "}
+                <button type="button" className="font-bold text-emerald-400 hover:text-emerald-300" onClick={() => setMode("login")}>
+                  Masuk
+                </button>
+              </p>
+            </form>
+          ) : (
+            <form onSubmit={handleLogin} className="space-y-6">
+              <div className="space-y-3">
+                <Label htmlFor="login-identifier" className="text-xs font-black uppercase tracking-wide text-white">
+                  Email / Username
+                </Label>
+                <div className="relative">
+                  <Mail className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-white/42" />
+                  <Input
+                    id="login-identifier"
+                    type="text"
+                    value={identifier}
+                    onChange={(event) => setIdentifier(event.target.value)}
+                    placeholder="admin atau email@fazmastone.com"
+                    className="h-12 rounded-none border-white/14 bg-transparent pl-11 text-white placeholder:text-white/42 focus-visible:ring-emerald-500"
+                    required
+                  />
+                </div>
+              </div>
 
-                    <div className="space-y-2">
-                      <Label htmlFor="signup-identifier" className="text-xs font-black uppercase tracking-[0.16em] text-emerald-50">
-                        Username atau Email Baru
-                      </Label>
-                      <div className="relative">
-                        <User className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-emerald-200/70" />
-                        <Input
-                          id="signup-identifier"
-                          type="text"
-                          value={identifier}
-                          onChange={(event) => setIdentifier(event.target.value)}
-                          placeholder="username baru"
-                          className="h-12 rounded-xl border-white/10 bg-white/[0.06] pl-11 text-white placeholder:text-white/35 focus-visible:ring-emerald-300"
-                          required
-                        />
-                      </div>
-                    </div>
+              <div className="space-y-3">
+                <Label htmlFor="login-password" className="text-xs font-black uppercase tracking-wide text-white">
+                  Password
+                </Label>
+                <div className="relative">
+                  <Lock className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-white/42" />
+                  <Input
+                    id="login-password"
+                    type="password"
+                    value={password}
+                    onChange={(event) => setPassword(event.target.value)}
+                    placeholder="Masukkan password"
+                    className="h-12 rounded-none border-white/14 bg-transparent pl-11 text-white placeholder:text-white/42 focus-visible:ring-emerald-500"
+                    required
+                    minLength={6}
+                  />
+                </div>
+                <div className="flex justify-end">
+                  <button type="button" onClick={() => setMode("reset")} className="text-xs font-bold text-emerald-400 hover:text-emerald-300">
+                    Lupa password?
+                  </button>
+                </div>
+              </div>
 
-                    <div className="space-y-2">
-                      <Label htmlFor="signup-password" className="text-xs font-black uppercase tracking-[0.16em] text-emerald-50">
-                        Password Baru
-                      </Label>
-                      <div className="relative">
-                        <Lock className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-emerald-200/70" />
-                        <Input
-                          id="signup-password"
-                          type="password"
-                          value={password}
-                          onChange={(event) => setPassword(event.target.value)}
-                          placeholder="Minimal 6 karakter"
-                          className="h-12 rounded-xl border-white/10 bg-white/[0.06] pl-11 text-white placeholder:text-white/35 focus-visible:ring-emerald-300"
-                          required
-                          minLength={6}
-                        />
-                      </div>
-                    </div>
+              <Button type="submit" className="h-12 w-full rounded-none bg-emerald-700 font-black uppercase tracking-wide text-white hover:bg-emerald-600" disabled={loading}>
+                {loading ? "Memproses..." : "Masuk ke Dashboard"}
+              </Button>
 
-                    <Button
-                      type="submit"
-                      className="h-12 w-full rounded-xl bg-emerald-600 text-xs font-black uppercase tracking-[0.1em] text-white shadow-lg shadow-emerald-950/40 hover:bg-emerald-500 sm:text-sm sm:tracking-[0.14em]"
-                      disabled={loading}
-                    >
-                      <Layers className="mr-2 h-4 w-4" />
-                      {loading ? "Mendaftarkan..." : "Daftarkan Akun Baru"}
-                    </Button>
-                  </form>
-                </TabsContent>
-              </Tabs>
-            )}
-
-            <p className="mt-6 border-t border-white/10 pt-5 text-center text-[11px] font-semibold uppercase tracking-[0.18em] text-white/38">
-              Fazma Stone Inventory System
-            </p>
-          </div>
+              <p className="text-center text-sm text-white/52">
+                Belum punya akun?{" "}
+                <button type="button" className="font-bold text-emerald-400 hover:text-emerald-300" onClick={() => setMode("signup")}>
+                  Buat akun
+                </button>
+              </p>
+            </form>
+          )}
         </div>
       </section>
     </main>
