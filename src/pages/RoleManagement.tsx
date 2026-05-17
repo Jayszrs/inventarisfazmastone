@@ -159,13 +159,12 @@ export default function RoleManagement() {
     }
   };
 
-  // 4. DELETE: Mencabut/Menghapus entri role milik user dari tabel
+  // 4. DELETE: Mencabut/Menghapus entri role milik user menggunakan RPC yang aman
   const handleDeleteUserRole = async (userId: string, email: string) => {
     try {
-      const { error } = await supabase
-        .from("user_roles")
-        .delete()
-        .eq("user_id", userId);
+      const { error } = await (supabase as any).rpc("admin_delete_user_role", {
+        target_user_id: userId,
+      });
 
       if (error) throw error;
 
@@ -177,7 +176,7 @@ export default function RoleManagement() {
     } catch (error: any) {
       toast({
         title: "Gagal mencabut akses",
-        description: error.message,
+        description: error.message || "Terjadi kesalahan pada server database.",
         variant: "destructive",
       });
     }
