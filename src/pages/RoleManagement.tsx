@@ -182,10 +182,14 @@ export default function RoleManagement() {
     }
   };
 
+  // PERBAIKAN UTAMA DI SINI: Saring otomatis user yang tidak punya role aktif
   const filteredUsers = useMemo(() => {
+    // Hanya masukkan user yang array roles-nya tidak kosong (artinya dia punya role admin atau staff)
+    const activeTeamMembers = users.filter((user) => user.roles && user.roles.length > 0);
+
     const query = search.toLowerCase().trim();
-    if (!query) return users;
-    return users.filter((user) => {
+    if (!query) return activeTeamMembers;
+    return activeTeamMembers.filter((user) => {
       const role = getPrimaryRole(user.roles);
       return `${user.email} ${role}`.toLowerCase().includes(query);
     });
@@ -301,7 +305,7 @@ export default function RoleManagement() {
                   </TableRow>
                 ) : filteredUsers.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">Tidak ada user ditemukan</TableCell>
+                    <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">Tidak ada user dengan role khusus ditemukan</TableCell>
                   </TableRow>
                 ) : (
                   filteredUsers.map((user) => {
