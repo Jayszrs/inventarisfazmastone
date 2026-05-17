@@ -184,7 +184,7 @@ export default function Nota() {
                         <TableCell className="font-medium text-slate-700">{t.nama_pelanggan || "PELANGGAN"}</TableCell>
                         <TableCell className="text-right font-bold text-slate-800">{formatCurrency(t.total)}</TableCell>
                         <TableCell className="text-center">
-                          <Badge variant="outline" className={\`\${status.color} px-2.5 py-0.5 whitespace-nowrap\`}>
+                          <Badge variant="outline" className={`${status.color} px-2.5 py-0.5 whitespace-nowrap`}>
                             <span className="flex items-center">
                               {status.icon} {status.label}
                             </span>
