@@ -88,7 +88,6 @@ export default function RoleManagement() {
   const loadUsers = async () => {
     setLoading(true);
     try {
-      // Panggil rpc penjamin status admin lokal
       try {
         await (supabase as any).rpc("claim_allowed_admin_role");
       } catch (e) {
@@ -127,7 +126,6 @@ export default function RoleManagement() {
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
       const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
       
-      // Menggunakan isolated client secara aman tanpa cookie persistence untuk menghindari log out session admin
       const isolatedClient = createClient(supabaseUrl, supabaseKey, {
         auth: { persistSession: false, autoRefreshToken: false }
       });
@@ -140,10 +138,8 @@ export default function RoleManagement() {
       if (authError) throw authError;
       if (!authData.user?.id) throw new Error("Gagal mengesahkan user ID.");
 
-      // Aktivasi instan ke database agar langsung berstatus terkonfirmasi
       await (supabase as any).rpc("confirm_allowed_admin_email", { target_email: targetEmail });
 
-      // Simpan role di tabel user_roles
       const { error: roleError } = await supabase
         .from("user_roles")
         .insert({ user_id: authData.user.id, role: newRole });
@@ -170,7 +166,6 @@ export default function RoleManagement() {
     }
   };
 
-  // Logika Eksekusi Ubah Password User Lain oleh Admin
   const handleChangeUserPasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedUser || !changedPassword.trim()) return;
@@ -297,7 +292,7 @@ export default function RoleManagement() {
                         id="username"
                         value={newUsername}
                         onChange={(e) => setNewUsername(e.target.value)}
-                        placeholder="Contoh: Ziaulhaq"
+                        placeholder="Contoh: admin"
                         required
                         autoComplete="off"
                       />
@@ -309,7 +304,7 @@ export default function RoleManagement() {
                         type="password"
                         value={newPassword}
                         onChange={(e) => setNewPassword(e.target.value)}
-                        placeholder="Minimal 6 karakter (Contoh: ziaZia2468)"
+                        placeholder="Contoh: admin123456"
                         required
                       />
                     </div>
@@ -461,8 +456,6 @@ export default function RoleManagement() {
                           </Select>
                         </TableCell>
                         <TableCell className="text-center flex justify-center gap-1 items-center h-14">
-                          
-                          {/* Tombol Aksi Baru: Ubah Password */}
                           <Button
                             variant="ghost"
                             size="icon"
@@ -475,7 +468,6 @@ export default function RoleManagement() {
                             <KeyRound className="h-4 w-4" />
                           </Button>
 
-                          {/* Alert Dialog Delete / Cabut Akses */}
                           <AlertDialog>
                             <AlertDialogTrigger asChild>
                               <Button 
