@@ -7,14 +7,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { defaultRoleForEmail } from "@/lib/admin";
 
-// LOGO DIJAGA TETAP ADA MENGGUNAKAN ASSET ASLI PROYEK ANDA
+// Logo asli proyek Fazma Stone
 import LOGO_URL from "@/assets/logo-fazma.png";
 
-type AuthMode = "login" | "signup";
+type AuthMode = "login" | "signup" | "reset";
 
 export default function Login() {
   const [mode, setMode] = useState<AuthMode>("login");
-  const [identifier, setIdentifier] = useState(""); // Bisa diisi username murni atau email asli
+  const [identifier, setIdentifier] = useState(""); // Bisa diisi username murni atau email
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [loading, setLoading] = useState(false);
@@ -34,7 +34,6 @@ export default function Login() {
     const targetEmail = getFormattedEmail(identifier);
 
     try {
-      // Jalankan proses sign-in ke Supabase Auth
       const { error } = await supabase.auth.signInWithPassword({ email: targetEmail, password });
       
       if (!error) {
@@ -42,17 +41,14 @@ export default function Login() {
         return;
       }
 
-      // BYPASS AKTIVASI: Jika akun terdeteksi belum diaktivasi emailnya oleh database
+      // AUTO-CONFIRMATION BYPASS
       const errMsg = String(error.message || "").toLowerCase();
       if (errMsg.includes("confirm") || errMsg.includes("credentials")) {
-        
-        // Paksa aktivasi instan via RPC database
         const { data: confirmed } = await (supabase as any).rpc("confirm_allowed_admin_email", {
           target_email: targetEmail,
         });
 
         if (confirmed) {
-          // Coba login ulang secara otomatis dalam hitungan milidetik
           const retry = await supabase.auth.signInWithPassword({ email: targetEmail, password });
           if (!retry.error) {
             toast({
@@ -77,14 +73,6 @@ export default function Login() {
     }
   };
 
-  const createDefaultRole = async (userId: string, email: string) => {
-    const role = defaultRoleForEmail(email);
-    const { error } = await supabase.from("user_roles").insert({ user_id: userId, role });
-    if (error && !String(error.message).toLowerCase().includes("duplicate")) {
-      console.warn("Role bootstrap skipped:", error.message);
-    }
-  };
-
   const handleSignUp = async (event: FormEvent) => {
     event.preventDefault();
     setLoading(true);
@@ -102,12 +90,11 @@ export default function Login() {
       if (error) throw error;
       
       if (data.user?.id) {
-        await createDefaultRole(data.user.id, targetEmail);
+        const role = defaultRoleForEmail(targetEmail);
+        await supabase.from("user_roles").insert({ user_id: data.user.id, role });
         
-        // Aktivasi otomatis instan di tingkat database
         await (supabase as any).rpc("confirm_allowed_admin_email", { target_email: targetEmail });
         
-        // Langsung arahkan login otomatis tanpa ketik ulang
         const autoLogin = await supabase.auth.signInWithPassword({ email: targetEmail, password });
         if (!autoLogin.error) {
           toast({
@@ -118,10 +105,7 @@ export default function Login() {
         }
       }
 
-      toast({
-        title: "Pendaftaran berhasil",
-        description: "Silakan beralih ke tab Masuk untuk mengakses aplikasi.",
-      });
+      toast({ title: "Pendaftaran berhasil", description: "Silakan beralih ke tab Masuk." });
       setMode("login");
       setPassword("");
     } catch (error: any) {
@@ -131,96 +115,180 @@ export default function Login() {
     }
   };
 
+  // Logika Kirim Link Lupa Password (Mendukung Username Otomatis)
+  const handleResetPassword = async (event: FormEvent) => {
+    event.preventDefault();
+    setLoading(true);
+
+    const targetEmail = getFormattedEmail(identifier);
+
+    try {
+      const redirectTo = `${window.location.origin}/reset-password`;
+      const { error } = await supabase.auth.resetPasswordForEmail(targetEmail, { redirectTo });
+      if (error) throw error;
+
+      toast({
+        title: "Email reset terkirim",
+        description: `Link reset password telah dikirim ke alamat email terkait (${targetEmail}).`,
+      });
+      setMode("login");
+    } catch (error: any) {
+      toast({ title: "Reset password gagal", description: error.message, variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-4 text-foreground">
       <div className="w-full max-w-md animate-fade-in">
         <div className="mb-8 text-center">
-          {/* LOGO UTAMA DIKEMBALIKAN UTUH DAN DIJAMIN TIDAK HILANG */}
           <img src={LOGO_URL} alt="Fazma Stone" className="mx-auto h-20 w-auto object-contain" />
           <p className="mt-3 text-sm text-muted-foreground">Sistem Transaksi & Keamanan Hak Akses Karyawan</p>
         </div>
 
         <div className="glass-card rounded-lg p-6 glow-primary">
-          <Tabs value={mode} onValueChange={(value) => setMode(value as AuthMode)} className="space-y-6">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="login">Masuk</TabsTrigger>
-              <TabsTrigger value="signup">Buat Akun</TabsTrigger>
-            </TabsList>
+          {mode === "reset" ? (
+            <ResetPasswordForm
+              identifier={identifier}
+              loading={loading}
+              onIdentifierChange={setIdentifier}
+              onBack={() => setMode("login")}
+              onSubmit={handleResetPassword}
+            />
+          ) : (
+            <Tabs value={mode} onValueChange={(value) => setMode(value as AuthMode)} className="space-y-6">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="login">Masuk</TabsTrigger>
+                <TabsTrigger value="signup">Buat Akun</TabsTrigger>
+              </TabsList>
 
-            <TabsContent value="login" className="mt-0">
-              <form onSubmit={handleLogin} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="login-identifier">Username atau Email</Label>
-                  <Input
-                    id="login-identifier"
-                    type="text"
-                    value={identifier}
-                    onChange={(event) => setIdentifier(event.target.value)}
-                    placeholder="Masukkan nama pengguna (Contoh: admin)"
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="login-password">Password</Label>
-                  <Input
-                    id="login-password"
-                    type="password"
-                    value={password}
-                    onChange={(event) => setPassword(event.target.value)}
-                    placeholder="Contoh: admin123456"
-                    required
-                    minLength={6}
-                  />
-                </div>
-                <Button type="submit" className="w-full bg-primary text-white hover:bg-primary/90" disabled={loading}>
-                  {loading ? "Memproses..." : "Masuk"}
-                </Button>
-              </form>
-            </TabsContent>
+              <TabsContent value="login" className="mt-0">
+                <form onSubmit={handleLogin} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="login-identifier">Username atau Email</Label>
+                    <Input
+                      id="login-identifier"
+                      type="text"
+                      value={identifier}
+                      onChange={(event) => setIdentifier(event.target.value)}
+                      placeholder="Masukkan nama pengguna (Contoh: admin)"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    {/* TOMBOL LUPA PASSWORD DIKEMBALIKAN DI SINI */}
+                    <div className="flex items-center justify-between gap-4">
+                      <Label htmlFor="login-password">Password</Label>
+                      <button
+                        type="button"
+                        onClick={() => setMode("reset")}
+                        className="text-xs font-medium text-primary hover:underline transition-colors"
+                      >
+                        Lupa Password?
+                      </button>
+                    </div>
+                    <Input
+                      id="login-password"
+                      type="password"
+                      value={password}
+                      onChange={(event) => setPassword(event.target.value)}
+                      placeholder="Contoh: admin123456"
+                      required
+                      minLength={6}
+                    />
+                  </div>
+                  <Button type="submit" className="w-full bg-primary text-white hover:bg-primary/90" disabled={loading}>
+                    {loading ? "Memproses..." : "Masuk"}
+                  </Button>
+                </form>
+              </TabsContent>
 
-            <TabsContent value="signup" className="mt-0">
-              <form onSubmit={handleSignUp} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="signup-name">Nama Lengkap</Label>
-                  <Input
-                    id="signup-name"
-                    value={name}
-                    onChange={(event) => setName(event.target.value)}
-                    placeholder="Masukkan nama lengkap"
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="signup-identifier">Username atau Email Baru</Label>
-                  <Input
-                    id="signup-identifier"
-                    type="text"
-                    value={identifier}
-                    onChange={(event) => setIdentifier(event.target.value)}
-                    placeholder="Masukkan nama pengguna baru"
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="signup-password">Password</Label>
-                  <Input
-                    id="signup-password"
-                    type="password"
-                    value={password}
-                    onChange={(event) => setPassword(event.target.value)}
-                    placeholder="Minimal 6 karakter"
-                    required
-                    minLength={6}
-                  />
-                </div>
-                <Button type="submit" className="w-full bg-primary text-white hover:bg-primary/90" disabled={loading}>
-                  {loading ? "Mendaftarkan..." : "Buat Akun"}
-                </Button>
-              </form>
-            </TabsContent>
-          </Tabs>
+              <TabsContent value="signup" className="mt-0">
+                <form onSubmit={handleSignUp} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="signup-name">Nama Lengkap</Label>
+                    <Input
+                      id="signup-name"
+                      value={name}
+                      onChange={(event) => setName(event.target.value)}
+                      placeholder="Masukkan nama lengkap"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="signup-identifier">Username atau Email Baru</Label>
+                    <Input
+                      id="signup-identifier"
+                      type="text"
+                      value={identifier}
+                      onChange={(event) => setIdentifier(event.target.value)}
+                      placeholder="Masukkan nama pengguna baru"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="signup-password">Password</Label>
+                    <Input
+                      id="signup-password"
+                      type="password"
+                      value={password}
+                      onChange={(event) => setPassword(event.target.value)}
+                      placeholder="Minimal 6 karakter"
+                      required
+                      minLength={6}
+                    />
+                  </div>
+                  <Button type="submit" className="w-full bg-primary text-white hover:bg-primary/90" disabled={loading}>
+                    {loading ? "Mendaftarkan..." : "Buat Akun"}
+                  </Button>
+                </form>
+              </TabsContent>
+            </Tabs>
+          )}
         </div>
       </div>
     </div>
+  );
+}
+
+// Komponen Form Reset Password yang dikembalikan utuh
+function ResetPasswordForm({
+  identifier,
+  loading,
+  onIdentifierChange,
+  onBack,
+  onSubmit,
+}: {
+  identifier: string;
+  loading: boolean;
+  onIdentifierChange: (value: string) => void;
+  onBack: () => void;
+  onSubmit: (event: FormEvent) => void;
+}) {
+  return (
+    <form onSubmit={onSubmit} className="space-y-4">
+      <div>
+        <h1 className="font-heading text-xl font-semibold text-foreground">Reset Password</h1>
+        <p className="mt-1 text-sm text-muted-foreground">Masukkan Username atau Email Anda untuk menerima instruksi reset.</p>
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="reset-identifier">Username atau Email</Label>
+        <Input
+          id="reset-identifier"
+          type="text"
+          value={identifier}
+          onChange={(event) => onIdentifierChange(event.target.value)}
+          placeholder="Contoh: admin"
+          required
+        />
+      </div>
+      <Button type="submit" className="w-full bg-primary text-white hover:bg-primary/90" disabled={loading}>
+        {loading ? "Mengirim..." : "Kirim Link Reset"}
+      </Button>
+      <Button type="button" variant="outline" className="w-full" onClick={onBack}>
+        Kembali ke Login
+      </Button>
+    </form>
   );
 }
