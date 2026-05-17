@@ -7,7 +7,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 
 const LOGO_URL = encodeURI("/Logo Fazma Stone Hitam.png");
-const ADMIN_EMAILS = ["saputrajaelani423@gmail.com"];
 
 type AuthMode = "login" | "signup" | "reset";
 
@@ -18,18 +17,6 @@ export default function Login() {
   const [name, setName] = useState("");
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
-
-  const createDefaultRole = async (userId: string) => {
-    const defaultRole = ADMIN_EMAILS.includes(email.toLowerCase()) ? "admin" : "staff";
-    const { error } = await supabase.from("user_roles").insert({
-      user_id: userId,
-      role: defaultRole,
-    });
-
-    if (error && !error.message.toLowerCase().includes("duplicate")) {
-      throw error;
-    }
-  };
 
   const handleLogin = async (event: FormEvent) => {
     event.preventDefault();
