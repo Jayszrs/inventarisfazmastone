@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AppRole, AuthProvider, useAuth } from "@/contexts/AuthContext";
 import Login from "./pages/Login";
+import ResetPassword from "./pages/ResetPassword";
 import Dashboard from "./pages/Dashboard";
 import Invoice from "./pages/Invoice";
 import Dokumentasi from "./pages/Dokumentasi";
