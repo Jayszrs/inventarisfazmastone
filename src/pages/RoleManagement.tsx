@@ -30,7 +30,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { RefreshCw, Search, ShieldCheck, UserCog, UserPlus, Trash2 } from "lucide-react";
+import { RefreshCw, Search, ShieldCheck, UserCog, UserPlus, Trash2, KeyRound } from "lucide-react";
 
 type ManagedUser = {
   user_id: string;
@@ -68,22 +68,32 @@ export default function RoleManagement() {
   const [loading, setLoading] = useState(true);
   const [savingUserId, setSavingUserId] = useState<string | null>(null);
 
-  // State Form Pendaftaran Menggunakan Username & Password
+  // State Form Tambah User
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [newUsername, setNewUsername] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [newRole, setNewRole] = useState<AppRole>("staff");
   const [isCreating, setIsCreating] = useState(false);
 
+  // State Form Ubah Password
+  const [isPasswordDialogOpen, setIsPasswordDialogOpen] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<ManagedUser | null>(null);
+  const [changedPassword, setChangedPassword] = useState("");
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+
   useEffect(() => {
     loadUsers();
   }, []);
 
-  // 1. READ: Memuat seluruh daftar anggota tim
   const loadUsers = async () => {
     setLoading(true);
     try {
-      await (supabase as any).rpc("claim_allowed_admin_role");
+      // Panggil rpc penjamin status admin lokal
+      try {
+        await (supabase as any).rpc("claim_allowed_admin_role");
+      } catch (e) {
+        console.warn("RPC claim_allowed_admin_role dilewati.");
+      }
       await refreshRole();
 
       const { data, error } = await (supabase as any).rpc("admin_list_users_with_roles");
@@ -100,10 +110,8 @@ export default function RoleManagement() {
     }
   };
 
-  // 2. CREATE: Membuat Akun Karyawan Langsung via Username & Password
   const handleAddUserRole = async (e: React.FormEvent) => {
     e.preventDefault();
-    
     const usernameClean = newUsername.trim();
     const passwordClean = newPassword.trim();
 
@@ -112,26 +120,18 @@ export default function RoleManagement() {
       return;
     }
 
-    if (passwordClean.length < 6) {
-      toast({ title: "Password minimal harus 6 karakter!", variant: "destructive" });
-      return;
-    }
-
     setIsCreating(true);
     try {
-      // Mengubah username murni menjadi email internal agar Supabase menerimanya
-      const targetEmail = usernameClean.includes("@") 
-        ? usernameClean.toLowerCase() 
-        : `${usernameClean.toLowerCase()}@fazmastone.com`;
+      const targetEmail = usernameClean.includes("@") ? usernameClean.toLowerCase() : `${usernameClean.toLowerCase()}@fazmastone.com`;
 
-      // Klien Supabase terisolasi agar admin tidak logout saat membuat user baru
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
       const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+      
+      // Menggunakan isolated client secara aman tanpa cookie persistence untuk menghindari log out session admin
       const isolatedClient = createClient(supabaseUrl, supabaseKey, {
-        auth: { persistSession: false }
+        auth: { persistSession: false, autoRefreshToken: false }
       });
 
-      // A. Daftarkan akun baru
       const { data: authData, error: authError } = await isolatedClient.auth.signUp({
         email: targetEmail,
         password: passwordClean,
@@ -140,20 +140,13 @@ export default function RoleManagement() {
       if (authError) throw authError;
       if (!authData.user?.id) throw new Error("Gagal mengesahkan user ID.");
 
-      // B. Aktivasi instan ke server database agar user langsung lunas verifikasi email
-      try {
-        await (supabase as any).rpc("confirm_allowed_admin_email", { target_email: targetEmail });
-      } catch (confirmErr) {
-        console.warn("Aktivasi dilewati:", confirmErr);
-      }
+      // Aktivasi instan ke database agar langsung berstatus terkonfirmasi
+      await (supabase as any).rpc("confirm_allowed_admin_email", { target_email: targetEmail });
 
-      // C. Simpan penetapan tingkatan hak akses/role-nya
+      // Simpan role di tabel user_roles
       const { error: roleError } = await supabase
         .from("user_roles")
-        .insert({
-          user_id: authData.user.id,
-          role: newRole
-        });
+        .insert({ user_id: authData.user.id, role: newRole });
 
       if (roleError) throw roleError;
 
@@ -162,7 +155,6 @@ export default function RoleManagement() {
         description: `Akun "${usernameClean}" sukses terdaftar sebagai ${roleLabels[newRole]}.`,
       });
       
-      // Reset Form & Muat ulang tabel data
       setIsAddDialogOpen(false);
       setNewUsername("");
       setNewPassword("");
@@ -170,7 +162,7 @@ export default function RoleManagement() {
     } catch (error: any) {
       toast({
         title: "Gagal mendaftarkan user baru",
-        description: error.message || "Pastikan format isian sudah benar.",
+        description: error.message || "Pastikan password minimal 6 karakter.",
         variant: "destructive",
       });
     } finally {
@@ -178,7 +170,44 @@ export default function RoleManagement() {
     }
   };
 
-  // 3. UPDATE: Mengubah hak jabatan user lama
+  // Logika Eksekusi Ubah Password User Lain oleh Admin
+  const handleChangeUserPasswordSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedUser || !changedPassword.trim()) return;
+
+    if (changedPassword.trim().length < 6) {
+      toast({ title: "Password baru minimal 6 karakter!", variant: "destructive" });
+      return;
+    }
+
+    setIsChangingPassword(true);
+    try {
+      const { error } = await (supabase as any).rpc("admin_change_user_password", {
+        target_user_id: selectedUser.user_id,
+        new_password: changedPassword.trim()
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Password Diperbarui",
+        description: `Password untuk user ${selectedUser.email} berhasil diubah.`,
+      });
+
+      setIsPasswordDialogOpen(false);
+      setChangedPassword("");
+      setSelectedUser(null);
+    } catch (error: any) {
+      toast({
+        title: "Gagal mengubah password",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setIsChangingPassword(false);
+    }
+  };
+
   const updateRole = async (user: ManagedUser, role: AppRole) => {
     setSavingUserId(user.user_id);
     try {
@@ -201,7 +230,6 @@ export default function RoleManagement() {
     }
   };
 
-  // 4. DELETE: Mencabut akses total karyawan
   const handleDeleteUserRole = async (userId: string, email: string) => {
     try {
       const { error } = await (supabase as any).rpc("admin_delete_user_role", {
@@ -224,7 +252,6 @@ export default function RoleManagement() {
     }
   };
 
-  // Filter tabel utama: Hanya tampilkan pengguna yang memiliki hak akses aktif
   const filteredUsers = useMemo(() => {
     const activeTeamMembers = users.filter((user) => user.roles && user.roles.length > 0);
 
@@ -244,7 +271,7 @@ export default function RoleManagement() {
         <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
           <div>
             <h1 className="font-heading text-2xl font-bold text-foreground">Role Management</h1>
-            <p className="text-sm text-muted-foreground">Kelola hak akses penuh akun Admin, Staff, atau User lapangan.</p>
+            <p className="text-sm text-muted-foreground">Kelola akun dan tingkat jabatan Admin, Staff, atau User lapangan.</p>
           </div>
           <div className="flex gap-2">
             
@@ -318,6 +345,41 @@ export default function RoleManagement() {
           </div>
         </div>
 
+        {/* Dialog Form Ubah Password User */}
+        <Dialog open={isPasswordDialogOpen} onOpenChange={setIsPasswordDialogOpen}>
+          <DialogContent className="sm:max-w-[425px]">
+            <form onSubmit={handleChangeUserPasswordSubmit}>
+              <DialogHeader>
+                <DialogTitle>Ubah Password Pengguna</DialogTitle>
+                <DialogDescription>
+                  Ganti sandi akun untuk karyawan <strong>{selectedUser?.email}</strong> secara langsung.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="grid gap-4 py-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="new_password_input">Password Baru</Label>
+                  <Input
+                    id="new_password_input"
+                    type="password"
+                    value={changedPassword}
+                    onChange={(e) => setChangedPassword(e.target.value)}
+                    placeholder="Masukkan password baru (min 6 karakter)"
+                    required
+                  />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setIsPasswordDialogOpen(false)}>
+                  Batal
+                </Button>
+                <Button type="submit" disabled={isChangingPassword} className="bg-primary text-white">
+                  {isChangingPassword ? "Mengubah..." : "Update Password"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
+
         {/* Search Input */}
         <div className="glass-card rounded-lg p-5">
           <div className="mb-4 flex items-center gap-2">
@@ -354,7 +416,7 @@ export default function RoleManagement() {
                   <TableHead>Tanggal Terdaftar</TableHead>
                   <TableHead>Status Hak Akses</TableHead>
                   <TableHead className="w-48">Ubah Akses</TableHead>
-                  <TableHead className="w-24 text-center">Tindakan</TableHead>
+                  <TableHead className="w-32 text-center">Tindakan</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -398,7 +460,22 @@ export default function RoleManagement() {
                             </SelectContent>
                           </Select>
                         </TableCell>
-                        <TableCell className="text-center">
+                        <TableCell className="text-center flex justify-center gap-1 items-center h-14">
+                          
+                          {/* Tombol Aksi Baru: Ubah Password */}
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="text-muted-foreground hover:text-primary hover:bg-primary/10 h-8 w-8 rounded-md transition-colors"
+                            onClick={() => {
+                              setSelectedUser(user);
+                              setIsPasswordDialogOpen(true);
+                            }}
+                          >
+                            <KeyRound className="h-4 w-4" />
+                          </Button>
+
+                          {/* Alert Dialog Delete / Cabut Akses */}
                           <AlertDialog>
                             <AlertDialogTrigger asChild>
                               <Button 
