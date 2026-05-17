@@ -180,7 +180,7 @@ export default function Login() {
                     />
                   </div>
                   <Button type="submit" className="w-full" disabled={loading}>
-                    {loading ? "Mendaftarkan..." : "Buat Akun Staff"}
+                    {loading ? "Mendaftarkan..." : "Buat Akun"}
                   </Button>
                 </form>
               </TabsContent>
