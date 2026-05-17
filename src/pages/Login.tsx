@@ -24,13 +24,34 @@ export default function Login() {
 
     try {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) throw error;
+      if (!error) return;
+
+      const invalidCredentials = String(error.message || "").toLowerCase().includes("invalid login credentials");
+      if (invalidCredentials && isAdminEmail(email)) {
+        const { data: confirmed } = await (supabase as any).rpc("confirm_allowed_admin_email", {
+          target_email: email,
+        });
+
+        if (confirmed) {
+          const retry = await supabase.auth.signInWithPassword({ email, password });
+          if (!retry.error) {
+            toast({
+              title: "Email admin dikonfirmasi",
+              description: "Akun admin berhasil masuk.",
+            });
+            return;
+          }
+          throw retry.error;
+        }
+      }
+
+      throw error;
     } catch (error: any) {
       const invalidCredentials = String(error.message || "").toLowerCase().includes("invalid login credentials");
       toast({
         title: "Login gagal",
         description: invalidCredentials
-          ? "Email/password salah, akun belum terdaftar, atau email belum diverifikasi. Coba Buat Akun atau gunakan Lupa Password."
+          ? "Email/password salah atau akun belum benar-benar terdaftar. Untuk admin, coba tab Buat Akun dengan email yang sama, lalu login lagi."
           : error.message,
         variant: "destructive",
       });
@@ -63,7 +84,19 @@ export default function Login() {
       if (data.user?.id) {
         await createDefaultRole(data.user.id);
       }
-      if (data.session && isAdminEmail(email)) {
+      if (isAdminEmail(email)) {
+        await (supabase as any).rpc("confirm_allowed_admin_email", { target_email: email });
+        const login = await supabase.auth.signInWithPassword({ email, password });
+        if (!login.error) {
+          await (supabase as any).rpc("claim_allowed_admin_role");
+          toast({
+            title: "Akun admin siap",
+            description: "Email admin sudah dikonfirmasi otomatis dan berhasil masuk.",
+          });
+          return;
+        }
+      }
+      if (data.session) {
         await (supabase as any).rpc("claim_allowed_admin_role");
       }
 

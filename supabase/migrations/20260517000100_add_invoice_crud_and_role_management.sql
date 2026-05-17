@@ -104,6 +104,32 @@ BEGIN
 END;
 $$;
 
+CREATE OR REPLACE FUNCTION public.confirm_allowed_admin_email(target_email text)
+RETURNS boolean
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, auth
+AS $$
+DECLARE
+  normalized_email text := lower(trim(target_email));
+  updated_count integer;
+BEGIN
+  IF normalized_email NOT IN ('saputrajaelani423@gmail.com', 'jaelanisurya8@gmail.com') THEN
+    RETURN false;
+  END IF;
+
+  UPDATE auth.users
+  SET
+    email_confirmed_at = COALESCE(email_confirmed_at, now()),
+    confirmation_token = '',
+    updated_at = now()
+  WHERE lower(email) = normalized_email;
+
+  GET DIAGNOSTICS updated_count = ROW_COUNT;
+  RETURN updated_count > 0;
+END;
+$$;
+
 DROP POLICY IF EXISTS "Admins can view all user roles" ON public.user_roles;
 CREATE POLICY "Admins can view all user roles"
 ON public.user_roles
@@ -185,3 +211,4 @@ GRANT EXECUTE ON FUNCTION public.admin_list_users_with_roles() TO authenticated;
 GRANT EXECUTE ON FUNCTION public.admin_set_user_role(uuid, public.app_role) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.claim_allowed_admin_role() TO authenticated;
 GRANT EXECUTE ON FUNCTION public.is_admin_user(uuid) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.confirm_allowed_admin_email(text) TO anon, authenticated;
