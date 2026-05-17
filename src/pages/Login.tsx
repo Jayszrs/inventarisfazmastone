@@ -5,20 +5,22 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import LOGO_URL = "/Logo Fazma Stone Hitam.png"; // Menggunakan asset logo universal baru
 import { defaultRoleForEmail } from "@/lib/admin";
 
-type AuthMode = "login" | "signup" | "reset";
+// PERBAIKAN: Menggunakan deklarasi variabel 'const' yang benar
+const LOGO_URL = "/Logo Fazma Stone Hitam.png";
+
+type AuthMode = "login" | "signup";
 
 export default function Login() {
   const [mode, setMode] = useState<AuthMode>("login");
-  const [identifier, setIdentifier] = useState(""); // Menampung username murni atau email asli
+  const [identifier, setIdentifier] = useState(""); // Bisa diisi username (admin) atau email biasa
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
-  // Fungsi pengonversi cerdas: otomatis mengubah username menjadi email internal
+  // Pengonversi otomatis: mengubah username murni menjadi format email internal
   const getFormattedEmail = (input: string) => {
     const cleanInput = input.trim().toLowerCase();
     if (!cleanInput) return "";
@@ -32,7 +34,7 @@ export default function Login() {
     const targetEmail = getFormattedEmail(identifier);
 
     try {
-      // Eksekusi percobaan masuk pertama
+      // Jalankan proses sign-in ke Supabase Auth
       const { error } = await supabase.auth.signInWithPassword({ email: targetEmail, password });
       
       if (!error) {
@@ -40,22 +42,22 @@ export default function Login() {
         return;
       }
 
-      // FITUR SAKTI: Jika error disebabkan karena akun belum terkonfirmasi/diaktivasi
+      // AUTO-CONFIRMATION BYPASS: Jika akun terdeteksi belum diaktivasi emailnya
       const errMsg = String(error.message || "").toLowerCase();
       if (errMsg.includes("confirm") || errMsg.includes("credentials")) {
         
-        // Picu RPC aktivasi instan dari sisi klien untuk meloloskan akun
+        // Paksa aktivasi instan via RPC database
         const { data: confirmed } = await (supabase as any).rpc("confirm_allowed_admin_email", {
           target_email: targetEmail,
         });
 
         if (confirmed) {
-          // Lakukan login ulang secara otomatis dalam hitungan milidetik
+          // Coba login ulang secara otomatis
           const retry = await supabase.auth.signInWithPassword({ email: targetEmail, password });
           if (!retry.error) {
             toast({
               title: "Masuk Berhasil",
-              description: "Akun Anda telah diaktivasi otomatis oleh sistem dan berhasil masuk.",
+              description: "Akun Anda telah diaktivasi otomatis dan berhasil masuk.",
             });
             return;
           }
@@ -102,10 +104,10 @@ export default function Login() {
       if (data.user?.id) {
         await createDefaultRole(data.user.id, targetEmail);
         
-        // Pastikan akun baru langsung terverifikasi tanpa buka email
+        // Aktivasi otomatis instan di tingkat database
         await (supabase as any).rpc("confirm_allowed_admin_email", { target_email: targetEmail });
         
-        // Langsung bypass masuk otomatis agar tidak perlu mengetik ulang
+        // Langsung arahkan login otomatis tanpa ketik ulang
         const autoLogin = await supabase.auth.signInWithPassword({ email: targetEmail, password });
         if (!autoLogin.error) {
           toast({
@@ -134,7 +136,7 @@ export default function Login() {
       <div className="w-full max-w-md animate-fade-in">
         <div className="mb-8 text-center">
           <p className="font-heading text-3xl font-extrabold tracking-tight text-primary">FAZMA STONE</p>
-          <p className="mt-2 text-sm text-muted-foreground">Sistem Manajemen Transaksi & Keamanan Hak Akses</p>
+          <p className="mt-2 text-sm text-muted-foreground">Sistem Transaksi & Keamanan Hak Akses Karyawan</p>
         </div>
 
         <div className="glass-card rounded-lg p-6 glow-primary">
@@ -153,7 +155,7 @@ export default function Login() {
                     type="text"
                     value={identifier}
                     onChange={(event) => setIdentifier(event.target.value)}
-                    placeholder="Contoh: admin"
+                    placeholder="Masukkan nama pengguna (Contoh: admin)"
                     required
                   />
                 </div>
@@ -194,7 +196,7 @@ export default function Login() {
                     type="text"
                     value={identifier}
                     onChange={(event) => setIdentifier(event.target.value)}
-                    placeholder="Contoh: admin"
+                    placeholder="Masukkan nama pengguna baru"
                     required
                   />
                 </div>
@@ -210,14 +212,23 @@ export default function Login() {
                     minLength={6}
                   />
                 </div>
-                <Button type="submit" className="w-full bg-primary text-white hover:bg-primary/90" disabled={loading}>
+                <CardButton type="submit" className="w-full bg-primary text-white hover:bg-primary/90" disabled={loading}>
                   {loading ? "Mendaftarkan..." : "Buat Akun"}
-                </Button>
+                </CardButton>
               </form>
             </TabsContent>
           </Tabs>
         </div>
       </div>
     </div>
+  );
+}
+
+// Komponen mini pembantu tombol agar kompatibel dengan layout shadcn
+function CardButton({ children, className, ...props }: React.ComponentProps<typeof Button>) {
+  return (
+    <Button className={className} {...props}>
+      {children}
+    </Button>
   );
 }
