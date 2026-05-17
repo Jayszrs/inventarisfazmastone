@@ -144,17 +144,15 @@ export default function Login() {
           className="absolute inset-0 h-full w-full object-cover opacity-95"
           aria-hidden="true"
         />
-        <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(7,49,31,0.88),rgba(17,93,50,0.72)),radial-gradient(circle_at_18%_76%,rgba(34,197,94,0.34),transparent_30%)]" />
+        <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(7,49,31,0.72),rgba(17,93,50,0.6)),radial-gradient(circle_at_18%_76%,rgba(34,197,94,0.26),transparent_30%)]" />
         <div className="absolute -right-16 top-0 h-full w-44 bg-white/5 blur-3xl" />
 
-        <div className="relative z-10 flex items-center gap-4">
-          <div className="flex h-14 w-36 items-center justify-center rounded-lg bg-white px-4 shadow-xl shadow-emerald-950/30">
-            <img src={LOGO_URL} alt="Fazma Stone" className="max-h-9 w-auto object-contain" />
-          </div>
-          <div>
-            <p className="font-heading text-lg font-black leading-none">FAZMA STONE</p>
-            <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.35em] text-emerald-100/75">Natural Stone</p>
-          </div>
+        <div className="relative z-10">
+          <img
+            src={LOGO_URL}
+            alt="Fazma Stone"
+            className="h-20 w-auto object-contain brightness-0 invert drop-shadow-[0_12px_24px_rgba(0,0,0,0.28)]"
+          />
         </div>
 
         <div className="relative z-10 max-w-xl pb-20">
@@ -169,19 +167,23 @@ export default function Login() {
             Kelola stok batu alam, nota transaksi, dokumentasi gudang, dan akses karyawan dalam satu sistem operasional.
           </p>
 
-          <div className="mt-10 h-44 max-w-md overflow-hidden rounded-sm border border-white/15 shadow-2xl shadow-emerald-950/30">
-            <img src={STONE_TEXTURE_URL} alt="Tekstur batu alam hijau" className="h-full w-full object-cover" />
+          <div className="mt-10 h-48 max-w-md overflow-hidden rounded-sm border border-white/15 shadow-2xl shadow-emerald-950/30">
+            <img src={STONE_TEXTURE_URL} alt="Dinding batu alam hitam" className="h-full w-full object-cover" />
           </div>
         </div>
 
-        <p className="relative z-10 text-xs text-emerald-50/55">© {new Date().getFullYear()} Fazma Stone Inventory System</p>
+        <p className="relative z-10 text-xs text-emerald-50/55">&copy; {new Date().getFullYear()} Fazma Stone Inventory System</p>
       </section>
 
       <section className="relative flex min-h-screen w-full items-center justify-start overflow-hidden bg-[#08100c] px-6 py-20 lg:w-1/2 lg:justify-center lg:px-16">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_86%_92%,rgba(22,163,74,0.18),transparent_24%)]" />
 
-        <div className="absolute left-6 top-6 flex h-14 w-36 items-center justify-center rounded-lg bg-white px-4 shadow-lg shadow-black/20 lg:hidden">
-          <img src={LOGO_URL} alt="Fazma Stone" className="max-h-9 w-auto object-contain" />
+        <div className="absolute left-6 top-6 lg:hidden">
+          <img
+            src={LOGO_URL}
+            alt="Fazma Stone"
+            className="h-16 w-auto object-contain brightness-0 invert drop-shadow-[0_12px_24px_rgba(0,0,0,0.28)]"
+          />
         </div>
 
         <div className="relative z-10 w-full max-w-[342px] pt-14 sm:max-w-md lg:pt-0">

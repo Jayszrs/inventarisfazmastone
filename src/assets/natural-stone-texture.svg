@@ -1,33 +1,55 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 900" preserveAspectRatio="xMidYMid slice">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1400 820" preserveAspectRatio="xMidYMid slice">
   <defs>
-    <linearGradient id="base" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#1a3d2a"/>
-      <stop offset="0.42" stop-color="#315a31"/>
-      <stop offset="0.72" stop-color="#214a2d"/>
-      <stop offset="1" stop-color="#0d2a1c"/>
+    <linearGradient id="sky" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#f7f6e8"/>
+      <stop offset="0.55" stop-color="#cfddba"/>
+      <stop offset="1" stop-color="#7e9769"/>
     </linearGradient>
-    <radialGradient id="glow" cx="72%" cy="18%" r="75%">
-      <stop offset="0" stop-color="#96b56a" stop-opacity="0.55"/>
-      <stop offset="0.5" stop-color="#2f7a49" stop-opacity="0.32"/>
-      <stop offset="1" stop-color="#062016" stop-opacity="0"/>
-    </radialGradient>
-    <filter id="grain">
-      <feTurbulence type="fractalNoise" baseFrequency="0.012 0.055" numOctaves="5" seed="17"/>
+    <linearGradient id="wall" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#20251f"/>
+      <stop offset="0.42" stop-color="#111612"/>
+      <stop offset="1" stop-color="#30362d"/>
+    </linearGradient>
+    <linearGradient id="floor" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#b7a98e"/>
+      <stop offset="1" stop-color="#6e755f"/>
+    </linearGradient>
+    <filter id="rough">
+      <feTurbulence type="fractalNoise" baseFrequency="0.04 0.22" numOctaves="4" seed="32"/>
       <feColorMatrix type="saturate" values="0"/>
       <feComponentTransfer>
-        <feFuncA type="table" tableValues="0 0.28"/>
+        <feFuncA type="table" tableValues="0.1 0.55"/>
       </feComponentTransfer>
     </filter>
+    <pattern id="stoneBlocks" width="132" height="62" patternUnits="userSpaceOnUse">
+      <rect width="132" height="62" fill="#151915"/>
+      <path d="M0 9h132M0 31h132M0 54h132M17 9v22M77 9v22M39 31v23M101 31v23" stroke="#394137" stroke-opacity="0.74" stroke-width="2.2"/>
+      <path d="M4 17h42M58 18h65M10 40h72M93 44h34" stroke="#5a6557" stroke-opacity="0.38" stroke-width="2"/>
+      <path d="M0 61h132" stroke="#070908" stroke-opacity="0.65" stroke-width="3"/>
+    </pattern>
   </defs>
-  <rect width="1200" height="900" fill="url(#base)"/>
-  <rect width="1200" height="900" fill="url(#glow)"/>
-  <rect width="1200" height="900" filter="url(#grain)" opacity="0.55"/>
-  <g fill="none" stroke-linecap="round">
-    <path d="M-80 715 C 160 520, 240 690, 430 515 S 725 250, 1290 185" stroke="#d6e8b0" stroke-opacity="0.16" stroke-width="38"/>
-    <path d="M-90 660 C 170 500, 260 630, 452 470 S 735 240, 1300 125" stroke="#ffffff" stroke-opacity="0.11" stroke-width="16"/>
-    <path d="M-120 800 C 165 610, 350 700, 540 520 S 815 265, 1320 235" stroke="#9ad083" stroke-opacity="0.12" stroke-width="20"/>
-    <path d="M300 950 C 440 675, 595 610, 710 430 S 905 170, 1285 75" stroke="#f5f8d5" stroke-opacity="0.12" stroke-width="24"/>
-    <path d="M-120 210 C 130 310, 200 195, 395 290 S 720 445, 1300 330" stroke="#ffffff" stroke-opacity="0.08" stroke-width="12"/>
-    <path d="M-60 140 C 215 245, 315 130, 520 255 S 765 360, 1260 265" stroke="#95c96f" stroke-opacity="0.16" stroke-width="28"/>
+
+  <rect width="1400" height="820" fill="url(#sky)"/>
+  <path d="M0 150c190-40 350-42 535-8 180 33 330 16 520-38 160-45 258-42 345-6v420H0z" fill="#284b28" opacity="0.32"/>
+  <rect x="0" y="190" width="1400" height="390" fill="url(#wall)"/>
+  <rect x="0" y="190" width="1400" height="390" fill="url(#stoneBlocks)" opacity="0.95"/>
+  <rect x="0" y="190" width="1400" height="390" filter="url(#rough)" opacity="0.9"/>
+  <g opacity="0.58">
+    <rect x="168" y="245" width="52" height="132" rx="4" fill="#161b16" stroke="#776f54" stroke-width="5"/>
+    <rect x="183" y="266" width="22" height="20" fill="#efe2b2"/>
+    <rect x="183" y="307" width="22" height="20" fill="#efe2b2"/>
+    <rect x="183" y="348" width="22" height="20" fill="#efe2b2"/>
+    <rect x="1148" y="242" width="52" height="132" rx="4" fill="#161b16" stroke="#776f54" stroke-width="5"/>
+    <rect x="1163" y="263" width="22" height="20" fill="#efe2b2"/>
+    <rect x="1163" y="304" width="22" height="20" fill="#efe2b2"/>
+    <rect x="1163" y="345" width="22" height="20" fill="#efe2b2"/>
   </g>
+  <path d="M0 580h1400v240H0z" fill="url(#floor)"/>
+  <path d="M0 633c185-24 355-14 532 12 220 33 444 38 868-42v217H0z" fill="#d5c2a0" opacity="0.42"/>
+  <path d="M0 583h1400" stroke="#ecdfc4" stroke-opacity="0.55" stroke-width="7"/>
+  <g fill="#2f5a30" opacity="0.7">
+    <path d="M0 718c95-88 192-96 282-72-95 50-174 105-282 120z"/>
+    <path d="M1264 606c52-74 94-103 136-126v340h-136z"/>
+  </g>
+  <rect width="1400" height="820" fill="#05120c" opacity="0.2"/>
 </svg>
