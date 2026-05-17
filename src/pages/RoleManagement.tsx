@@ -67,7 +67,7 @@ export default function RoleManagement() {
   const [loading, setLoading] = useState(true);
   const [savingUserId, setSavingUserId] = useState<string | null>(null);
 
-  // State untuk Form Create (Tambah Akses)
+  // State untuk Form Create
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [newUserId, setNewUserId] = useState("");
   const [newRole, setNewRole] = useState<AppRole>("staff");
@@ -77,7 +77,7 @@ export default function RoleManagement() {
     loadUsers();
   }, []);
 
-  // 1. READ: Memuat seluruh daftar user beserta rolenya
+  // 1. READ: Memuat seluruh daftar user
   const loadUsers = async () => {
     setLoading(true);
     try {
@@ -98,7 +98,7 @@ export default function RoleManagement() {
     }
   };
 
-  // 2. CREATE: Menambahkan baris hak akses baru ke tabel user_roles
+  // 2. CREATE: Menambahkan baris hak akses baru
   const handleAddUserRole = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newUserId.trim()) {
@@ -136,7 +136,7 @@ export default function RoleManagement() {
     }
   };
 
-  // 3. UPDATE: Mengubah hak akses yang sudah ada
+  // 3. UPDATE: Mengubah hak akses menggunakan RPC
   const updateRole = async (user: ManagedUser, role: AppRole) => {
     setSavingUserId(user.user_id);
     try {
@@ -159,7 +159,7 @@ export default function RoleManagement() {
     }
   };
 
-  // 4. DELETE: Mencabut/Menghapus entri role milik user menggunakan RPC yang aman
+  // 4. DELETE: Mencabut hak akses menggunakan RPC admin_delete_user_role yang aman
   const handleDeleteUserRole = async (userId: string, email: string) => {
     try {
       const { error } = await (supabase as any).rpc("admin_delete_user_role", {
@@ -194,15 +194,12 @@ export default function RoleManagement() {
   return (
     <DashboardLayout>
       <div className="mx-auto max-w-6xl space-y-6">
-        
-        {/* Header Section */}
         <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
           <div>
             <h1 className="font-heading text-2xl font-bold text-foreground">Role Management</h1>
             <p className="text-sm text-muted-foreground">Kelola hak akses penuh akun Admin, Staff, atau User lapangan.</p>
           </div>
           <div className="flex gap-2">
-            {/* Dialog Create / Tambah Akses */}
             <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
               <DialogTrigger asChild>
                 <Button className="bg-primary hover:bg-primary/90 text-white flex items-center gap-2">
@@ -260,7 +257,6 @@ export default function RoleManagement() {
           </div>
         </div>
 
-        {/* Search Bar Container */}
         <div className="glass-card rounded-lg p-5">
           <div className="mb-4 flex items-center gap-2">
             <Search className="h-5 w-5 text-primary" />
@@ -276,7 +272,6 @@ export default function RoleManagement() {
           </div>
         </div>
 
-        {/* CRUD Table List */}
         <div className="glass-card overflow-hidden rounded-lg">
           <div className="flex items-center justify-between border-b border-border p-5">
             <div className="flex items-center gap-2">
@@ -341,7 +336,6 @@ export default function RoleManagement() {
                           </Select>
                         </TableCell>
                         <TableCell className="text-center">
-                          {/* Alert Dialog Delete / Cabut Akses */}
                           <AlertDialog>
                             <AlertDialogTrigger asChild>
                               <Button 
