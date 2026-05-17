@@ -40,55 +40,98 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const refreshRole = async (userId?: string, email?: string | null) => {
     const targetUserId = userId ?? session?.user?.id;
     const targetEmail = email ?? session?.user?.email;
+    
     if (!targetUserId) {
       setRole(null);
       return null;
     }
 
+    // Dibungkus try-catch agar kegagalan RPC admin tidak mengunci loading login
     if (isAdminEmail(targetEmail)) {
-      await (supabase as any).rpc('claim_allowed_admin_role');
+      try {
+        await (supabase as any).rpc('claim_allowed_admin_role');
+      } catch (rpcError) {
+        console.warn('Gagal memicu klaim role otomatis RPC:', rpcError);
+      }
     }
 
-    const { data, error } = await supabase
-      .from('user_roles')
-      .select('role')
-      .eq('user_id', targetUserId);
+    try {
+      const { data, error } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', targetUserId);
 
-    if (error) {
+      if (error) {
+        throw error;
+      }
+
+      const nextRole = resolveRole((data || []).map((item) => item.role as AppRole), targetEmail);
+      setRole(nextRole);
+      return nextRole;
+    } catch (err) {
+      console.error('Gagal mengambil user_roles dari database:', err);
+      // Ganti ke fallback role berdasarkan email daripada membiarkan crash
       const fallbackRole = resolveRole([], targetEmail);
       setRole(fallbackRole);
       return fallbackRole;
     }
-
-    const nextRole = resolveRole((data || []).map((item) => item.role as AppRole), targetEmail);
-    setRole(nextRole);
-    return nextRole;
   };
 
   useEffect(() => {
-    const loadSessionRole = async (session: Session | null) => {
-      setSession(session);
-      if (session?.user) {
-        await refreshRole(session.user.id, session.user.email);
-      } else {
-        setRole(null);
+    let isMounted = true;
+
+    const loadSessionRole = async (currentSession: Session | null) => {
+      try {
+        if (!isMounted) return;
+        setSession(currentSession);
+        
+        if (currentSession?.user) {
+          await refreshRole(currentSession.user.id, currentSession.user.email);
+        } else {
+          setRole(null);
+        }
+      } catch (err) {
+        console.error('Error saat inisialisasi session role:', err);
+      } finally {
+        // Blok ini MENJAMIN loading dimatikan apa pun yang terjadi
+        if (isMounted) {
+          setLoading(false);
+        }
       }
-      setLoading(false);
     };
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, nextSession) => {
-      setLoading(true);
+    // Dengarkan perubahan state autentikasi secara aman
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, nextSession) => {
+      if (!isMounted) return;
+      
+      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') {
+        setLoading(true);
+      }
       loadSessionRole(nextSession);
     });
 
-    supabase.auth.getSession().then(({ data: { session: currentSession } }) => loadSessionRole(currentSession));
+    // Ambil session awal saat aplikasi pertama kali dimuat
+    supabase.auth.getSession().then(({ data: { session: initialSession } }) => {
+      loadSessionRole(initialSession);
+    });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const signOut = async () => {
-    await supabase.auth.signOut();
-    setRole(null);
+    try {
+      setLoading(true);
+      await supabase.auth.signOut();
+    } catch (err) {
+      console.error('Error saat sign out:', err);
+    } finally {
+      setRole(null);
+      setSession(null);
+      setLoading(false);
+    }
   };
 
   return (
