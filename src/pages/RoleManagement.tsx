@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { supabase } from "@/integrations/supabase/client";
-import { AppRole } from "@/contexts/AuthContext";
+import { AppRole, useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -41,6 +41,7 @@ const getPrimaryRole = (roles: AppRole[] = []): AppRole => {
 
 export default function RoleManagement() {
   const { toast } = useToast();
+  const { refreshRole } = useAuth(); // Ambil fungsi refresh dari AuthContext
   const [users, setUsers] = useState<ManagedUser[]>([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
@@ -53,14 +54,20 @@ export default function RoleManagement() {
   const loadUsers = async () => {
     setLoading(true);
     try {
+      // 1. Klaim role admin di database jika email terdaftar sebagai owner
       await (supabase as any).rpc("claim_allowed_admin_role");
+      
+      // 2. Sinkronisasikan langsung ke state frontend agar navbar/sidebar mendeteksi role baru Anda
+      await refreshRole();
+
+      // 3. Ambil daftar seluruh user yang terdaftar
       const { data, error } = await (supabase as any).rpc("admin_list_users_with_roles");
       if (error) throw error;
       setUsers((data || []) as ManagedUser[]);
     } catch (error: any) {
       toast({
         title: "Gagal memuat user",
-        description: error.message || "Pastikan migration role management sudah dijalankan di Supabase.",
+        description: error.message || "Pastikan fungsi rpc sudah ter-update di database Supabase Anda.",
         variant: "destructive",
       });
     } finally {
@@ -81,6 +88,9 @@ export default function RoleManagement() {
         items.map((item) => (item.user_id === user.user_id ? { ...item, roles: [role] } : item)),
       );
       toast({ title: "Role diperbarui", description: `${user.email} sekarang menjadi ${roleLabels[role]}.` });
+      
+      // Jika admin mengubah role-nya sendiri, refresh data local auth
+      await refreshRole();
     } catch (error: any) {
       toast({ title: "Gagal mengubah role", description: error.message, variant: "destructive" });
     } finally {
