@@ -25,7 +25,7 @@ type Barang = {
 };
 
 type CartItem = {
-  barang_id: string;
+  barang_id?: string;
   nama_barang: string;
   kategori: string;
   ukuran: string;
@@ -107,11 +107,10 @@ const saveDeliveryArchive = (note: DeliveryNoteMeta) => {
 export default function Invoice() {
   const { toast } = useToast();
   const { user } = useAuth();
-  const [products, setProducts] = useState<Barang[]>([]);
   const [transactions, setTransactions] = useState<TransaksiRow[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [loading, setLoading] = useState(false);
-  const [selectedProductId, setSelectedProductId] = useState("");
+  const [itemNamaBarang, setItemNamaBarang] = useState("");
   const [itemUkuran, setItemUkuran] = useState("");
   const [itemJumlah, setItemJumlah] = useState(1);
   const [itemHarga, setItemHarga] = useState(0);
@@ -137,7 +136,6 @@ export default function Invoice() {
   const grandTotal = useMemo(() => cart.reduce((sum, item) => sum + item.subtotal, 0), [cart]);
 
   useEffect(() => {
-    loadProducts();
     loadTransactions();
 
     const channel = supabase
@@ -154,20 +152,6 @@ export default function Invoice() {
     };
   }, []);
 
-  const loadProducts = async () => {
-    const { data, error } = await supabase
-      .from("barang")
-      .select("id,nama_barang,kategori,stok,harga_jual")
-      .order("nama_barang", { ascending: true });
-
-    if (error) {
-      toast({ title: "Gagal memuat barang", description: error.message, variant: "destructive" });
-      return;
-    }
-
-    setProducts((data || []) as Barang[]);
-  };
-
   const loadTransactions = async () => {
     const { data, error } = await supabase
       .from("transaksi")
@@ -182,20 +166,10 @@ export default function Invoice() {
     setTransactions((data || []) as TransaksiRow[]);
   };
 
-  const handleProductSelect = (value: string) => {
-    setSelectedProductId(value);
-    const selected = products.find((product) => product.id === value);
-    if (!selected) return;
-
-    setItemHarga(selected.harga_jual || 0);
-    setItemJumlah(1);
-    setItemUkuran(selected.kategori || "");
-  };
-
   const addCartItem = () => {
-    const selected = products.find((product) => product.id === selectedProductId);
-    if (!selected) {
-      toast({ title: "Pilih barang dahulu", variant: "destructive" });
+    const namaBarang = itemNamaBarang.trim();
+    if (!namaBarang) {
+      toast({ title: "Nama barang wajib diisi", variant: "destructive" });
       return;
     }
 
@@ -204,24 +178,18 @@ export default function Invoice() {
       return;
     }
 
-    if (itemJumlah > selected.stok) {
-      toast({ title: "Stok tidak mencukupi", description: `Stok tersedia: ${selected.stok}`, variant: "destructive" });
-      return;
-    }
-
     setCart((items) => [
       ...items,
       {
-        barang_id: selected.id,
-        nama_barang: selected.nama_barang,
-        kategori: selected.kategori || "-",
+        nama_barang: namaBarang,
+        kategori: itemUkuran || "-",
         ukuran: itemUkuran || "-",
         jumlah: itemJumlah,
         harga: itemHarga,
         subtotal: itemJumlah * itemHarga,
       },
     ]);
-    setSelectedProductId("");
+    setItemNamaBarang("");
     setItemUkuran("");
     setItemJumlah(1);
     setItemHarga(0);
@@ -257,8 +225,49 @@ export default function Invoice() {
     return { ...(second.data as TransaksiRow), nama_pelanggan: form.nama_pelanggan };
   };
 
+  const resolveBarangForItem = async (item: CartItem): Promise<CartItem & { barang_id: string }> => {
+    const cleanName = item.nama_barang.trim();
+    const { data: existing, error: findError } = await supabase
+      .from("barang")
+      .select("id,nama_barang,kategori,stok,harga_jual")
+      .ilike("nama_barang", cleanName)
+      .limit(1)
+      .maybeSingle();
+
+    if (findError) throw findError;
+
+    if (existing?.id) {
+      return {
+        ...item,
+        barang_id: existing.id,
+        kategori: item.kategori || existing.kategori || "-",
+      };
+    }
+
+    const { data: created, error: createError } = await supabase
+      .from("barang")
+      .insert({
+        nama_barang: cleanName,
+        kategori: item.ukuran || "Custom",
+        stok: 0,
+        harga_beli: 0,
+        harga_jual: item.harga,
+      })
+      .select("id")
+      .single();
+
+    if (createError) throw createError;
+
+    return {
+      ...item,
+      barang_id: created.id,
+      kategori: item.kategori || item.ukuran || "Custom",
+    };
+  };
+
   const insertDetailTransactions = async (transaksiId: string) => {
-    const detailPayload = cart.map((item) => ({
+    const resolvedItems = await Promise.all(cart.map(resolveBarangForItem));
+    const detailPayload = resolvedItems.map((item) => ({
       transaksi_id: transaksiId,
       barang_id: item.barang_id,
       jumlah: item.jumlah,
@@ -292,13 +301,6 @@ export default function Invoice() {
       const transaksi = await insertMasterTransaction();
       await insertDetailTransactions(transaksi.id);
 
-      for (const item of cart) {
-        const product = products.find((barang) => barang.id === item.barang_id);
-        if (product) {
-          await supabase.from("barang").update({ stok: Math.max(0, product.stok - item.jumlah) }).eq("id", item.barang_id);
-        }
-      }
-
       toast({ title: "Invoice tersimpan", description: `${form.nomor_invoice} berhasil dibuat.` });
       setForm({
         nomor_invoice: generateInvoiceNumber(),
@@ -308,7 +310,6 @@ export default function Invoice() {
         status: "lunas",
       });
       setCart([]);
-      loadProducts();
       loadTransactions();
     } catch (error: any) {
       toast({ title: "Gagal menyimpan invoice", description: error.message, variant: "destructive" });
@@ -444,17 +445,12 @@ export default function Invoice() {
 
           <div className="mt-5 grid gap-4 rounded-lg border border-border bg-secondary/50 p-4 md:grid-cols-2 lg:grid-cols-7">
             <div className="space-y-2 lg:col-span-2">
-              <Label>Barang</Label>
-              <Select value={selectedProductId} onValueChange={handleProductSelect}>
-                <SelectTrigger><SelectValue placeholder="Pilih barang" /></SelectTrigger>
-                <SelectContent>
-                  {products.map((product) => (
-                    <SelectItem key={product.id} value={product.id}>
-                      {product.nama_barang} - Stok {product.stok}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Label>Nama Barang / Produk</Label>
+              <Input
+                value={itemNamaBarang}
+                onChange={(e) => setItemNamaBarang(e.target.value)}
+                placeholder="Ketik nama barang bebas"
+              />
             </div>
             <div className="space-y-2">
               <Label>Ukuran</Label>
@@ -499,7 +495,7 @@ export default function Invoice() {
                   </TableRow>
                 ) : (
                   cart.map((item, index) => (
-                    <TableRow key={`${item.barang_id}-${index}`}>
+                    <TableRow key={`${item.nama_barang}-${index}`}>
                       <TableCell className="text-center">{index + 1}</TableCell>
                       <TableCell className="font-medium">{item.nama_barang}</TableCell>
                       <TableCell>{item.ukuran}</TableCell>
@@ -686,7 +682,7 @@ function InvoicePreview({ invoice }: { invoice: InvoiceDetail | null }) {
 
 function InvoiceItemTable({ invoice, showPrice }: { invoice: InvoiceDetail; showPrice?: boolean }) {
   return (
-    <table className="w-full border-collapse text-sm">
+    <table className="print-avoid-break w-full border-collapse text-sm">
       <thead>
         <tr className="bg-primary text-primary-foreground">
           <th className="border border-primary p-2 text-center">No</th>
@@ -725,41 +721,44 @@ function PrintableInvoice({ invoice }: { invoice: InvoiceDetail | null }) {
   if (!invoice) return null;
 
   return (
-    <section className="p-6 font-sans text-[12px] text-gray-900">
-      <div className="flex items-start justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-emerald-800">Fazma Batu Alam</h1>
-          <p className="mt-2 max-w-sm leading-relaxed">
-            Office: Jl. Alternatif Cibubur - Cileungsi<br />
-            Factory: Desa Lengkong Wetan blok I Sindang Wangi - Majalengka<br />
-            Mobile: 081221131150
-          </p>
+    <section className="print-sheet font-sans text-[12px] text-gray-900">
+      <img src={LOGO_URL} alt="" className="print-watermark" />
+      <div className="print-content">
+        <div className="flex items-start justify-between print-avoid-break">
+          <div>
+            <h1 className="text-2xl font-bold text-emerald-800">Fazma Batu Alam</h1>
+            <p className="mt-2 max-w-sm leading-relaxed">
+              Office: Jl. Alternatif Cibubur - Cileungsi<br />
+              Factory: Desa Lengkong Wetan blok I Sindang Wangi - Majalengka<br />
+              Mobile: 081221131150
+            </p>
+          </div>
+          <img src={LOGO_URL} alt="Logo Fazma Stone" className="w-52" />
         </div>
-        <img src={LOGO_URL} alt="Logo Fazma Stone" className="w-52" />
-      </div>
-      <h2 className="my-8 text-center text-2xl font-bold tracking-[0.25em] text-emerald-800">INVOICE</h2>
-      <div className="mb-6 flex justify-between border-y-2 border-emerald-800 py-4">
-        <div>
-          <p className="font-bold uppercase text-emerald-800">Bill To</p>
-          <p className="text-lg font-bold uppercase">{invoice.nama_pelanggan || "Pelanggan"}</p>
+        <h2 className="my-6 text-center text-2xl font-bold tracking-[0.25em] text-emerald-800">INVOICE</h2>
+        <div className="mb-5 flex justify-between border-y-2 border-emerald-800 py-3 print-avoid-break">
+          <div>
+            <p className="font-bold uppercase text-emerald-800">Bill To</p>
+            <p className="text-lg font-bold uppercase">{invoice.nama_pelanggan || "Pelanggan"}</p>
+          </div>
+          <div className="text-right">
+            <p><strong>Invoice No:</strong> {invoice.nomor_invoice}</p>
+            <p><strong>Date:</strong> {formatDate(invoice.created_at)}</p>
+          </div>
         </div>
-        <div className="text-right">
-          <p><strong>Invoice No:</strong> {invoice.nomor_invoice}</p>
-          <p><strong>Date:</strong> {formatDate(invoice.created_at)}</p>
-        </div>
-      </div>
-      <InvoiceItemTable invoice={invoice} showPrice />
-      <div className="mt-8 flex justify-between">
-        <div className="rounded border border-emerald-100 bg-emerald-50 p-4 text-emerald-900">
-          <p className="font-bold">Payment Instructions</p>
-          <p>BCA: 5680 5186 47</p>
-          <p>Mandiri: 90000 2341 1318</p>
-          <p>A/n Zia Ulhaq</p>
-        </div>
-        <div className="text-center">
-          <p>Terimakasih</p>
-          <img src={SIGNATURE_URL} alt="Tanda Tangan" className="mx-auto mt-2 w-36" />
-          <p className="border-t border-gray-900 px-10 pt-1 font-bold">( Zia Ulhaq )</p>
+        <InvoiceItemTable invoice={invoice} showPrice />
+        <div className="mt-6 flex justify-between print-avoid-break">
+          <div className="rounded border border-emerald-100 bg-emerald-50 p-4 text-emerald-900">
+            <p className="font-bold">Payment Instructions</p>
+            <p>BCA: 5680 5186 47</p>
+            <p>Mandiri: 90000 2341 1318</p>
+            <p>A/n Zia Ulhaq</p>
+          </div>
+          <div className="text-center">
+            <p>Terimakasih</p>
+            <img src={SIGNATURE_URL} alt="Tanda Tangan" className="mx-auto mt-2 w-36" />
+            <p className="border-t border-gray-900 px-10 pt-1 font-bold">( Zia Ulhaq )</p>
+          </div>
         </div>
       </div>
     </section>
@@ -770,49 +769,52 @@ function PrintableDeliveryNote({ invoice, delivery }: { invoice: InvoiceDetail |
   if (!invoice || !delivery) return null;
 
   return (
-    <section className="p-6 font-sans text-[12px] text-gray-900">
-      <div className="flex items-start justify-between border-b-2 border-emerald-800 pb-4">
-        <div>
-          <h1 className="text-2xl font-bold text-emerald-800">Fazma Batu Alam</h1>
-          <p className="mt-2 max-w-md leading-relaxed">
-            Office: Jl. Alternatif Cibubur - Cileungsi<br />
-            Factory: Desa Lengkong Wetan blok I Sindang Wangi - Majalengka<br />
-            Mobile: 081221131150
-          </p>
+    <section className="print-sheet font-sans text-[12px] text-gray-900">
+      <img src={LOGO_URL} alt="" className="print-watermark" />
+      <div className="print-content">
+        <div className="flex items-start justify-between border-b-2 border-emerald-800 pb-4 print-avoid-break">
+          <div>
+            <h1 className="text-2xl font-bold text-emerald-800">Fazma Batu Alam</h1>
+            <p className="mt-2 max-w-md leading-relaxed">
+              Office: Jl. Alternatif Cibubur - Cileungsi<br />
+              Factory: Desa Lengkong Wetan blok I Sindang Wangi - Majalengka<br />
+              Mobile: 081221131150
+            </p>
+          </div>
+          <img src={LOGO_URL} alt="Logo Fazma Stone" className="w-52" />
         </div>
-        <img src={LOGO_URL} alt="Logo Fazma Stone" className="w-52" />
+        <h2 className="my-6 text-center text-2xl font-bold tracking-[0.2em] text-emerald-800">SURAT JALAN</h2>
+        <div className="mb-5 grid grid-cols-2 gap-6 print-avoid-break">
+          <div className="space-y-1">
+            <p><strong>No. Surat Jalan:</strong> {generateDeliveryNumber(invoice.nomor_invoice)}</p>
+            <p><strong>No. Invoice:</strong> {invoice.nomor_invoice}</p>
+            <p><strong>Tanggal Kirim:</strong> {formatDate(delivery.tanggal_pengiriman)}</p>
+          </div>
+          <div className="space-y-1">
+            <p><strong>Driver:</strong> {delivery.driver}</p>
+            <p><strong>No. Polisi:</strong> {delivery.no_polisi}</p>
+            <p><strong>Penerima / Lokasi:</strong> {delivery.lokasi_proyek}</p>
+          </div>
+        </div>
+        <InvoiceItemTable invoice={invoice} />
+        <div className="mt-10 grid grid-cols-3 gap-8 text-center print-avoid-break">
+          <div>
+            <p>Disiapkan Oleh,</p>
+            <div className="mt-16 border-t border-gray-900 pt-1">Admin Fazma Stone</div>
+          </div>
+          <div>
+            <p>Driver,</p>
+            <div className="mt-16 border-t border-gray-900 pt-1">{delivery.driver}</div>
+          </div>
+          <div>
+            <p>Penerima,</p>
+            <div className="mt-16 border-t border-gray-900 pt-1">{delivery.lokasi_proyek}</div>
+          </div>
+        </div>
+        <p className="mt-6 text-[11px] text-gray-600">
+          Catatan: Surat jalan ini hanya memuat daftar barang dan jumlah pengiriman. Nominal harga tidak ditampilkan pada dokumen logistik.
+        </p>
       </div>
-      <h2 className="my-7 text-center text-2xl font-bold tracking-[0.2em] text-emerald-800">SURAT JALAN</h2>
-      <div className="mb-6 grid grid-cols-2 gap-6">
-        <div className="space-y-1">
-          <p><strong>No. Surat Jalan:</strong> {generateDeliveryNumber(invoice.nomor_invoice)}</p>
-          <p><strong>No. Invoice:</strong> {invoice.nomor_invoice}</p>
-          <p><strong>Tanggal Kirim:</strong> {formatDate(delivery.tanggal_pengiriman)}</p>
-        </div>
-        <div className="space-y-1">
-          <p><strong>Driver:</strong> {delivery.driver}</p>
-          <p><strong>No. Polisi:</strong> {delivery.no_polisi}</p>
-          <p><strong>Penerima / Lokasi:</strong> {delivery.lokasi_proyek}</p>
-        </div>
-      </div>
-      <InvoiceItemTable invoice={invoice} />
-      <div className="mt-12 grid grid-cols-3 gap-8 text-center">
-        <div>
-          <p>Disiapkan Oleh,</p>
-          <div className="mt-20 border-t border-gray-900 pt-1">Admin Fazma Stone</div>
-        </div>
-        <div>
-          <p>Driver,</p>
-          <div className="mt-20 border-t border-gray-900 pt-1">{delivery.driver}</div>
-        </div>
-        <div>
-          <p>Penerima,</p>
-          <div className="mt-20 border-t border-gray-900 pt-1">{delivery.lokasi_proyek}</div>
-        </div>
-      </div>
-      <p className="mt-8 text-[11px] text-gray-600">
-        Catatan: Surat jalan ini hanya memuat daftar barang dan jumlah pengiriman. Nominal harga tidak ditampilkan pada dokumen logistik.
-      </p>
     </section>
   );
 }

@@ -356,7 +356,7 @@ export default function Dokumentasi() {
 
 function InvoiceItemTable({ invoice, showPrice }: { invoice: InvoiceDetail; showPrice?: boolean }) {
   return (
-    <table className="w-full border-collapse text-sm">
+    <table className="print-avoid-break w-full border-collapse text-sm">
       <thead>
         <tr className="bg-primary text-primary-foreground">
           <th className="border border-primary p-2 text-center">No</th>
@@ -395,41 +395,44 @@ function PrintableInvoice({ invoice }: { invoice: InvoiceDetail | null }) {
   if (!invoice) return null;
 
   return (
-    <section className="p-6 font-sans text-[12px] text-gray-900">
-      <div className="flex items-start justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-emerald-800">Fazma Batu Alam</h1>
-          <p className="mt-2 max-w-sm leading-relaxed">
-            Office: Jl. Alternatif Cibubur - Cileungsi<br />
-            Factory: Desa Lengkong Wetan blok I Sindang Wangi - Majalengka<br />
-            Mobile: 081221131150
-          </p>
+    <section className="print-sheet font-sans text-[12px] text-gray-900">
+      <img src={LOGO_URL} alt="" className="print-watermark" />
+      <div className="print-content">
+        <div className="flex items-start justify-between print-avoid-break">
+          <div>
+            <h1 className="text-2xl font-bold text-emerald-800">Fazma Batu Alam</h1>
+            <p className="mt-2 max-w-sm leading-relaxed">
+              Office: Jl. Alternatif Cibubur - Cileungsi<br />
+              Factory: Desa Lengkong Wetan blok I Sindang Wangi - Majalengka<br />
+              Mobile: 081221131150
+            </p>
+          </div>
+          <img src={LOGO_URL} alt="Logo Fazma Stone" className="w-52" />
         </div>
-        <img src={LOGO_URL} alt="Logo Fazma Stone" className="w-52" />
-      </div>
-      <h2 className="my-8 text-center text-2xl font-bold tracking-[0.25em] text-emerald-800">INVOICE</h2>
-      <div className="mb-6 flex justify-between border-y-2 border-emerald-800 py-4">
-        <div>
-          <p className="font-bold uppercase text-emerald-800">Bill To</p>
-          <p className="text-lg font-bold uppercase">{invoice.nama_pelanggan || "Pelanggan"}</p>
+        <h2 className="my-6 text-center text-2xl font-bold tracking-[0.25em] text-emerald-800">INVOICE</h2>
+        <div className="mb-5 flex justify-between border-y-2 border-emerald-800 py-3 print-avoid-break">
+          <div>
+            <p className="font-bold uppercase text-emerald-800">Bill To</p>
+            <p className="text-lg font-bold uppercase">{invoice.nama_pelanggan || "Pelanggan"}</p>
+          </div>
+          <div className="text-right">
+            <p><strong>Invoice No:</strong> {invoice.nomor_invoice}</p>
+            <p><strong>Date:</strong> {formatDate(invoice.created_at)}</p>
+          </div>
         </div>
-        <div className="text-right">
-          <p><strong>Invoice No:</strong> {invoice.nomor_invoice}</p>
-          <p><strong>Date:</strong> {formatDate(invoice.created_at)}</p>
-        </div>
-      </div>
-      <InvoiceItemTable invoice={invoice} showPrice />
-      <div className="mt-8 flex justify-between">
-        <div className="rounded border border-emerald-100 bg-emerald-50 p-4 text-emerald-900">
-          <p className="font-bold">Payment Instructions</p>
-          <p>BCA: 5680 5186 47</p>
-          <p>Mandiri: 90000 2341 1318</p>
-          <p>A/n Zia Ulhaq</p>
-        </div>
-        <div className="text-center">
-          <p>Terimakasih</p>
-          <img src={SIGNATURE_URL} alt="Tanda Tangan" className="mx-auto mt-2 w-36" />
-          <p className="border-t border-gray-900 px-10 pt-1 font-bold">( Zia Ulhaq )</p>
+        <InvoiceItemTable invoice={invoice} showPrice />
+        <div className="mt-6 flex justify-between print-avoid-break">
+          <div className="rounded border border-emerald-100 bg-emerald-50 p-4 text-emerald-900">
+            <p className="font-bold">Payment Instructions</p>
+            <p>BCA: 5680 5186 47</p>
+            <p>Mandiri: 90000 2341 1318</p>
+            <p>A/n Zia Ulhaq</p>
+          </div>
+          <div className="text-center">
+            <p>Terimakasih</p>
+            <img src={SIGNATURE_URL} alt="Tanda Tangan" className="mx-auto mt-2 w-36" />
+            <p className="border-t border-gray-900 px-10 pt-1 font-bold">( Zia Ulhaq )</p>
+          </div>
         </div>
       </div>
     </section>
@@ -440,49 +443,52 @@ function PrintableDeliveryNote({ invoice, delivery }: { invoice: InvoiceDetail |
   if (!invoice || !delivery) return null;
 
   return (
-    <section className="p-6 font-sans text-[12px] text-gray-900">
-      <div className="flex items-start justify-between border-b-2 border-emerald-800 pb-4">
-        <div>
-          <h1 className="text-2xl font-bold text-emerald-800">Fazma Batu Alam</h1>
-          <p className="mt-2 max-w-md leading-relaxed">
-            Office: Jl. Alternatif Cibubur - Cileungsi<br />
-            Factory: Desa Lengkong Wetan blok I Sindang Wangi - Majalengka<br />
-            Mobile: 081221131150
-          </p>
+    <section className="print-sheet font-sans text-[12px] text-gray-900">
+      <img src={LOGO_URL} alt="" className="print-watermark" />
+      <div className="print-content">
+        <div className="flex items-start justify-between border-b-2 border-emerald-800 pb-4 print-avoid-break">
+          <div>
+            <h1 className="text-2xl font-bold text-emerald-800">Fazma Batu Alam</h1>
+            <p className="mt-2 max-w-md leading-relaxed">
+              Office: Jl. Alternatif Cibubur - Cileungsi<br />
+              Factory: Desa Lengkong Wetan blok I Sindang Wangi - Majalengka<br />
+              Mobile: 081221131150
+            </p>
+          </div>
+          <img src={LOGO_URL} alt="Logo Fazma Stone" className="w-52" />
         </div>
-        <img src={LOGO_URL} alt="Logo Fazma Stone" className="w-52" />
+        <h2 className="my-6 text-center text-2xl font-bold tracking-[0.2em] text-emerald-800">SURAT JALAN</h2>
+        <div className="mb-5 grid grid-cols-2 gap-6 print-avoid-break">
+          <div className="space-y-1">
+            <p><strong>No. Surat Jalan:</strong> {generateDeliveryNumber(invoice.nomor_invoice)}</p>
+            <p><strong>No. Invoice:</strong> {invoice.nomor_invoice}</p>
+            <p><strong>Tanggal Kirim:</strong> {formatDate(delivery.tanggal_pengiriman)}</p>
+          </div>
+          <div className="space-y-1">
+            <p><strong>Driver:</strong> {delivery.driver}</p>
+            <p><strong>No. Polisi:</strong> {delivery.no_polisi}</p>
+            <p><strong>Penerima / Lokasi:</strong> {delivery.lokasi_proyek}</p>
+          </div>
+        </div>
+        <InvoiceItemTable invoice={invoice} />
+        <div className="mt-10 grid grid-cols-3 gap-8 text-center print-avoid-break">
+          <div>
+            <p>Disiapkan Oleh,</p>
+            <div className="mt-16 border-t border-gray-900 pt-1">Admin Fazma Stone</div>
+          </div>
+          <div>
+            <p>Driver,</p>
+            <div className="mt-16 border-t border-gray-900 pt-1">{delivery.driver}</div>
+          </div>
+          <div>
+            <p>Penerima,</p>
+            <div className="mt-16 border-t border-gray-900 pt-1">{delivery.lokasi_proyek}</div>
+          </div>
+        </div>
+        <p className="mt-6 text-[11px] text-gray-600">
+          Catatan: Surat jalan ini hanya memuat daftar barang dan jumlah pengiriman. Nominal harga tidak ditampilkan pada dokumen logistik.
+        </p>
       </div>
-      <h2 className="my-7 text-center text-2xl font-bold tracking-[0.2em] text-emerald-800">SURAT JALAN</h2>
-      <div className="mb-6 grid grid-cols-2 gap-6">
-        <div className="space-y-1">
-          <p><strong>No. Surat Jalan:</strong> {generateDeliveryNumber(invoice.nomor_invoice)}</p>
-          <p><strong>No. Invoice:</strong> {invoice.nomor_invoice}</p>
-          <p><strong>Tanggal Kirim:</strong> {formatDate(delivery.tanggal_pengiriman)}</p>
-        </div>
-        <div className="space-y-1">
-          <p><strong>Driver:</strong> {delivery.driver}</p>
-          <p><strong>No. Polisi:</strong> {delivery.no_polisi}</p>
-          <p><strong>Penerima / Lokasi:</strong> {delivery.lokasi_proyek}</p>
-        </div>
-      </div>
-      <InvoiceItemTable invoice={invoice} />
-      <div className="mt-12 grid grid-cols-3 gap-8 text-center">
-        <div>
-          <p>Disiapkan Oleh,</p>
-          <div className="mt-20 border-t border-gray-900 pt-1">Admin Fazma Stone</div>
-        </div>
-        <div>
-          <p>Driver,</p>
-          <div className="mt-20 border-t border-gray-900 pt-1">{delivery.driver}</div>
-        </div>
-        <div>
-          <p>Penerima,</p>
-          <div className="mt-20 border-t border-gray-900 pt-1">{delivery.lokasi_proyek}</div>
-        </div>
-      </div>
-      <p className="mt-8 text-[11px] text-gray-600">
-        Catatan: Surat jalan ini hanya memuat daftar barang dan jumlah pengiriman. Nominal harga tidak ditampilkan pada dokumen logistik.
-      </p>
     </section>
   );
 }

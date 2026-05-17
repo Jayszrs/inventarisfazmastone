@@ -3,7 +3,7 @@ import { BrowserRouter, Route, Routes, Navigate } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { AppRole, AuthProvider, useAuth } from "@/contexts/AuthContext";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Invoice from "./pages/Invoice";
@@ -12,8 +12,8 @@ import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
-function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { session, loading } = useAuth();
+function ProtectedRoute({ children, allowedRoles }: { children: React.ReactNode; allowedRoles?: AppRole[] }) {
+  const { session, role, loading } = useAuth();
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -22,6 +22,9 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
     );
   }
   if (!session) return <Navigate to="/login" replace />;
+  if (allowedRoles && (!role || !allowedRoles.includes(role))) {
+    return <Navigate to="/" replace />;
+  }
   return <>{children}</>;
 }
 
@@ -42,8 +45,8 @@ const App = () => (
           <Routes>
             <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
             <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-            <Route path="/invoice" element={<ProtectedRoute><Invoice /></ProtectedRoute>} />
-            <Route path="/dokumentasi" element={<ProtectedRoute><Dokumentasi /></ProtectedRoute>} />
+            <Route path="/invoice" element={<ProtectedRoute allowedRoles={["admin", "staff"]}><Invoice /></ProtectedRoute>} />
+            <Route path="/dokumentasi" element={<ProtectedRoute allowedRoles={["admin"]}><Dokumentasi /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>

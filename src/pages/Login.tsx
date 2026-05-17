@@ -1,109 +1,246 @@
-import { useState } from "react";
+import { FormEvent, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 
+const LOGO_URL = encodeURI("/Logo Fazma Stone Hitam.png");
+
+type AuthMode = "login" | "signup" | "reset";
+
 export default function Login() {
-  const [isLogin, setIsLogin] = useState(true);
+  const [mode, setMode] = useState<AuthMode>("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const createDefaultRole = async (userId: string) => {
+    const { error } = await supabase.from("user_roles").insert({
+      user_id: userId,
+      role: "staff",
+    });
+
+    if (error && !error.message.toLowerCase().includes("duplicate")) {
+      throw error;
+    }
+  };
+
+  const handleLogin = async (event: FormEvent) => {
+    event.preventDefault();
     setLoading(true);
 
     try {
-      if (isLogin) {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) throw error;
-      } else {
-        const { error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: { data: { full_name: name } },
-        });
-        if (error) throw error;
-        toast({ title: "Berhasil!", description: "Akun berhasil dibuat. Silakan cek email untuk verifikasi." });
-      }
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) throw error;
     } catch (error: any) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      toast({ title: "Login gagal", description: error.message, variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSignUp = async (event: FormEvent) => {
+    event.preventDefault();
+    setLoading(true);
+
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: { data: { full_name: name } },
+      });
+
+      if (error) throw error;
+      if (data.user?.id) {
+        await createDefaultRole(data.user.id);
+      }
+
+      toast({
+        title: "Akun berhasil dibuat",
+        description: "Role default staff sudah disiapkan. Silakan cek email jika verifikasi aktif.",
+      });
+      setMode("login");
+      setPassword("");
+    } catch (error: any) {
+      toast({ title: "Pendaftaran gagal", description: error.message, variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResetPassword = async (event: FormEvent) => {
+    event.preventDefault();
+    setLoading(true);
+
+    try {
+      const redirectTo = `${window.location.origin}/login`;
+      const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
+      if (error) throw error;
+
+      toast({
+        title: "Email reset terkirim",
+        description: "Periksa inbox email untuk melanjutkan reset password.",
+      });
+      setMode("login");
+    } catch (error: any) {
+      toast({ title: "Reset password gagal", description: error.message, variant: "destructive" });
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
+    <div className="flex min-h-screen items-center justify-center bg-background p-4 text-foreground">
       <div className="w-full max-w-md animate-fade-in">
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-heading font-bold gradient-text">InvenPOS</h1>
-          <p className="text-muted-foreground mt-2">
-            Sistem Inventaris & Manajemen Penjualan
-          </p>
+        <div className="mb-8 text-center">
+          <img src={LOGO_URL} alt="Fazma Stone" className="mx-auto h-20 w-auto object-contain" />
+          <p className="mt-3 text-sm text-muted-foreground">Sistem Manajemen Transaksi Fazma Stone</p>
         </div>
-        <div className="glass-card rounded-xl p-6 glow-primary">
-          <h2 className="text-xl font-heading font-semibold mb-6">
-            {isLogin ? "Masuk" : "Daftar"}
-          </h2>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {!isLogin && (
-              <div>
-                <Label htmlFor="name">Nama Lengkap</Label>
-                <Input
-                  id="name"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="Masukkan nama"
-                  required={!isLogin}
-                  className="mt-1 bg-secondary border-border"
-                />
-              </div>
-            )}
-            <div>
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="email@contoh.com"
-                required
-                className="mt-1 bg-secondary border-border"
-              />
-            </div>
-            <div>
-              <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                required
-                minLength={6}
-                className="mt-1 bg-secondary border-border"
-              />
-            </div>
-            <Button type="submit" className="w-full gradient-primary text-primary-foreground" disabled={loading}>
-              {loading ? "Memproses..." : isLogin ? "Masuk" : "Daftar"}
-            </Button>
-          </form>
-          <p className="text-center text-sm text-muted-foreground mt-4">
-            {isLogin ? "Belum punya akun?" : "Sudah punya akun?"}{" "}
-            <button
-              onClick={() => setIsLogin(!isLogin)}
-              className="text-primary hover:underline"
-            >
-              {isLogin ? "Daftar" : "Masuk"}
-            </button>
-          </p>
+
+        <div className="glass-card rounded-lg p-6 glow-primary">
+          {mode === "reset" ? (
+            <ResetPasswordForm
+              email={email}
+              loading={loading}
+              onEmailChange={setEmail}
+              onBack={() => setMode("login")}
+              onSubmit={handleResetPassword}
+            />
+          ) : (
+            <Tabs value={mode} onValueChange={(value) => setMode(value as AuthMode)} className="space-y-6">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="login">Masuk</TabsTrigger>
+                <TabsTrigger value="signup">Buat Akun</TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="login" className="mt-0">
+                <form onSubmit={handleLogin} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="login-email">Email</Label>
+                    <Input
+                      id="login-email"
+                      type="email"
+                      value={email}
+                      onChange={(event) => setEmail(event.target.value)}
+                      placeholder="email@contoh.com"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between gap-4">
+                      <Label htmlFor="login-password">Password</Label>
+                      <button
+                        type="button"
+                        onClick={() => setMode("reset")}
+                        className="text-xs font-medium text-primary hover:underline"
+                      >
+                        Lupa Password?
+                      </button>
+                    </div>
+                    <Input
+                      id="login-password"
+                      type="password"
+                      value={password}
+                      onChange={(event) => setPassword(event.target.value)}
+                      placeholder="Minimal 6 karakter"
+                      required
+                      minLength={6}
+                    />
+                  </div>
+                  <Button type="submit" className="w-full" disabled={loading}>
+                    {loading ? "Memproses..." : "Masuk"}
+                  </Button>
+                </form>
+              </TabsContent>
+
+              <TabsContent value="signup" className="mt-0">
+                <form onSubmit={handleSignUp} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="signup-name">Nama Lengkap</Label>
+                    <Input
+                      id="signup-name"
+                      value={name}
+                      onChange={(event) => setName(event.target.value)}
+                      placeholder="Nama pengguna"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="signup-email">Email</Label>
+                    <Input
+                      id="signup-email"
+                      type="email"
+                      value={email}
+                      onChange={(event) => setEmail(event.target.value)}
+                      placeholder="email@contoh.com"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="signup-password">Password</Label>
+                    <Input
+                      id="signup-password"
+                      type="password"
+                      value={password}
+                      onChange={(event) => setPassword(event.target.value)}
+                      placeholder="Minimal 6 karakter"
+                      required
+                      minLength={6}
+                    />
+                  </div>
+                  <Button type="submit" className="w-full" disabled={loading}>
+                    {loading ? "Mendaftarkan..." : "Buat Akun Staff"}
+                  </Button>
+                </form>
+              </TabsContent>
+            </Tabs>
+          )}
         </div>
       </div>
     </div>
+  );
+}
+
+function ResetPasswordForm({
+  email,
+  loading,
+  onEmailChange,
+  onBack,
+  onSubmit,
+}: {
+  email: string;
+  loading: boolean;
+  onEmailChange: (value: string) => void;
+  onBack: () => void;
+  onSubmit: (event: FormEvent) => void;
+}) {
+  return (
+    <form onSubmit={onSubmit} className="space-y-4">
+      <div>
+        <h1 className="font-heading text-xl font-semibold">Reset Password</h1>
+        <p className="mt-1 text-sm text-muted-foreground">Masukkan email akun untuk menerima link reset password.</p>
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="reset-email">Email</Label>
+        <Input
+          id="reset-email"
+          type="email"
+          value={email}
+          onChange={(event) => onEmailChange(event.target.value)}
+          placeholder="email@contoh.com"
+          required
+        />
+      </div>
+      <Button type="submit" className="w-full" disabled={loading}>
+        {loading ? "Mengirim..." : "Kirim Link Reset"}
+      </Button>
+      <Button type="button" variant="outline" className="w-full" onClick={onBack}>
+        Kembali ke Login
+      </Button>
+    </form>
   );
 }

@@ -5,8 +5,7 @@ import {
   LogOut,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
-import { useLocation } from "react-router-dom";
-import { useAuth } from "@/contexts/AuthContext";
+import { AppRole, useAuth } from "@/contexts/AuthContext";
 import {
   Sidebar,
   SidebarContent,
@@ -20,35 +19,41 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 
-const menuItems = [
+const menuItems: Array<{ title: string; url: string; icon: typeof LayoutDashboard; roles?: AppRole[] }> = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard },
-  { title: "Invoice", url: "/invoice", icon: FileText },
-  { title: "Dokumentasi", url: "/dokumentasi", icon: FolderOpen },
+  { title: "Invoice", url: "/invoice", icon: FileText, roles: ["admin", "staff"] },
+  { title: "Dokumentasi", url: "/dokumentasi", icon: FolderOpen, roles: ["admin"] },
 ];
+
+const LOGO_URL = encodeURI("/Logo Fazma Stone Hitam.png");
 
 export function AppSidebar() {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
-  const location = useLocation();
-  const { signOut } = useAuth();
+  const { role, signOut } = useAuth();
+  const visibleMenuItems = menuItems.filter((item) => !item.roles || (role && item.roles.includes(role)));
 
   return (
     <Sidebar collapsible="icon">
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>
-            {!collapsed && (
-              <span className="font-heading text-lg font-bold gradient-text">
-                InvenPOS
-              </span>
-            )}
-            {collapsed && (
-              <span className="font-heading text-lg font-bold text-primary">I</span>
-            )}
+          <SidebarGroupLabel className="h-auto py-3">
+            <div className={collapsed ? "flex w-full justify-center" : "flex w-full items-center gap-3"}>
+              <img
+                src={LOGO_URL}
+                alt="Fazma Stone"
+                className={collapsed ? "h-8 w-8 object-contain" : "h-10 w-auto max-w-[150px] object-contain"}
+              />
+              {!collapsed && role && (
+                <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary">
+                  {role}
+                </span>
+              )}
+            </div>
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {menuItems.map((item) => (
+              {visibleMenuItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild>
                     <NavLink
