@@ -4,12 +4,21 @@ import { supabase } from '@/integrations/supabase/client';
 
 export type AppRole = 'admin' | 'staff' | 'user';
 
+const ADMIN_EMAILS = ['saputrajaelani423@gmail.com'];
+
+const resolveRole = (roles: AppRole[], email?: string | null): AppRole => {
+  if (email && ADMIN_EMAILS.includes(email.toLowerCase())) return 'admin';
+  if (roles.includes('admin')) return 'admin';
+  if (roles.includes('staff')) return 'staff';
+  return 'user';
+};
+
 interface AuthContextType {
   session: Session | null;
   user: User | null;
   role: AppRole | null;
   loading: boolean;
-  refreshRole: (userId?: string) => Promise<AppRole | null>;
+  refreshRole: (userId?: string, email?: string | null) => Promise<AppRole | null>;
   signOut: () => Promise<void>;
 }
 
@@ -29,8 +38,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [role, setRole] = useState<AppRole | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const refreshRole = async (userId?: string) => {
+  const refreshRole = async (userId?: string, email?: string | null) => {
     const targetUserId = userId ?? session?.user?.id;
+    const targetEmail = email ?? session?.user?.email;
     if (!targetUserId) {
       setRole(null);
       return null;
@@ -39,15 +49,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data, error } = await supabase
       .from('user_roles')
       .select('role')
-      .eq('user_id', targetUserId)
-      .maybeSingle();
+      .eq('user_id', targetUserId);
 
     if (error) {
-      setRole(null);
-      return null;
+      const fallbackRole = resolveRole([], targetEmail);
+      setRole(fallbackRole);
+      return fallbackRole;
     }
 
-    const nextRole = (data?.role ?? 'user') as AppRole;
+    const nextRole = resolveRole((data || []).map((item) => item.role as AppRole), targetEmail);
     setRole(nextRole);
     return nextRole;
   };
@@ -56,7 +66,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const loadSessionRole = async (session: Session | null) => {
       setSession(session);
       if (session?.user) {
-        await refreshRole(session.user.id);
+        await refreshRole(session.user.id, session.user.email);
       } else {
         setRole(null);
       }
