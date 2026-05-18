@@ -115,8 +115,11 @@ export default function Penjualan() {
     setSelectedProductId(val);
     const prod = products.find((p) => p.id === val);
     if (prod) {
-      setItemUkuran(prod.ukuran);
-      setItemHarga(prod.harga_default);
+      // Cek memori: prioritas item terakhir di keranjang saat ini, lalu memori historis, terakhir fallback ke default
+      const cartLast = [...invoiceItems].reverse().find((i) => i.id_produk === val);
+      const mem = productMemory[val];
+      setItemUkuran(cartLast?.ukuran ?? mem?.ukuran ?? prod.ukuran);
+      setItemHarga(cartLast?.harga_satuan ?? mem?.harga ?? prod.harga_default);
       setItemKuantitas(1);
     }
   };
