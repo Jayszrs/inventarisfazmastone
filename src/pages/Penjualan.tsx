@@ -58,10 +58,35 @@ export default function Penjualan() {
   const [itemKuantitas, setItemKuantitas] = useState<number>(1);
   const [itemHarga, setItemHarga] = useState<number>(0);
 
+  // Memori produk: id_produk -> { ukuran, harga } dari riwayat transaksi terakhir
+  const [productMemory, setProductMemory] = useState<Record<string, { ukuran: string; harga: number }>>({});
+
   useEffect(() => {
     loadProducts();
+    loadProductMemory();
     generateNoNota();
   }, []);
+
+  const loadProductMemory = async () => {
+    // Ambil detail transaksi terbaru untuk membangun memori ukuran & harga per barang
+    const { data } = await supabase
+      .from("detail_transaksi")
+      .select("barang_id, harga, ukuran, created_at")
+      .order("created_at", { ascending: false })
+      .limit(500);
+    if (data) {
+      const mem: Record<string, { ukuran: string; harga: number }> = {};
+      for (const row of data as any[]) {
+        if (!mem[row.barang_id]) {
+          mem[row.barang_id] = {
+            ukuran: row.ukuran || "",
+            harga: Number(row.harga) || 0,
+          };
+        }
+      }
+      setProductMemory(mem);
+    }
+  };
 
   const loadProducts = async () => {
     const { data, error } = await supabase.from("barang").select("*").gt("stok", 0);
