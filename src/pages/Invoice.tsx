@@ -141,6 +141,7 @@ export default function Invoice() {
   const { toast } = useToast();
   const { user } = useAuth();
   const [transactions, setTransactions] = useState<TransaksiRow[]>([]);
+  const [itemsByTransaction, setItemsByTransaction] = useState<Record<string, string[]>>({});
   const [cart, setCart] = useState<CartItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [itemNamaBarang, setItemNamaBarang] = useState("");
@@ -211,10 +212,29 @@ export default function Invoice() {
       return;
     }
 
-    setTransactions(((data || []) as TransaksiRow[]).map((transaction) => ({
+    const rows = ((data || []) as TransaksiRow[]).map((transaction) => ({
       ...transaction,
       nama_pelanggan: getCachedCustomer(transaction),
-    })));
+    }));
+    setTransactions(rows);
+
+    // Muat daftar nama barang per transaksi untuk ditampilkan di tabel riwayat
+    const ids = rows.map((r) => r.id);
+    if (ids.length === 0) {
+      setItemsByTransaction({});
+      return;
+    }
+    const { data: details } = await supabase
+      .from("detail_transaksi")
+      .select("transaksi_id, barang:barang_id (nama_barang)")
+      .in("transaksi_id", ids);
+    const map: Record<string, string[]> = {};
+    for (const row of (details || []) as any[]) {
+      const nama = row.barang?.nama_barang || "Barang";
+      if (!map[row.transaksi_id]) map[row.transaksi_id] = [];
+      map[row.transaksi_id].push(nama);
+    }
+    setItemsByTransaction(map);
   };
 
   const addCartItem = () => {
@@ -737,6 +757,7 @@ export default function Invoice() {
                   <TableHead className="w-12 text-center">No</TableHead>
                   <TableHead>No. Invoice</TableHead>
                   <TableHead>Tanggal</TableHead>
+                  <TableHead>Barang</TableHead>
                   <TableHead className="text-right">Total</TableHead>
                   <TableHead className="text-center">Status</TableHead>
                   <TableHead className="text-right">Aksi</TableHead>
@@ -745,17 +766,30 @@ export default function Invoice() {
               <TableBody>
                 {transactions.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="h-28 text-center text-muted-foreground">Belum ada invoice</TableCell>
+                    <TableCell colSpan={7} className="h-28 text-center text-muted-foreground">Belum ada invoice</TableCell>
                   </TableRow>
                 ) : (
                   transactions.map((transaction, index) => {
                     const status = getPaymentBadge(transaction);
                     const StatusIcon = status.icon;
+                    const names = itemsByTransaction[transaction.id] || [];
+                    const preview = names.slice(0, 2).join(", ");
+                    const extra = names.length > 2 ? ` +${names.length - 2} lainnya` : "";
                     return (
                       <TableRow key={transaction.id}>
                         <TableCell className="text-center">{index + 1}</TableCell>
                         <TableCell className="font-mono font-semibold text-primary">{transaction.nomor_invoice}</TableCell>
                         <TableCell>{formatDate(transaction.created_at)}</TableCell>
+                        <TableCell className="max-w-[220px]">
+                          {names.length === 0 ? (
+                            <span className="text-xs text-muted-foreground italic">—</span>
+                          ) : (
+                            <span className="text-sm text-foreground" title={names.join(", ")}>
+                              {preview}
+                              {extra && <span className="text-muted-foreground">{extra}</span>}
+                            </span>
+                          )}
+                        </TableCell>
                         <TableCell className="text-right font-semibold">{formatCurrency(transaction.total)}</TableCell>
                         <TableCell className="text-center">
                           <Badge variant="outline" className={status.className}>
