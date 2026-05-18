@@ -212,6 +212,7 @@ export default function Penjualan() {
     
     // Reset form item
     setSelectedProductId("");
+    setProductQuery("");
     setItemUkuran("");
     setItemKuantitas(1);
     setItemHarga(0);
