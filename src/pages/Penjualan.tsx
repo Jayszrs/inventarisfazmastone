@@ -230,6 +230,7 @@ export default function Penjualan() {
       setFormData(prev => ({ ...prev, nama_pelanggan: "", status_pembayaran: "lunas" }));
       setInvoiceItems([]);
       loadProducts();
+      loadProductMemory();
     } catch (error: any) {
       toast({ title: "Gagal Menyimpan Nota", description: error.message, variant: "destructive" });
     } finally {
