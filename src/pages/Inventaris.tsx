@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Search, Pencil, Trash2, AlertTriangle } from "lucide-react";
+import { Plus, Search, Pencil, Trash2, AlertTriangle, Package, Maximize2, DollarSign } from "lucide-react";
 
 interface Barang {
   id: string;
@@ -19,8 +19,16 @@ interface Barang {
   supplier: string;
 }
 
-// Inisialisasi form kosong (ditambahkan state ukuran lokal untuk UI)
-const emptyForm = { nama_barang: "", kategori: "", ukuran: "", stok: 0, harga_beli: 0, harga_jual: 0, supplier: "" };
+interface BarangHistory {
+  nama_barang: string;
+  ukuran: string;
+  harga: number;
+}
+
+const emptyForm = { nama_barang: "", kategori: "", stok: 0, harga_beli: 0, harga_jual: 0, supplier: "" };
+
+const isMissingUkuranColumn = (error?: { message?: string } | null) =>
+  Boolean(error?.message?.toLowerCase().includes("detail_transaksi.ukuran"));
 
 export default function Inventaris() {
   const [barang, setBarang] = useState<Barang[]>([]);
@@ -30,61 +38,89 @@ export default function Inventaris() {
   const [editId, setEditId] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [histories, setHistories] = useState<BarangHistory[]>([]);
+  const [suggestionOpen, setSuggestionOpen] = useState(false);
+  const formRef = useRef<HTMLFormElement | null>(null);
   const { toast } = useToast();
 
-  useEffect(() => { loadBarang(); }, []);
+  useEffect(() => {
+    loadBarang();
+    loadBarangHistories();
+  }, []);
+
+  useEffect(() => {
+    const closeOnOutsideClick = (event: MouseEvent) => {
+      if (!formRef.current?.contains(event.target as Node)) {
+        setSuggestionOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", closeOnOutsideClick);
+    return () => document.removeEventListener("mousedown", closeOnOutsideClick);
+  }, []);
 
   const loadBarang = async () => {
     const { data } = await supabase.from("barang").select("*").order("created_at", { ascending: false });
-    // Perbaikan Error 1: Type casting ke Barang[] agar garis merah hilang
-    setBarang((data as Barang[]) || []);
+    setBarang(data || []);
   };
 
-  // LOGIKA AUTO-FILL: Otomatis mengisi data ketika nama produk lama dipilih
-  const handleNamaBarangChange = (nama: string) => {
-    const barangSama = barang.find((b) => b.nama_barang.toLowerCase() === nama.toLowerCase());
+  const loadBarangHistories = async () => {
+    const master = await supabase
+      .from("barang")
+      .select("nama_barang,kategori,harga_jual")
+      .order("created_at", { ascending: false });
 
-    if (barangSama && !editId) {
-      setForm({
-        ...form,
-        nama_barang: nama,
-        kategori: barangSama.kategori || "",
-        harga_beli: barangSama.harga_beli || 0,
-        harga_jual: barangSama.harga_jual || 0,
-        supplier: barangSama.supplier || "",
-        ukuran: "", // Bersihkan ukuran agar user bisa menentukan ukuran baru jika bervariasi
-      });
-    } else {
-      setForm({ ...form, nama_barang: nama });
+    let details = await supabase
+      .from("detail_transaksi")
+      .select("ukuran,harga,barang:barang_id(nama_barang,kategori)")
+      .order("created_at", { ascending: false });
+
+    if (isMissingUkuranColumn(details.error)) {
+      details = await supabase
+        .from("detail_transaksi")
+        .select("harga,barang:barang_id(nama_barang,kategori)")
+        .order("created_at", { ascending: false });
     }
+
+    const rows: BarangHistory[] = [
+      ...((master.data || []) as any[]).map((item) => ({
+        nama_barang: item.nama_barang,
+        ukuran: item.kategori || "-",
+        harga: Number(item.harga_jual) || 0,
+      })),
+      ...((details.data || []) as any[]).map((item) => ({
+        nama_barang: item.barang?.nama_barang,
+        ukuran: item.ukuran || item.barang?.kategori || "-",
+        harga: Number(item.harga) || 0,
+      })),
+    ].filter((item) => item.nama_barang?.trim());
+
+    const unique = Array.from(
+      new Map(rows.map((item) => [`${item.nama_barang.toLowerCase()}|${item.ukuran.toLowerCase()}|${item.harga}`, item])).values(),
+    );
+
+    setHistories(unique);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-
-    // Memisahkan 'ukuran' dari data database utama agar tidak memicu error skema Supabase
-    const { ukuran, ...payloadDatabase } = form;
-
-    // Jika user mengisi ukuran, gabungkan ke dalam nama produk (misal: "Semen Tiga Roda - 50kg")
-    const namaFinal = ukuran ? `${payloadDatabase.nama_barang} - ${ukuran}` : payloadDatabase.nama_barang;
-    const dataToSave = { ...payloadDatabase, nama_barang: namaFinal };
-
     try {
       if (editId) {
-        // Perbaikan Error 2: Gunakan (dataToSave as any) untuk menghindari error skema strict TypeScript
-        const { error } = await supabase.from("barang").update(dataToSave as any).eq("id", editId);
+        const { error } = await supabase.from("barang").update(form).eq("id", editId);
         if (error) throw error;
         toast({ title: "Berhasil", description: "Barang berhasil diupdate" });
       } else {
-        const { error } = await supabase.from("barang").insert(dataToSave as any);
+        const { error } = await supabase.from("barang").insert(form);
         if (error) throw error;
         toast({ title: "Berhasil", description: "Barang berhasil ditambahkan" });
       }
       setOpen(false);
       setForm(emptyForm);
       setEditId(null);
+      setSuggestionOpen(false);
       loadBarang();
+      loadBarangHistories();
     } catch (error: any) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     } finally {
@@ -93,17 +129,10 @@ export default function Inventaris() {
   };
 
   const handleEdit = (item: Barang) => {
-    setForm({
-      nama_barang: item.nama_barang,
-      kategori: item.kategori,
-      ukuran: "", // Kosongkan ukuran saat edit agar tidak menumpuk teks nama
-      stok: item.stok,
-      harga_beli: item.harga_beli,
-      harga_jual: item.harga_jual,
-      supplier: item.supplier
-    });
+    setForm({ nama_barang: item.nama_barang, kategori: item.kategori, stok: item.stok, harga_beli: item.harga_beli, harga_jual: item.harga_jual, supplier: item.supplier });
     setEditId(item.id);
     setOpen(true);
+    setSuggestionOpen(false);
   };
 
   const handleDelete = async (id: string) => {
@@ -116,9 +145,23 @@ export default function Inventaris() {
   const formatCurrency = (n: number) =>
     new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0 }).format(n);
 
-  // Mengambil daftar nama unik untuk opsi dropdown otomatis (datalist)
-  const namaBarangList = [...new Set(barang.map((b) => b.nama_barang.split(" - ")[0]))];
   const kategoriList = [...new Set(barang.map((b) => b.kategori).filter(Boolean))];
+
+  const filteredHistories = useMemo(() => {
+    const query = form.nama_barang.trim().toLowerCase();
+    if (!query) return histories.slice(0, 8);
+    return histories.filter((item) => item.nama_barang.toLowerCase().includes(query)).slice(0, 8);
+  }, [form.nama_barang, histories]);
+
+  const handleHistorySelect = (history: BarangHistory) => {
+    setForm((current) => ({
+      ...current,
+      nama_barang: history.nama_barang,
+      kategori: history.ukuran,
+      harga_jual: history.harga,
+    }));
+    setSuggestionOpen(false);
+  };
 
   const filtered = barang.filter((b) => {
     const matchSearch = b.nama_barang.toLowerCase().includes(search.toLowerCase()) || b.supplier?.toLowerCase().includes(search.toLowerCase());
@@ -144,37 +187,58 @@ export default function Inventaris() {
               <DialogHeader>
                 <DialogTitle className="font-heading">{editId ? "Edit Barang" : "Tambah Barang"}</DialogTitle>
               </DialogHeader>
-              <form onSubmit={handleSubmit} className="space-y-4">
-
-                {/* Auto-Suggest Input dengan datalist */}
-                <div>
+              <form ref={formRef} onSubmit={handleSubmit} className="space-y-4">
+                <div className="relative">
                   <Label>Nama Barang</Label>
-                  <Input
-                    value={form.nama_barang}
-                    onChange={(e) => handleNamaBarangChange(e.target.value)}
-                    list="nama-barang-options"
-                    required
-                    className="bg-secondary border-border mt-1"
-                    placeholder="Ketik nama atau klik opsi yang muncul..."
-                  />
-                  <datalist id="nama-barang-options">
-                    {namaBarangList.map((nama) => (
-                      <option key={nama} value={nama} />
-                    ))}
-                  </datalist>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <Label>Kategori</Label>
-                    <Input value={form.kategori} onChange={(e) => setForm({ ...form, kategori: e.target.value })} required className="bg-secondary border-border mt-1" />
+                  <div className="relative mt-1">
+                    <Package className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-emerald-600" />
+                    <Input
+                      value={form.nama_barang}
+                      onChange={(e) => {
+                        setForm({ ...form, nama_barang: e.target.value });
+                        setSuggestionOpen(true);
+                      }}
+                      onFocus={() => setSuggestionOpen(true)}
+                      required
+                      className="bg-secondary border-border pl-10 focus-visible:ring-emerald-500"
+                      placeholder="Ketik nama barang..."
+                    />
                   </div>
-                  <div>
-                    <Label>Ukuran / Varian</Label>
-                    <Input value={form.ukuran} onChange={(e) => setForm({ ...form, ukuran: e.target.value })} className="bg-secondary border-border mt-1" placeholder="Contoh: XL, 40x40, 10ml" />
+                  {suggestionOpen && filteredHistories.length > 0 && (
+                    <div className="absolute left-0 right-0 top-full z-50 mt-2 max-h-72 overflow-y-auto rounded-lg border border-emerald-200 bg-card shadow-xl shadow-emerald-950/10">
+                      {filteredHistories.map((history) => (
+                        <button
+                          key={`${history.nama_barang}-${history.ukuran}-${history.harga}`}
+                          type="button"
+                          onClick={() => handleHistorySelect(history)}
+                          className="flex w-full items-start justify-between gap-3 border-b border-border/60 px-3 py-3 text-left transition-colors last:border-b-0 hover:bg-emerald-50/80 focus:bg-emerald-50/80 focus:outline-none"
+                        >
+                          <span className="min-w-0">
+                            <span className="flex items-center gap-2 font-medium text-foreground">
+                              <Package className="h-4 w-4 shrink-0 text-emerald-600" />
+                              <span className="truncate">{history.nama_barang}</span>
+                            </span>
+                          </span>
+                          <span className="flex shrink-0 flex-wrap justify-end gap-1.5">
+                            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-1 text-[11px] font-medium text-emerald-800">
+                              <Maximize2 className="h-3 w-3" /> {history.ukuran}
+                            </span>
+                            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-600 px-2 py-1 text-[11px] font-semibold text-white">
+                              <DollarSign className="h-3 w-3" /> {formatCurrency(history.harga)}
+                            </span>
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <div>
+                  <Label>Ukuran</Label>
+                  <div className="relative mt-1">
+                    <Maximize2 className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-emerald-600" />
+                    <Input value={form.kategori} onChange={(e) => setForm({ ...form, kategori: e.target.value })} required className="bg-secondary border-border pl-10 focus-visible:ring-emerald-500" />
                   </div>
                 </div>
-
                 <div className="grid grid-cols-3 gap-3">
                   <div>
                     <Label>Stok</Label>
@@ -186,10 +250,12 @@ export default function Inventaris() {
                   </div>
                   <div>
                     <Label>Harga Jual</Label>
-                    <Input type="number" value={form.harga_jual} onChange={(e) => setForm({ ...form, harga_jual: parseInt(e.target.value) || 0 })} className="bg-secondary border-border mt-1" />
+                    <div className="relative mt-1">
+                      <DollarSign className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-emerald-600" />
+                      <Input type="number" value={form.harga_jual} onChange={(e) => setForm({ ...form, harga_jual: parseInt(e.target.value) || 0 })} className="bg-secondary border-border pl-10 focus-visible:ring-emerald-500" />
+                    </div>
                   </div>
                 </div>
-
                 <div>
                   <Label>Supplier</Label>
                   <Input value={form.supplier} onChange={(e) => setForm({ ...form, supplier: e.target.value })} className="bg-secondary border-border mt-1" />
@@ -225,7 +291,7 @@ export default function Inventaris() {
             <table className="w-full">
               <thead>
                 <tr className="border-b border-border">
-                  <th className="text-left p-4 text-sm font-medium text-muted-foreground">Nama & Ukuran</th>
+                  <th className="text-left p-4 text-sm font-medium text-muted-foreground">Nama</th>
                   <th className="text-left p-4 text-sm font-medium text-muted-foreground hidden sm:table-cell">Kategori</th>
                   <th className="text-left p-4 text-sm font-medium text-muted-foreground">Stok</th>
                   <th className="text-left p-4 text-sm font-medium text-muted-foreground hidden md:table-cell">Harga Beli</th>

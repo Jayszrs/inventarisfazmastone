@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
-import { CheckCircle2, ClipboardList, Clock, Eye, PackagePlus, Pencil, Printer, Save, Send, Trash2, Truck } from "lucide-react";
+import { CalendarDays, CheckCircle2, ClipboardList, Clock, DollarSign, Eye, Maximize2, Package, PackagePlus, Pencil, Printer, Save, Send, Trash2, Truck } from "lucide-react";
 
 const LOGO_URL = encodeURI("/Logo Fazma Stone Hitam.png");
 const SIGNATURE_URL = encodeURI("/Signature.png");
@@ -47,11 +47,20 @@ type TransaksiRow = {
   jumlah_bayar: number;
   metode_pembayaran: string;
   nama_pelanggan?: string;
+  items?: Pick<CartItem, "nama_barang" | "ukuran" | "jumlah">[];
 };
 
 type InvoiceDetail = TransaksiRow & {
   items: CartItem[];
 };
+
+type BarangHistory = {
+  nama_barang: string;
+  ukuran: string;
+  harga: number;
+};
+
+type NumberInputValue = number | "";
 
 export type DeliveryNoteMeta = {
   transaksi_id: string;
@@ -137,6 +146,9 @@ const getCachedCustomer = (transaction: Pick<TransaksiRow, "id" | "nomor_invoice
   return cache[transaction.id] || cache[transaction.nomor_invoice] || "";
 };
 
+const isMissingUkuranColumn = (error?: { message?: string } | null) =>
+  Boolean(error?.message?.toLowerCase().includes("detail_transaksi.ukuran"));
+
 export default function Invoice() {
   const { toast } = useToast();
   const { user } = useAuth();
@@ -145,8 +157,12 @@ export default function Invoice() {
   const [loading, setLoading] = useState(false);
   const [itemNamaBarang, setItemNamaBarang] = useState("");
   const [itemUkuran, setItemUkuran] = useState("");
-  const [itemJumlah, setItemJumlah] = useState(1);
-  const [itemHarga, setItemHarga] = useState(0);
+  const [itemJumlah, setItemJumlah] = useState<NumberInputValue>("");
+  const [itemHarga, setItemHarga] = useState<NumberInputValue>("");
+  const [barangHistories, setBarangHistories] = useState<BarangHistory[]>([]);
+  const [suggestionOpen, setSuggestionOpen] = useState(false);
+  const [editSuggestionOpen, setEditSuggestionOpen] = useState(false);
+  const [historyDate, setHistoryDate] = useState("");
   const [detailOpen, setDetailOpen] = useState(false);
   const [deliveryOpen, setDeliveryOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
@@ -177,14 +193,34 @@ export default function Invoice() {
   const [editCart, setEditCart] = useState<CartItem[]>([]);
   const [editItemNamaBarang, setEditItemNamaBarang] = useState("");
   const [editItemUkuran, setEditItemUkuran] = useState("");
-  const [editItemJumlah, setEditItemJumlah] = useState(1);
-  const [editItemHarga, setEditItemHarga] = useState(0);
+  const [editItemJumlah, setEditItemJumlah] = useState<NumberInputValue>("");
+  const [editItemHarga, setEditItemHarga] = useState<NumberInputValue>("");
+  const itemFormRef = useRef<HTMLDivElement | null>(null);
+  const editItemFormRef = useRef<HTMLDivElement | null>(null);
 
   const grandTotal = useMemo(() => cart.reduce((sum, item) => sum + item.subtotal, 0), [cart]);
   const editGrandTotal = useMemo(() => editCart.reduce((sum, item) => sum + item.subtotal, 0), [editCart]);
 
+  const filteredTransactions = useMemo(() => {
+    if (!historyDate) return transactions;
+    return transactions.filter((transaction) => formatDateInput(transaction.created_at) === historyDate);
+  }, [historyDate, transactions]);
+
+  const filteredHistories = useMemo(() => {
+    const query = itemNamaBarang.trim().toLowerCase();
+    if (!query) return barangHistories.slice(0, 8);
+    return barangHistories.filter((item) => item.nama_barang.toLowerCase().includes(query)).slice(0, 8);
+  }, [barangHistories, itemNamaBarang]);
+
+  const filteredEditHistories = useMemo(() => {
+    const query = editItemNamaBarang.trim().toLowerCase();
+    if (!query) return barangHistories.slice(0, 8);
+    return barangHistories.filter((item) => item.nama_barang.toLowerCase().includes(query)).slice(0, 8);
+  }, [barangHistories, editItemNamaBarang]);
+
   useEffect(() => {
     loadTransactions();
+    loadBarangHistories();
 
     const channel = supabase
       .channel("invoice-db-changes")
@@ -200,6 +236,17 @@ export default function Invoice() {
     };
   }, []);
 
+  useEffect(() => {
+    const closeOnOutsideClick = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (!itemFormRef.current?.contains(target)) setSuggestionOpen(false);
+      if (!editItemFormRef.current?.contains(target)) setEditSuggestionOpen(false);
+    };
+
+    document.addEventListener("mousedown", closeOnOutsideClick);
+    return () => document.removeEventListener("mousedown", closeOnOutsideClick);
+  }, []);
+
   const loadTransactions = async () => {
     const { data, error } = await supabase
       .from("transaksi")
@@ -211,20 +258,116 @@ export default function Invoice() {
       return;
     }
 
-    setTransactions(((data || []) as TransaksiRow[]).map((transaction) => ({
+    const transactionRows = (data || []) as TransaksiRow[];
+    const transactionIds = transactionRows.map((transaction) => transaction.id);
+
+    let detailRows: any[] = [];
+    let detailError: any = null;
+
+    if (transactionIds.length) {
+      const detailResult = await supabase
+        .from("detail_transaksi")
+        .select("transaksi_id,jumlah,ukuran,barang:barang_id(nama_barang,kategori)")
+        .in("transaksi_id", transactionIds);
+
+      if (isMissingUkuranColumn(detailResult.error)) {
+        const fallbackResult = await supabase
+          .from("detail_transaksi")
+          .select("transaksi_id,jumlah,barang:barang_id(nama_barang,kategori)")
+          .in("transaksi_id", transactionIds);
+
+        detailRows = (fallbackResult.data || []) as any[];
+        detailError = fallbackResult.error;
+      } else {
+        detailRows = (detailResult.data || []) as any[];
+        detailError = detailResult.error;
+      }
+    }
+
+    if (detailError) {
+      toast({ title: "Gagal memuat item invoice", description: detailError.message, variant: "destructive" });
+    }
+
+    const itemsByTransaction = detailRows.reduce<Record<string, TransaksiRow["items"]>>((acc, detail) => {
+      const items = acc[detail.transaksi_id] || [];
+      items.push({
+        nama_barang: detail.barang?.nama_barang || "Barang",
+        ukuran: detail.ukuran || detail.barang?.kategori || "-",
+        jumlah: detail.jumlah || 0,
+      });
+      acc[detail.transaksi_id] = items;
+      return acc;
+    }, {});
+
+    setTransactions(transactionRows.map((transaction) => ({
       ...transaction,
       nama_pelanggan: getCachedCustomer(transaction),
+      items: itemsByTransaction[transaction.id] || [],
     })));
+  };
+
+  const loadBarangHistories = async () => {
+    const master = await supabase
+      .from("barang")
+      .select("nama_barang,kategori,harga_jual")
+      .order("created_at", { ascending: false });
+
+    let details = await supabase
+      .from("detail_transaksi")
+      .select("ukuran,harga,barang:barang_id(nama_barang,kategori)")
+      .order("created_at", { ascending: false });
+
+    if (isMissingUkuranColumn(details.error)) {
+      details = await supabase
+        .from("detail_transaksi")
+        .select("harga,barang:barang_id(nama_barang,kategori)")
+        .order("created_at", { ascending: false });
+    }
+
+    const rows: BarangHistory[] = [
+      ...((master.data || []) as any[]).map((item) => ({
+        nama_barang: item.nama_barang,
+        ukuran: item.kategori || "-",
+        harga: Number(item.harga_jual) || 0,
+      })),
+      ...((details.data || []) as any[]).map((item) => ({
+        nama_barang: item.barang?.nama_barang,
+        ukuran: item.ukuran || item.barang?.kategori || "-",
+        harga: Number(item.harga) || 0,
+      })),
+    ].filter((item) => item.nama_barang?.trim());
+
+    const unique = Array.from(
+      new Map(rows.map((item) => [`${item.nama_barang.toLowerCase()}|${item.ukuran.toLowerCase()}|${item.harga}`, item])).values(),
+    );
+
+    setBarangHistories(unique);
+  };
+
+  const selectHistory = (history: BarangHistory) => {
+    setItemNamaBarang(history.nama_barang);
+    setItemUkuran(history.ukuran);
+    setItemHarga(history.harga);
+    setSuggestionOpen(false);
+  };
+
+  const selectEditHistory = (history: BarangHistory) => {
+    setEditItemNamaBarang(history.nama_barang);
+    setEditItemUkuran(history.ukuran);
+    setEditItemHarga(history.harga);
+    setEditSuggestionOpen(false);
   };
 
   const addCartItem = () => {
     const namaBarang = itemNamaBarang.trim();
+    const jumlah = Number(itemJumlah) || 0;
+    const harga = Number(itemHarga) || 0;
     if (!namaBarang) {
       toast({ title: "Nama barang wajib diisi", variant: "destructive" });
       return;
     }
 
-    if (itemJumlah <= 0 || itemHarga <= 0) {
+    if (jumlah <= 0 || harga <= 0) {
       toast({ title: "Jumlah dan harga harus lebih dari 0", variant: "destructive" });
       return;
     }
@@ -235,15 +378,15 @@ export default function Invoice() {
         nama_barang: namaBarang,
         kategori: itemUkuran || "-",
         ukuran: itemUkuran || "-",
-        jumlah: itemJumlah,
-        harga: itemHarga,
-        subtotal: itemJumlah * itemHarga,
+        jumlah,
+        harga,
+        subtotal: jumlah * harga,
       },
     ]);
     setItemNamaBarang("");
     setItemUkuran("");
-    setItemJumlah(1);
-    setItemHarga(0);
+    setItemJumlah("");
+    setItemHarga("");
   };
 
   const removeCartItem = (index: number) => {
@@ -363,6 +506,7 @@ export default function Invoice() {
       });
       setCart([]);
       loadTransactions();
+      loadBarangHistories();
     } catch (error: any) {
       toast({ title: "Gagal menyimpan invoice", description: error.message, variant: "destructive" });
     } finally {
@@ -372,12 +516,14 @@ export default function Invoice() {
 
   const addEditCartItem = () => {
     const namaBarang = editItemNamaBarang.trim();
+    const jumlah = Number(editItemJumlah) || 0;
+    const harga = Number(editItemHarga) || 0;
     if (!namaBarang) {
       toast({ title: "Nama barang wajib diisi", variant: "destructive" });
       return;
     }
 
-    if (editItemJumlah <= 0 || editItemHarga <= 0) {
+    if (jumlah <= 0 || harga <= 0) {
       toast({ title: "Jumlah dan harga harus lebih dari 0", variant: "destructive" });
       return;
     }
@@ -388,15 +534,15 @@ export default function Invoice() {
         nama_barang: namaBarang,
         kategori: editItemUkuran || "-",
         ukuran: editItemUkuran || "-",
-        jumlah: editItemJumlah,
-        harga: editItemHarga,
-        subtotal: editItemJumlah * editItemHarga,
+        jumlah,
+        harga,
+        subtotal: jumlah * harga,
       },
     ]);
     setEditItemNamaBarang("");
     setEditItemUkuran("");
-    setEditItemJumlah(1);
-    setEditItemHarga(0);
+    setEditItemJumlah("");
+    setEditItemHarga("");
   };
 
   const removeEditCartItem = (index: number) => {
@@ -482,6 +628,7 @@ export default function Invoice() {
       setEditingInvoiceId(null);
       setEditCart([]);
       loadTransactions();
+      loadBarangHistories();
     } catch (error: any) {
       toast({ title: "Gagal mengedit invoice", description: error.message, variant: "destructive" });
     } finally {
@@ -631,30 +778,47 @@ export default function Invoice() {
             </div>
           </div>
 
-          <div className="mt-5 grid gap-4 rounded-lg border border-border bg-secondary/50 p-4 md:grid-cols-2 lg:grid-cols-7">
-            <div className="space-y-2 lg:col-span-2">
+          <div ref={itemFormRef} className="mt-5 grid gap-4 rounded-lg border border-border bg-secondary/50 p-4 md:grid-cols-2 lg:grid-cols-7">
+            <div className="relative space-y-2 lg:col-span-2">
               <Label>Nama Barang / Produk</Label>
-              <Input
-                value={itemNamaBarang}
-                onChange={(e) => setItemNamaBarang(e.target.value)}
-                placeholder="Ketik nama barang bebas"
-              />
+              <div className="relative">
+                <Package className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-emerald-600" />
+                <Input
+                  value={itemNamaBarang}
+                  onChange={(e) => {
+                    setItemNamaBarang(e.target.value);
+                    setSuggestionOpen(true);
+                  }}
+                  onFocus={() => setSuggestionOpen(true)}
+                  placeholder="nama barang "
+                  className="pl-10 focus-visible:ring-emerald-500"
+                />
+              </div>
+              {suggestionOpen && filteredHistories.length > 0 && (
+                <HistorySuggestionList histories={filteredHistories} onSelect={selectHistory} />
+              )}
             </div>
             <div className="space-y-2">
               <Label>Ukuran</Label>
-              <Input value={itemUkuran} onChange={(e) => setItemUkuran(e.target.value)} placeholder="30x30 / custom" />
+              <div className="relative">
+                <Maximize2 className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-emerald-600" />
+                <Input value={itemUkuran} onChange={(e) => setItemUkuran(e.target.value)} placeholder="30x30 / custom" className="pl-10 focus-visible:ring-emerald-500" />
+              </div>
             </div>
             <div className="space-y-2">
               <Label>Jumlah</Label>
-              <Input type="number" min={1} value={itemJumlah} onChange={(e) => setItemJumlah(Number(e.target.value) || 0)} />
+              <Input type="number" min={1} value={itemJumlah} onChange={(e) => setItemJumlah(e.target.value === "" ? "" : Number(e.target.value))} placeholder="Masukkan jumlah" />
             </div>
             <div className="space-y-2">
               <Label>Harga</Label>
-              <Input type="number" min={0} value={itemHarga} onChange={(e) => setItemHarga(Number(e.target.value) || 0)} />
+              <div className="relative">
+                <DollarSign className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-emerald-600" />
+                <Input type="number" min={0} value={itemHarga} onChange={(e) => setItemHarga(e.target.value === "" ? "" : Number(e.target.value))} placeholder="Harga satuan" className="pl-10 focus-visible:ring-emerald-500" />
+              </div>
             </div>
             <div className="space-y-2">
               <Label>Subtotal</Label>
-              <Input value={formatCurrency(itemJumlah * itemHarga)} readOnly />
+              <Input value={formatCurrency((Number(itemJumlah) || 0) * (Number(itemHarga) || 0))} readOnly />
             </div>
             <div className="flex items-end">
               <Button type="button" onClick={addCartItem} className="w-full">
@@ -726,9 +890,27 @@ export default function Invoice() {
         </form>
 
         <div className="glass-card overflow-hidden rounded-lg">
-          <div className="flex items-center gap-2 border-b border-border p-5">
-            <ClipboardList className="h-5 w-5 text-primary" />
-            <h2 className="font-heading text-lg font-semibold">Riwayat Invoice</h2>
+          <div className="flex flex-col gap-4 border-b border-border p-5 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-2">
+              <ClipboardList className="h-5 w-5 text-primary" />
+              <h2 className="font-heading text-lg font-semibold">Riwayat Invoice</h2>
+            </div>
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+              <div className="relative">
+                <CalendarDays className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-emerald-600" />
+                <Input
+                  type="date"
+                  value={historyDate}
+                  onChange={(event) => setHistoryDate(event.target.value)}
+                  className="w-full pl-10 sm:w-48"
+                />
+              </div>
+              {historyDate && (
+                <Button type="button" variant="outline" size="sm" onClick={() => setHistoryDate("")}>
+                  Semua
+                </Button>
+              )}
+            </div>
           </div>
           <div className="overflow-x-auto">
             <Table>
@@ -736,6 +918,7 @@ export default function Invoice() {
                 <TableRow>
                   <TableHead className="w-12 text-center">No</TableHead>
                   <TableHead>No. Invoice</TableHead>
+                  <TableHead>Barang & Ukuran</TableHead>
                   <TableHead>Tanggal</TableHead>
                   <TableHead className="text-right">Total</TableHead>
                   <TableHead className="text-center">Status</TableHead>
@@ -743,18 +926,40 @@ export default function Invoice() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {transactions.length === 0 ? (
+                {filteredTransactions.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="h-28 text-center text-muted-foreground">Belum ada invoice</TableCell>
+                    <TableCell colSpan={7} className="h-28 text-center text-muted-foreground">
+                      {historyDate ? "Tidak ada invoice pada tanggal ini" : "Belum ada invoice"}
+                    </TableCell>
                   </TableRow>
                 ) : (
-                  transactions.map((transaction, index) => {
+                  filteredTransactions.map((transaction, index) => {
                     const status = getPaymentBadge(transaction);
                     const StatusIcon = status.icon;
                     return (
                       <TableRow key={transaction.id}>
                         <TableCell className="text-center">{index + 1}</TableCell>
                         <TableCell className="font-mono font-semibold text-primary">{transaction.nomor_invoice}</TableCell>
+                        <TableCell className="min-w-64">
+                          {transaction.items?.length ? (
+                            <div className="flex max-w-sm flex-col gap-1.5">
+                              {transaction.items.slice(0, 3).map((item, itemIndex) => (
+                                <div key={`${transaction.id}-${item.nama_barang}-${itemIndex}`} className="flex flex-wrap items-center gap-2">
+                                  <span className="font-medium text-foreground">{item.nama_barang}</span>
+                                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-medium text-emerald-800">
+                                    <Maximize2 className="h-3 w-3" /> {item.ukuran}
+                                  </span>
+                                  <span className="text-xs text-muted-foreground">x{item.jumlah}</span>
+                                </div>
+                              ))}
+                              {transaction.items.length > 3 && (
+                                <span className="text-xs text-muted-foreground">+{transaction.items.length - 3} item lainnya</span>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="text-sm text-muted-foreground">Belum ada item</span>
+                          )}
+                        </TableCell>
                         <TableCell>{formatDate(transaction.created_at)}</TableCell>
                         <TableCell className="text-right font-semibold">{formatCurrency(transaction.total)}</TableCell>
                         <TableCell className="text-center">
@@ -865,26 +1070,47 @@ export default function Invoice() {
                 </div>
               </div>
 
-              <div className="grid gap-4 rounded-lg border border-border bg-secondary/50 p-4 md:grid-cols-2 lg:grid-cols-7">
-                <div className="space-y-2 lg:col-span-2">
+              <div ref={editItemFormRef} className="grid gap-4 rounded-lg border border-border bg-secondary/50 p-4 md:grid-cols-2 lg:grid-cols-7">
+                <div className="relative space-y-2 lg:col-span-2">
                   <Label>Nama Barang / Produk</Label>
-                  <Input value={editItemNamaBarang} onChange={(e) => setEditItemNamaBarang(e.target.value)} placeholder="Tambah item baru" />
+                  <div className="relative">
+                    <Package className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-emerald-600" />
+                    <Input
+                      value={editItemNamaBarang}
+                      onChange={(e) => {
+                        setEditItemNamaBarang(e.target.value);
+                        setEditSuggestionOpen(true);
+                      }}
+                      onFocus={() => setEditSuggestionOpen(true)}
+                      placeholder="Tambah item baru"
+                      className="pl-10 focus-visible:ring-emerald-500"
+                    />
+                  </div>
+                  {editSuggestionOpen && filteredEditHistories.length > 0 && (
+                    <HistorySuggestionList histories={filteredEditHistories} onSelect={selectEditHistory} />
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label>Ukuran</Label>
-                  <Input value={editItemUkuran} onChange={(e) => setEditItemUkuran(e.target.value)} placeholder="30x30 / custom" />
+                  <div className="relative">
+                    <Maximize2 className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-emerald-600" />
+                    <Input value={editItemUkuran} onChange={(e) => setEditItemUkuran(e.target.value)} placeholder="30x30 / custom" className="pl-10 focus-visible:ring-emerald-500" />
+                  </div>
                 </div>
                 <div className="space-y-2">
                   <Label>Jumlah</Label>
-                  <Input type="number" min={1} value={editItemJumlah} onChange={(e) => setEditItemJumlah(Number(e.target.value) || 0)} />
+                  <Input type="number" min={1} value={editItemJumlah} onChange={(e) => setEditItemJumlah(e.target.value === "" ? "" : Number(e.target.value))} placeholder="Masukkan jumlah" />
                 </div>
                 <div className="space-y-2">
                   <Label>Harga</Label>
-                  <Input type="number" min={0} value={editItemHarga} onChange={(e) => setEditItemHarga(Number(e.target.value) || 0)} />
+                  <div className="relative">
+                    <DollarSign className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-emerald-600" />
+                    <Input type="number" min={0} value={editItemHarga} onChange={(e) => setEditItemHarga(e.target.value === "" ? "" : Number(e.target.value))} placeholder="Harga satuan" className="pl-10 focus-visible:ring-emerald-500" />
+                  </div>
                 </div>
                 <div className="space-y-2">
                   <Label>Subtotal</Label>
-                  <Input value={formatCurrency(editItemJumlah * editItemHarga)} readOnly />
+                  <Input value={formatCurrency((Number(editItemJumlah) || 0) * (Number(editItemHarga) || 0))} readOnly />
                 </div>
                 <div className="flex items-end">
                   <Button type="button" onClick={addEditCartItem} className="w-full">
@@ -993,6 +1219,46 @@ export default function Invoice() {
         {printMode === "delivery" && <PrintableDeliveryNote invoice={selectedInvoice} delivery={deliveryMeta} />}
       </div>
     </DashboardLayout>
+  );
+}
+
+function HistorySuggestionList({
+  histories,
+  onSelect,
+}: {
+  histories: BarangHistory[];
+  onSelect: (history: BarangHistory) => void;
+}) {
+  return (
+    <div className="absolute left-0 top-full z-50 mt-2 max-h-80 w-[min(92vw,34rem)] overflow-y-auto rounded-lg border border-emerald-200 bg-background shadow-xl shadow-emerald-950/10">
+      {histories.map((history) => (
+        <button
+          key={`${history.nama_barang}-${history.ukuran}-${history.harga}`}
+          type="button"
+          onClick={() => onSelect(history)}
+          className="grid w-full grid-cols-[1fr_auto] items-center gap-3 border-b border-border/60 px-3 py-3 text-left transition-colors last:border-b-0 hover:bg-emerald-50/80 focus:bg-emerald-50/80 focus:outline-none"
+        >
+          <span className="flex min-w-0 items-center gap-2">
+            <span className="flex min-w-0 flex-col gap-1">
+              <span className="flex min-w-0 items-center gap-2 font-medium text-foreground">
+                <Package className="h-4 w-4 shrink-0 text-emerald-600" />
+                <span className="whitespace-normal break-words leading-snug">{history.nama_barang}</span>
+              </span>
+              <span className="inline-flex w-fit items-center gap-1 rounded-full bg-emerald-100 px-2 py-1 text-[11px] font-medium text-emerald-800">
+                <Maximize2 className="h-3 w-3" />
+                <span className="text-emerald-700/80">Ukuran:</span>
+                {history.ukuran}
+              </span>
+            </span>
+          </span>
+          <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-emerald-600 px-2.5 py-1 text-[11px] font-semibold text-white">
+            <DollarSign className="h-3 w-3" />
+            <span className="font-medium text-white/80">Harga:</span>
+            {formatCurrency(history.harga)}
+          </span>
+        </button>
+      ))}
+    </div>
   );
 }
 
