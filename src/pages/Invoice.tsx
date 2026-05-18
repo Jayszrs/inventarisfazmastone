@@ -212,10 +212,29 @@ export default function Invoice() {
       return;
     }
 
-    setTransactions(((data || []) as TransaksiRow[]).map((transaction) => ({
+    const rows = ((data || []) as TransaksiRow[]).map((transaction) => ({
       ...transaction,
       nama_pelanggan: getCachedCustomer(transaction),
-    })));
+    }));
+    setTransactions(rows);
+
+    // Muat daftar nama barang per transaksi untuk ditampilkan di tabel riwayat
+    const ids = rows.map((r) => r.id);
+    if (ids.length === 0) {
+      setItemsByTransaction({});
+      return;
+    }
+    const { data: details } = await supabase
+      .from("detail_transaksi")
+      .select("transaksi_id, barang:barang_id (nama_barang)")
+      .in("transaksi_id", ids);
+    const map: Record<string, string[]> = {};
+    for (const row of (details || []) as any[]) {
+      const nama = row.barang?.nama_barang || "Barang";
+      if (!map[row.transaksi_id]) map[row.transaksi_id] = [];
+      map[row.transaksi_id].push(nama);
+    }
+    setItemsByTransaction(map);
   };
 
   const addCartItem = () => {
