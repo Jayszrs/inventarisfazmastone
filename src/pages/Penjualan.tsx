@@ -58,10 +58,35 @@ export default function Penjualan() {
   const [itemKuantitas, setItemKuantitas] = useState<number>(1);
   const [itemHarga, setItemHarga] = useState<number>(0);
 
+  // Memori produk: id_produk -> { ukuran, harga } dari riwayat transaksi terakhir
+  const [productMemory, setProductMemory] = useState<Record<string, { ukuran: string; harga: number }>>({});
+
   useEffect(() => {
     loadProducts();
+    loadProductMemory();
     generateNoNota();
   }, []);
+
+  const loadProductMemory = async () => {
+    // Ambil detail transaksi terbaru untuk membangun memori ukuran & harga per barang
+    const { data } = await supabase
+      .from("detail_transaksi")
+      .select("barang_id, harga, ukuran, created_at")
+      .order("created_at", { ascending: false })
+      .limit(500);
+    if (data) {
+      const mem: Record<string, { ukuran: string; harga: number }> = {};
+      for (const row of data as any[]) {
+        if (!mem[row.barang_id]) {
+          mem[row.barang_id] = {
+            ukuran: row.ukuran || "",
+            harga: Number(row.harga) || 0,
+          };
+        }
+      }
+      setProductMemory(mem);
+    }
+  };
 
   const loadProducts = async () => {
     const { data, error } = await supabase.from("barang").select("*").gt("stok", 0);
@@ -90,8 +115,11 @@ export default function Penjualan() {
     setSelectedProductId(val);
     const prod = products.find((p) => p.id === val);
     if (prod) {
-      setItemUkuran(prod.ukuran);
-      setItemHarga(prod.harga_default);
+      // Cek memori: prioritas item terakhir di keranjang saat ini, lalu memori historis, terakhir fallback ke default
+      const cartLast = [...invoiceItems].reverse().find((i) => i.id_produk === val);
+      const mem = productMemory[val];
+      setItemUkuran(cartLast?.ukuran ?? mem?.ukuran ?? prod.ukuran);
+      setItemHarga(cartLast?.harga_satuan ?? mem?.harga ?? prod.harga_default);
       setItemKuantitas(1);
     }
   };
@@ -202,6 +230,7 @@ export default function Penjualan() {
       setFormData(prev => ({ ...prev, nama_pelanggan: "", status_pembayaran: "lunas" }));
       setInvoiceItems([]);
       loadProducts();
+      loadProductMemory();
     } catch (error: any) {
       toast({ title: "Gagal Menyimpan Nota", description: error.message, variant: "destructive" });
     } finally {
