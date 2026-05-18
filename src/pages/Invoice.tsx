@@ -153,7 +153,6 @@ export default function Invoice() {
   const { toast } = useToast();
   const { user } = useAuth();
   const [transactions, setTransactions] = useState<TransaksiRow[]>([]);
-  const [itemsByTransaction, setItemsByTransaction] = useState<Record<string, string[]>>({});
   const [cart, setCart] = useState<CartItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [itemNamaBarang, setItemNamaBarang] = useState("");
@@ -259,7 +258,6 @@ export default function Invoice() {
       return;
     }
 
-<<<<<<< HEAD
     const transactionRows = (data || []) as TransaksiRow[];
     const transactionIds = transactionRows.map((transaction) => transaction.id);
 
@@ -306,31 +304,6 @@ export default function Invoice() {
       nama_pelanggan: getCachedCustomer(transaction),
       items: itemsByTransaction[transaction.id] || [],
     })));
-=======
-    const rows = ((data || []) as TransaksiRow[]).map((transaction) => ({
-      ...transaction,
-      nama_pelanggan: getCachedCustomer(transaction),
-    }));
-    setTransactions(rows);
-
-    // Muat daftar nama barang per transaksi untuk ditampilkan di tabel riwayat
-    const ids = rows.map((r) => r.id);
-    if (ids.length === 0) {
-      setItemsByTransaction({});
-      return;
-    }
-    const { data: details } = await supabase
-      .from("detail_transaksi")
-      .select("transaksi_id, barang:barang_id (nama_barang)")
-      .in("transaksi_id", ids);
-    const map: Record<string, string[]> = {};
-    for (const row of (details || []) as any[]) {
-      const nama = row.barang?.nama_barang || "Barang";
-      if (!map[row.transaksi_id]) map[row.transaksi_id] = [];
-      map[row.transaksi_id].push(nama);
-    }
-    setItemsByTransaction(map);
->>>>>>> f053ccb2911ab0307bf71e31572db4721899560c
   };
 
   const loadBarangHistories = async () => {
@@ -859,7 +832,6 @@ export default function Invoice() {
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-12 text-center">No</TableHead>
-                  <TableHead>Barang</TableHead>
                   <TableHead>Ukuran</TableHead>
                   <TableHead className="text-right">Qty</TableHead>
                   <TableHead className="text-right">Harga</TableHead>
@@ -964,9 +936,6 @@ export default function Invoice() {
                   filteredTransactions.map((transaction, index) => {
                     const status = getPaymentBadge(transaction);
                     const StatusIcon = status.icon;
-                    const names = itemsByTransaction[transaction.id] || [];
-                    const preview = names.slice(0, 2).join(", ");
-                    const extra = names.length > 2 ? ` +${names.length - 2} lainnya` : "";
                     return (
                       <TableRow key={transaction.id}>
                         <TableCell className="text-center">{index + 1}</TableCell>
@@ -992,16 +961,6 @@ export default function Invoice() {
                           )}
                         </TableCell>
                         <TableCell>{formatDate(transaction.created_at)}</TableCell>
-                        <TableCell className="max-w-[220px]">
-                          {names.length === 0 ? (
-                            <span className="text-xs text-muted-foreground italic">—</span>
-                          ) : (
-                            <span className="text-sm text-foreground" title={names.join(", ")}>
-                              {preview}
-                              {extra && <span className="text-muted-foreground">{extra}</span>}
-                            </span>
-                          )}
-                        </TableCell>
                         <TableCell className="text-right font-semibold">{formatCurrency(transaction.total)}</TableCell>
                         <TableCell className="text-center">
                           <Badge variant="outline" className={status.className}>
