@@ -199,6 +199,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_change_user_password: {
+        Args: { new_password: string; target_user_id: string }
+        Returns: undefined
+      }
+      admin_delete_user_role: {
+        Args: { target_user_id: string }
+        Returns: undefined
+      }
       admin_list_users_with_roles: {
         Args: never
         Returns: {
@@ -215,6 +223,14 @@ export type Database = {
         }
         Returns: undefined
       }
+      claim_allowed_admin_role: {
+        Args: never
+        Returns: Database["public"]["Enums"]["app_role"]
+      }
+      confirm_allowed_admin_email: {
+        Args: { target_email: string }
+        Returns: boolean
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -222,6 +238,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_admin_user: { Args: { _user_id: string }; Returns: boolean }
     }
     Enums: {
       app_role: "admin" | "staff" | "user"

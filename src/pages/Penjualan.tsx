@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -7,8 +7,16 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
-import { Plus, Save, Trash2 } from "lucide-react";
+import { Plus, Save, Trash2, Package, Maximize2, DollarSign, Search } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+
+interface ProductSuggestion {
+  barang_id: string;
+  nama_produk: string;
+  ukuran: string;
+  harga: number;
+  stok: number;
+}
 
 export interface Product {
   id: string;
@@ -58,10 +66,85 @@ export default function Penjualan() {
   const [itemKuantitas, setItemKuantitas] = useState<number>(1);
   const [itemHarga, setItemHarga] = useState<number>(0);
 
+  // Memori produk: id_produk -> { ukuran, harga } dari riwayat transaksi terakhir
+  const [productMemory, setProductMemory] = useState<Record<string, { ukuran: string; harga: number }>>({});
+
+  // Smart autocomplete state
+  const [suggestions, setSuggestions] = useState<ProductSuggestion[]>([]);
+  const [productQuery, setProductQuery] = useState<string>("");
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const productBoxRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     loadProducts();
+    loadProductMemory();
     generateNoNota();
   }, []);
+
+  // Tutup dropdown saat klik di luar
+  useEffect(() => {
+    const onClickOutside = (e: MouseEvent) => {
+      if (productBoxRef.current && !productBoxRef.current.contains(e.target as Node)) {
+        setShowSuggestions(false);
+      }
+    };
+    document.addEventListener("mousedown", onClickOutside);
+    return () => document.removeEventListener("mousedown", onClickOutside);
+  }, []);
+
+  // Bangun saran unik dari kombinasi produk master + riwayat transaksi
+  useEffect(() => {
+    const map = new Map<string, ProductSuggestion>();
+    // Dari katalog barang (default)
+    for (const p of products) {
+      const key = `${p.id}|${p.ukuran}|${p.harga_default}`;
+      if (!map.has(key)) {
+        map.set(key, {
+          barang_id: p.id,
+          nama_produk: p.nama_produk,
+          ukuran: p.ukuran,
+          harga: p.harga_default,
+          stok: p.stok,
+        });
+      }
+    }
+    // Dari memori riwayat (mungkin punya ukuran/harga berbeda dari katalog)
+    for (const [bid, mem] of Object.entries(productMemory)) {
+      const p = products.find((x) => x.id === bid);
+      if (!p) continue;
+      const key = `${bid}|${mem.ukuran}|${mem.harga}`;
+      if (!map.has(key)) {
+        map.set(key, {
+          barang_id: bid,
+          nama_produk: p.nama_produk,
+          ukuran: mem.ukuran || p.ukuran,
+          harga: mem.harga || p.harga_default,
+          stok: p.stok,
+        });
+      }
+    }
+    setSuggestions(Array.from(map.values()));
+  }, [products, productMemory]);
+
+  const loadProductMemory = async () => {
+    const { data } = await supabase
+      .from("detail_transaksi")
+      .select("barang_id, harga, ukuran, created_at")
+      .order("created_at", { ascending: false })
+      .limit(500);
+    if (data) {
+      const mem: Record<string, { ukuran: string; harga: number }> = {};
+      for (const row of data as any[]) {
+        if (!mem[row.barang_id]) {
+          mem[row.barang_id] = {
+            ukuran: row.ukuran || "",
+            harga: Number(row.harga) || 0,
+          };
+        }
+      }
+      setProductMemory(mem);
+    }
+  };
 
   const loadProducts = async () => {
     const { data, error } = await supabase.from("barang").select("*").gt("stok", 0);
@@ -70,7 +153,7 @@ export default function Penjualan() {
         id: b.id,
         nama_produk: b.nama_barang,
         jenis_batu: b.kategori || "-",
-        ukuran: "Custom", // default fallback
+        ukuran: "Custom",
         stok: b.stok,
         harga_default: b.harga_jual,
       }));
@@ -86,15 +169,22 @@ export default function Penjualan() {
     setFormData((prev) => ({ ...prev, no_nota: no }));
   };
 
-  const handleProductSelect = (val: string) => {
-    setSelectedProductId(val);
-    const prod = products.find((p) => p.id === val);
-    if (prod) {
-      setItemUkuran(prod.ukuran);
-      setItemHarga(prod.harga_default);
-      setItemKuantitas(1);
-    }
+  const handleSuggestionPick = (s: ProductSuggestion) => {
+    setSelectedProductId(s.barang_id);
+    setProductQuery(s.nama_produk);
+    setItemUkuran(s.ukuran);
+    setItemHarga(s.harga);
+    setItemKuantitas(1);
+    setShowSuggestions(false);
   };
+
+  const filteredSuggestions = (() => {
+    const q = productQuery.trim().toLowerCase();
+    const base = q
+      ? suggestions.filter((s) => s.nama_produk.toLowerCase().includes(q))
+      : suggestions;
+    return base.slice(0, 30);
+  })();
 
   const handleAddItem = () => {
     if (!selectedProductId) {
@@ -122,6 +212,7 @@ export default function Penjualan() {
     
     // Reset form item
     setSelectedProductId("");
+    setProductQuery("");
     setItemUkuran("");
     setItemKuantitas(1);
     setItemHarga(0);
@@ -202,6 +293,7 @@ export default function Penjualan() {
       setFormData(prev => ({ ...prev, nama_pelanggan: "", status_pembayaran: "lunas" }));
       setInvoiceItems([]);
       loadProducts();
+      loadProductMemory();
     } catch (error: any) {
       toast({ title: "Gagal Menyimpan Nota", description: error.message, variant: "destructive" });
     } finally {
@@ -263,19 +355,62 @@ export default function Penjualan() {
             <h2 className="font-semibold text-teal-900 border-b border-teal-200 pb-2 mb-4">Tambah Item Produk</h2>
             <div className="grid grid-cols-1 md:grid-cols-6 gap-4 items-end">
               <div className="md:col-span-2 space-y-2">
-                <Label>Produk</Label>
-                <Select value={selectedProductId} onValueChange={handleProductSelect}>
-                  <SelectTrigger className="bg-white border-teal-200 focus:ring-teal-500"><SelectValue placeholder="Pilih produk dari database..."/></SelectTrigger>
-                  <SelectContent>
-                    {products.map((p) => (
-                      <SelectItem key={p.id} value={p.id}>{p.nama_produk} (Stok: {p.stok})</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Label className="flex items-center gap-1.5 text-emerald-900">
+                  <Package className="w-3.5 h-3.5 text-emerald-600" /> Nama Barang
+                </Label>
+                <div className="relative" ref={productBoxRef}>
+                  <Search className="w-4 h-4 text-emerald-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <Input
+                    className="bg-white border-emerald-200 focus-visible:ring-emerald-500 pl-9"
+                    placeholder="Ketik nama barang..."
+                    value={productQuery}
+                    onChange={(e) => {
+                      setProductQuery(e.target.value);
+                      setSelectedProductId("");
+                      setShowSuggestions(true);
+                    }}
+                    onFocus={() => setShowSuggestions(true)}
+                    autoComplete="off"
+                  />
+                  {showSuggestions && filteredSuggestions.length > 0 && (
+                    <div className="absolute z-30 mt-1.5 w-full bg-white border border-emerald-100 rounded-xl shadow-xl max-h-72 overflow-y-auto ring-1 ring-emerald-50">
+                      {filteredSuggestions.map((s, i) => (
+                        <button
+                          key={`${s.barang_id}-${s.ukuran}-${s.harga}-${i}`}
+                          type="button"
+                          onClick={() => handleSuggestionPick(s)}
+                          className="w-full text-left px-3 py-2.5 hover:bg-emerald-50 transition-colors border-b border-slate-50 last:border-b-0 flex items-center justify-between gap-3 group"
+                        >
+                          <div className="flex items-center gap-2 min-w-0">
+                            <Package className="w-4 h-4 text-emerald-600 shrink-0 group-hover:scale-110 transition-transform" />
+                            <span className="font-medium text-slate-800 truncate">{s.nama_produk}</span>
+                          </div>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            {s.ukuran && (
+                              <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">
+                                <Maximize2 className="w-3 h-3" /> {s.ukuran}
+                              </span>
+                            )}
+                            <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">
+                              <DollarSign className="w-3 h-3" /> {formatCurrency(s.harga)}
+                            </span>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {showSuggestions && filteredSuggestions.length === 0 && (
+                    <div className="absolute z-30 mt-1.5 w-full bg-white border border-emerald-100 rounded-xl shadow-xl px-3 py-4 text-center text-sm text-slate-500">
+                      Tidak ada riwayat barang yang cocok.
+                    </div>
+                  )}
+                </div>
               </div>
               <div className="space-y-2">
-                <Label>Ukuran</Label>
-                <Input className="bg-white border-teal-200 focus:ring-teal-500" placeholder="Contoh: 30x30" value={itemUkuran} onChange={(e) => setItemUkuran(e.target.value)} />
+                <Label className="flex items-center gap-1.5 text-emerald-900">
+                  <Maximize2 className="w-3.5 h-3.5 text-emerald-600" /> Ukuran
+                </Label>
+                <Input className="bg-white border-emerald-200 focus-visible:ring-emerald-500" placeholder="Contoh: 30x30" value={itemUkuran} onChange={(e) => setItemUkuran(e.target.value)} />
               </div>
               <div className="space-y-2">
                 <Label>Kuantitas</Label>
