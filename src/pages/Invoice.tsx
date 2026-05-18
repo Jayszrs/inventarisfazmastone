@@ -141,6 +141,7 @@ export default function Invoice() {
   const { toast } = useToast();
   const { user } = useAuth();
   const [transactions, setTransactions] = useState<TransaksiRow[]>([]);
+  const [itemsByTransaction, setItemsByTransaction] = useState<Record<string, string[]>>({});
   const [cart, setCart] = useState<CartItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [itemNamaBarang, setItemNamaBarang] = useState("");
