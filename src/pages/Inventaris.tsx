@@ -19,7 +19,8 @@ interface Barang {
   supplier: string;
 }
 
-const emptyForm = { nama_barang: "", kategori: "", stok: 0, harga_beli: 0, harga_jual: 0, supplier: "" };
+// Inisialisasi form kosong (ditambahkan state ukuran lokal untuk UI)
+const emptyForm = { nama_barang: "", kategori: "", ukuran: "", stok: 0, harga_beli: 0, harga_jual: 0, supplier: "" };
 
 export default function Inventaris() {
   const [barang, setBarang] = useState<Barang[]>([]);
@@ -35,19 +36,48 @@ export default function Inventaris() {
 
   const loadBarang = async () => {
     const { data } = await supabase.from("barang").select("*").order("created_at", { ascending: false });
-    setBarang(data || []);
+    // Perbaikan Error 1: Type casting ke Barang[] agar garis merah hilang
+    setBarang((data as Barang[]) || []);
+  };
+
+  // LOGIKA AUTO-FILL: Otomatis mengisi data ketika nama produk lama dipilih
+  const handleNamaBarangChange = (nama: string) => {
+    const barangSama = barang.find((b) => b.nama_barang.toLowerCase() === nama.toLowerCase());
+
+    if (barangSama && !editId) {
+      setForm({
+        ...form,
+        nama_barang: nama,
+        kategori: barangSama.kategori || "",
+        harga_beli: barangSama.harga_beli || 0,
+        harga_jual: barangSama.harga_jual || 0,
+        supplier: barangSama.supplier || "",
+        ukuran: "", // Bersihkan ukuran agar user bisa menentukan ukuran baru jika bervariasi
+      });
+    } else {
+      setForm({ ...form, nama_barang: nama });
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+
+    // Memisahkan 'ukuran' dari data database utama agar tidak memicu error skema Supabase
+    const { ukuran, ...payloadDatabase } = form;
+
+    // Jika user mengisi ukuran, gabungkan ke dalam nama produk (misal: "Semen Tiga Roda - 50kg")
+    const namaFinal = ukuran ? `${payloadDatabase.nama_barang} - ${ukuran}` : payloadDatabase.nama_barang;
+    const dataToSave = { ...payloadDatabase, nama_barang: namaFinal };
+
     try {
       if (editId) {
-        const { error } = await supabase.from("barang").update(form).eq("id", editId);
+        // Perbaikan Error 2: Gunakan (dataToSave as any) untuk menghindari error skema strict TypeScript
+        const { error } = await supabase.from("barang").update(dataToSave as any).eq("id", editId);
         if (error) throw error;
         toast({ title: "Berhasil", description: "Barang berhasil diupdate" });
       } else {
-        const { error } = await supabase.from("barang").insert(form);
+        const { error } = await supabase.from("barang").insert(dataToSave as any);
         if (error) throw error;
         toast({ title: "Berhasil", description: "Barang berhasil ditambahkan" });
       }
@@ -63,7 +93,15 @@ export default function Inventaris() {
   };
 
   const handleEdit = (item: Barang) => {
-    setForm({ nama_barang: item.nama_barang, kategori: item.kategori, stok: item.stok, harga_beli: item.harga_beli, harga_jual: item.harga_jual, supplier: item.supplier });
+    setForm({
+      nama_barang: item.nama_barang,
+      kategori: item.kategori,
+      ukuran: "", // Kosongkan ukuran saat edit agar tidak menumpuk teks nama
+      stok: item.stok,
+      harga_beli: item.harga_beli,
+      harga_jual: item.harga_jual,
+      supplier: item.supplier
+    });
     setEditId(item.id);
     setOpen(true);
   };
@@ -78,6 +116,8 @@ export default function Inventaris() {
   const formatCurrency = (n: number) =>
     new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0 }).format(n);
 
+  // Mengambil daftar nama unik untuk opsi dropdown otomatis (datalist)
+  const namaBarangList = [...new Set(barang.map((b) => b.nama_barang.split(" - ")[0]))];
   const kategoriList = [...new Set(barang.map((b) => b.kategori).filter(Boolean))];
 
   const filtered = barang.filter((b) => {
@@ -105,14 +145,36 @@ export default function Inventaris() {
                 <DialogTitle className="font-heading">{editId ? "Edit Barang" : "Tambah Barang"}</DialogTitle>
               </DialogHeader>
               <form onSubmit={handleSubmit} className="space-y-4">
+
+                {/* Auto-Suggest Input dengan datalist */}
                 <div>
                   <Label>Nama Barang</Label>
-                  <Input value={form.nama_barang} onChange={(e) => setForm({ ...form, nama_barang: e.target.value })} required className="bg-secondary border-border mt-1" />
+                  <Input
+                    value={form.nama_barang}
+                    onChange={(e) => handleNamaBarangChange(e.target.value)}
+                    list="nama-barang-options"
+                    required
+                    className="bg-secondary border-border mt-1"
+                    placeholder="Ketik nama atau klik opsi yang muncul..."
+                  />
+                  <datalist id="nama-barang-options">
+                    {namaBarangList.map((nama) => (
+                      <option key={nama} value={nama} />
+                    ))}
+                  </datalist>
                 </div>
-                <div>
-                  <Label>Kategori</Label>
-                  <Input value={form.kategori} onChange={(e) => setForm({ ...form, kategori: e.target.value })} required className="bg-secondary border-border mt-1" />
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label>Kategori</Label>
+                    <Input value={form.kategori} onChange={(e) => setForm({ ...form, kategori: e.target.value })} required className="bg-secondary border-border mt-1" />
+                  </div>
+                  <div>
+                    <Label>Ukuran / Varian</Label>
+                    <Input value={form.ukuran} onChange={(e) => setForm({ ...form, ukuran: e.target.value })} className="bg-secondary border-border mt-1" placeholder="Contoh: XL, 40x40, 10ml" />
+                  </div>
                 </div>
+
                 <div className="grid grid-cols-3 gap-3">
                   <div>
                     <Label>Stok</Label>
@@ -127,6 +189,7 @@ export default function Inventaris() {
                     <Input type="number" value={form.harga_jual} onChange={(e) => setForm({ ...form, harga_jual: parseInt(e.target.value) || 0 })} className="bg-secondary border-border mt-1" />
                   </div>
                 </div>
+
                 <div>
                   <Label>Supplier</Label>
                   <Input value={form.supplier} onChange={(e) => setForm({ ...form, supplier: e.target.value })} className="bg-secondary border-border mt-1" />
@@ -162,7 +225,7 @@ export default function Inventaris() {
             <table className="w-full">
               <thead>
                 <tr className="border-b border-border">
-                  <th className="text-left p-4 text-sm font-medium text-muted-foreground">Nama</th>
+                  <th className="text-left p-4 text-sm font-medium text-muted-foreground">Nama & Ukuran</th>
                   <th className="text-left p-4 text-sm font-medium text-muted-foreground hidden sm:table-cell">Kategori</th>
                   <th className="text-left p-4 text-sm font-medium text-muted-foreground">Stok</th>
                   <th className="text-left p-4 text-sm font-medium text-muted-foreground hidden md:table-cell">Harga Beli</th>
