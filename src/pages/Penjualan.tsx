@@ -69,14 +69,64 @@ export default function Penjualan() {
   // Memori produk: id_produk -> { ukuran, harga } dari riwayat transaksi terakhir
   const [productMemory, setProductMemory] = useState<Record<string, { ukuran: string; harga: number }>>({});
 
+  // Smart autocomplete state
+  const [suggestions, setSuggestions] = useState<ProductSuggestion[]>([]);
+  const [productQuery, setProductQuery] = useState<string>("");
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const productBoxRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     loadProducts();
     loadProductMemory();
     generateNoNota();
   }, []);
 
+  // Tutup dropdown saat klik di luar
+  useEffect(() => {
+    const onClickOutside = (e: MouseEvent) => {
+      if (productBoxRef.current && !productBoxRef.current.contains(e.target as Node)) {
+        setShowSuggestions(false);
+      }
+    };
+    document.addEventListener("mousedown", onClickOutside);
+    return () => document.removeEventListener("mousedown", onClickOutside);
+  }, []);
+
+  // Bangun saran unik dari kombinasi produk master + riwayat transaksi
+  useEffect(() => {
+    const map = new Map<string, ProductSuggestion>();
+    // Dari katalog barang (default)
+    for (const p of products) {
+      const key = `${p.id}|${p.ukuran}|${p.harga_default}`;
+      if (!map.has(key)) {
+        map.set(key, {
+          barang_id: p.id,
+          nama_produk: p.nama_produk,
+          ukuran: p.ukuran,
+          harga: p.harga_default,
+          stok: p.stok,
+        });
+      }
+    }
+    // Dari memori riwayat (mungkin punya ukuran/harga berbeda dari katalog)
+    for (const [bid, mem] of Object.entries(productMemory)) {
+      const p = products.find((x) => x.id === bid);
+      if (!p) continue;
+      const key = `${bid}|${mem.ukuran}|${mem.harga}`;
+      if (!map.has(key)) {
+        map.set(key, {
+          barang_id: bid,
+          nama_produk: p.nama_produk,
+          ukuran: mem.ukuran || p.ukuran,
+          harga: mem.harga || p.harga_default,
+          stok: p.stok,
+        });
+      }
+    }
+    setSuggestions(Array.from(map.values()));
+  }, [products, productMemory]);
+
   const loadProductMemory = async () => {
-    // Ambil detail transaksi terbaru untuk membangun memori ukuran & harga per barang
     const { data } = await supabase
       .from("detail_transaksi")
       .select("barang_id, harga, ukuran, created_at")
@@ -103,7 +153,7 @@ export default function Penjualan() {
         id: b.id,
         nama_produk: b.nama_barang,
         jenis_batu: b.kategori || "-",
-        ukuran: "Custom", // default fallback
+        ukuran: "Custom",
         stok: b.stok,
         harga_default: b.harga_jual,
       }));
@@ -119,18 +169,22 @@ export default function Penjualan() {
     setFormData((prev) => ({ ...prev, no_nota: no }));
   };
 
-  const handleProductSelect = (val: string) => {
-    setSelectedProductId(val);
-    const prod = products.find((p) => p.id === val);
-    if (prod) {
-      // Cek memori: prioritas item terakhir di keranjang saat ini, lalu memori historis, terakhir fallback ke default
-      const cartLast = [...invoiceItems].reverse().find((i) => i.id_produk === val);
-      const mem = productMemory[val];
-      setItemUkuran(cartLast?.ukuran ?? mem?.ukuran ?? prod.ukuran);
-      setItemHarga(cartLast?.harga_satuan ?? mem?.harga ?? prod.harga_default);
-      setItemKuantitas(1);
-    }
+  const handleSuggestionPick = (s: ProductSuggestion) => {
+    setSelectedProductId(s.barang_id);
+    setProductQuery(s.nama_produk);
+    setItemUkuran(s.ukuran);
+    setItemHarga(s.harga);
+    setItemKuantitas(1);
+    setShowSuggestions(false);
   };
+
+  const filteredSuggestions = (() => {
+    const q = productQuery.trim().toLowerCase();
+    const base = q
+      ? suggestions.filter((s) => s.nama_produk.toLowerCase().includes(q))
+      : suggestions;
+    return base.slice(0, 30);
+  })();
 
   const handleAddItem = () => {
     if (!selectedProductId) {
