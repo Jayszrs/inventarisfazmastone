@@ -355,19 +355,62 @@ export default function Penjualan() {
             <h2 className="font-semibold text-teal-900 border-b border-teal-200 pb-2 mb-4">Tambah Item Produk</h2>
             <div className="grid grid-cols-1 md:grid-cols-6 gap-4 items-end">
               <div className="md:col-span-2 space-y-2">
-                <Label>Produk</Label>
-                <Select value={selectedProductId} onValueChange={handleProductSelect}>
-                  <SelectTrigger className="bg-white border-teal-200 focus:ring-teal-500"><SelectValue placeholder="Pilih produk dari database..."/></SelectTrigger>
-                  <SelectContent>
-                    {products.map((p) => (
-                      <SelectItem key={p.id} value={p.id}>{p.nama_produk} (Stok: {p.stok})</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Label className="flex items-center gap-1.5 text-emerald-900">
+                  <Package className="w-3.5 h-3.5 text-emerald-600" /> Nama Barang
+                </Label>
+                <div className="relative" ref={productBoxRef}>
+                  <Search className="w-4 h-4 text-emerald-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <Input
+                    className="bg-white border-emerald-200 focus-visible:ring-emerald-500 pl-9"
+                    placeholder="Ketik nama barang..."
+                    value={productQuery}
+                    onChange={(e) => {
+                      setProductQuery(e.target.value);
+                      setSelectedProductId("");
+                      setShowSuggestions(true);
+                    }}
+                    onFocus={() => setShowSuggestions(true)}
+                    autoComplete="off"
+                  />
+                  {showSuggestions && filteredSuggestions.length > 0 && (
+                    <div className="absolute z-30 mt-1.5 w-full bg-white border border-emerald-100 rounded-xl shadow-xl max-h-72 overflow-y-auto ring-1 ring-emerald-50">
+                      {filteredSuggestions.map((s, i) => (
+                        <button
+                          key={`${s.barang_id}-${s.ukuran}-${s.harga}-${i}`}
+                          type="button"
+                          onClick={() => handleSuggestionPick(s)}
+                          className="w-full text-left px-3 py-2.5 hover:bg-emerald-50 transition-colors border-b border-slate-50 last:border-b-0 flex items-center justify-between gap-3 group"
+                        >
+                          <div className="flex items-center gap-2 min-w-0">
+                            <Package className="w-4 h-4 text-emerald-600 shrink-0 group-hover:scale-110 transition-transform" />
+                            <span className="font-medium text-slate-800 truncate">{s.nama_produk}</span>
+                          </div>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            {s.ukuran && (
+                              <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">
+                                <Maximize2 className="w-3 h-3" /> {s.ukuran}
+                              </span>
+                            )}
+                            <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">
+                              <DollarSign className="w-3 h-3" /> {formatCurrency(s.harga)}
+                            </span>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {showSuggestions && filteredSuggestions.length === 0 && (
+                    <div className="absolute z-30 mt-1.5 w-full bg-white border border-emerald-100 rounded-xl shadow-xl px-3 py-4 text-center text-sm text-slate-500">
+                      Tidak ada riwayat barang yang cocok.
+                    </div>
+                  )}
+                </div>
               </div>
               <div className="space-y-2">
-                <Label>Ukuran</Label>
-                <Input className="bg-white border-teal-200 focus:ring-teal-500" placeholder="Contoh: 30x30" value={itemUkuran} onChange={(e) => setItemUkuran(e.target.value)} />
+                <Label className="flex items-center gap-1.5 text-emerald-900">
+                  <Maximize2 className="w-3.5 h-3.5 text-emerald-600" /> Ukuran
+                </Label>
+                <Input className="bg-white border-emerald-200 focus-visible:ring-emerald-500" placeholder="Contoh: 30x30" value={itemUkuran} onChange={(e) => setItemUkuran(e.target.value)} />
               </div>
               <div className="space-y-2">
                 <Label>Kuantitas</Label>
