@@ -149,6 +149,33 @@ const getCachedCustomer = (transaction: Pick<TransaksiRow, "id" | "nomor_invoice
 const isMissingUkuranColumn = (error?: { message?: string } | null) =>
   Boolean(error?.message?.toLowerCase().includes("detail_transaksi.ukuran"));
 
+const HISTORY_SUGGESTION_LIMIT = 50;
+const HIDDEN_HISTORY_STORAGE_KEY = "fazma_hidden_barang_histories";
+
+const normalizeHistoryText = (value: string) => value.trim().replace(/\s+/g, " ").toLowerCase();
+const normalizeHistoryPrice = (value: number) => Number(value) || 0;
+const getHistoryKey = (history: BarangHistory) =>
+  `${normalizeHistoryText(history.nama_barang)}|${normalizeHistoryText(history.ukuran)}|${normalizeHistoryPrice(history.harga)}`;
+const getHistoryIdentity = (history: Pick<BarangHistory, "nama_barang" | "ukuran">) =>
+  `${normalizeHistoryText(history.nama_barang)}|${normalizeHistoryText(history.ukuran)}`;
+const normalizeStoredHistoryKey = (key: string) => {
+  const [namaBarang = "", ukuran = "", harga = "0"] = key.split("|");
+  return `${normalizeHistoryText(namaBarang)}|${normalizeHistoryText(ukuran)}|${normalizeHistoryPrice(Number(harga))}`;
+};
+
+const readHiddenHistoryKeys = () => {
+  try {
+    const keys = JSON.parse(localStorage.getItem(HIDDEN_HISTORY_STORAGE_KEY) || "[]") as string[];
+    return Array.from(new Set(keys.map(normalizeStoredHistoryKey)));
+  } catch {
+    return [];
+  }
+};
+
+const saveHiddenHistoryKeys = (keys: string[]) => {
+  localStorage.setItem(HIDDEN_HISTORY_STORAGE_KEY, JSON.stringify(keys));
+};
+
 export default function Invoice() {
   const { toast } = useToast();
   const { user } = useAuth();
@@ -160,6 +187,7 @@ export default function Invoice() {
   const [itemJumlah, setItemJumlah] = useState<NumberInputValue>("");
   const [itemHarga, setItemHarga] = useState<NumberInputValue>("");
   const [barangHistories, setBarangHistories] = useState<BarangHistory[]>([]);
+  const [hiddenHistoryKeys, setHiddenHistoryKeys] = useState<string[]>(readHiddenHistoryKeys);
   const [suggestionOpen, setSuggestionOpen] = useState(false);
   const [editSuggestionOpen, setEditSuggestionOpen] = useState(false);
   const [historyDate, setHistoryDate] = useState("");
@@ -208,15 +236,17 @@ export default function Invoice() {
 
   const filteredHistories = useMemo(() => {
     const query = itemNamaBarang.trim().toLowerCase();
-    if (!query) return barangHistories.slice(0, 8);
-    return barangHistories.filter((item) => item.nama_barang.toLowerCase().includes(query)).slice(0, 8);
-  }, [barangHistories, itemNamaBarang]);
+    const visibleHistories = barangHistories.filter((item) => !hiddenHistoryKeys.includes(getHistoryKey(item)));
+    if (!query) return visibleHistories.slice(0, HISTORY_SUGGESTION_LIMIT);
+    return visibleHistories.filter((item) => item.nama_barang.toLowerCase().includes(query)).slice(0, HISTORY_SUGGESTION_LIMIT);
+  }, [barangHistories, hiddenHistoryKeys, itemNamaBarang]);
 
   const filteredEditHistories = useMemo(() => {
     const query = editItemNamaBarang.trim().toLowerCase();
-    if (!query) return barangHistories.slice(0, 8);
-    return barangHistories.filter((item) => item.nama_barang.toLowerCase().includes(query)).slice(0, 8);
-  }, [barangHistories, editItemNamaBarang]);
+    const visibleHistories = barangHistories.filter((item) => !hiddenHistoryKeys.includes(getHistoryKey(item)));
+    if (!query) return visibleHistories.slice(0, HISTORY_SUGGESTION_LIMIT);
+    return visibleHistories.filter((item) => item.nama_barang.toLowerCase().includes(query)).slice(0, HISTORY_SUGGESTION_LIMIT);
+  }, [barangHistories, editItemNamaBarang, hiddenHistoryKeys]);
 
   useEffect(() => {
     loadTransactions();
@@ -341,7 +371,8 @@ export default function Invoice() {
       new Map(rows.map((item) => [`${item.nama_barang.toLowerCase()}|${item.ukuran.toLowerCase()}|${item.harga}`, item])).values(),
     );
 
-    setBarangHistories(unique);
+    const hiddenKeys = readHiddenHistoryKeys();
+    setBarangHistories(unique.filter((item) => !hiddenKeys.includes(getHistoryKey(item))));
   };
 
   const selectHistory = (history: BarangHistory) => {
@@ -356,6 +387,30 @@ export default function Invoice() {
     setEditItemUkuran(history.ukuran);
     setEditItemHarga(history.harga);
     setEditSuggestionOpen(false);
+  };
+
+  const deleteHistory = (history: BarangHistory) => {
+    const key = getHistoryKey(history);
+    setHiddenHistoryKeys((current) => {
+      const next = Array.from(new Set([...current, key]));
+      saveHiddenHistoryKeys(next);
+      return next;
+    });
+    setBarangHistories((current) => current.filter((item) => getHistoryKey(item) !== key));
+    toast({ title: "Riwayat dihapus", description: "Item tidak akan muncul lagi di autocomplete." });
+  };
+
+  const unhideSavedHistories = (items: CartItem[]) => {
+    const savedIdentities = new Set(items.map((item) => getHistoryIdentity({
+      nama_barang: item.nama_barang,
+      ukuran: item.ukuran || item.kategori || "-",
+    })));
+    const nextHiddenKeys = readHiddenHistoryKeys().filter((key) => {
+      const [namaBarang = "", ukuran = ""] = key.split("|");
+      return !savedIdentities.has(`${normalizeHistoryText(namaBarang)}|${normalizeHistoryText(ukuran)}`);
+    });
+    saveHiddenHistoryKeys(nextHiddenKeys);
+    setHiddenHistoryKeys(nextHiddenKeys);
   };
 
   const addCartItem = () => {
@@ -421,20 +476,25 @@ export default function Invoice() {
 
   const resolveBarangForItem = async (item: CartItem): Promise<CartItem & { barang_id: string }> => {
     const cleanName = item.nama_barang.trim();
-    const { data: existing, error: findError } = await supabase
+    const cleanUkuran = item.ukuran?.trim() || item.kategori?.trim() || "Custom";
+    const { data: existingItems, error: findError } = await supabase
       .from("barang")
       .select("id,nama_barang,kategori,stok,harga_jual")
       .ilike("nama_barang", cleanName)
-      .limit(1)
-      .maybeSingle();
+      .limit(50);
 
     if (findError) throw findError;
+
+    const existing = ((existingItems || []) as any[]).find(
+      (barangItem) => normalizeHistoryText(barangItem.kategori || "") === normalizeHistoryText(cleanUkuran),
+    );
 
     if (existing?.id) {
       return {
         ...item,
         barang_id: existing.id,
-        kategori: item.kategori || existing.kategori || "-",
+        kategori: existing.kategori || cleanUkuran,
+        ukuran: cleanUkuran,
       };
     }
 
@@ -442,7 +502,7 @@ export default function Invoice() {
       .from("barang")
       .insert({
         nama_barang: cleanName,
-        kategori: item.ukuran || "Custom",
+        kategori: cleanUkuran,
         stok: 0,
         harga_beli: 0,
         harga_jual: item.harga,
@@ -455,7 +515,8 @@ export default function Invoice() {
     return {
       ...item,
       barang_id: created.id,
-      kategori: item.kategori || item.ukuran || "Custom",
+      kategori: cleanUkuran,
+      ukuran: cleanUkuran,
     };
   };
 
@@ -495,6 +556,7 @@ export default function Invoice() {
       const transaksi = await insertMasterTransaction();
       await insertDetailTransactions(transaksi.id);
 
+      unhideSavedHistories(cart);
       saveCustomerCache(transaksi.id, transaksi.nomor_invoice, form.nama_pelanggan);
       toast({ title: "Invoice tersimpan", description: `${form.nomor_invoice} berhasil dibuat.` });
       setForm({
@@ -622,6 +684,7 @@ export default function Invoice() {
     try {
       await updateMasterTransaction(editingInvoiceId);
       await replaceDetailTransactions(editingInvoiceId);
+      unhideSavedHistories(editCart);
       saveCustomerCache(editingInvoiceId, editForm.nomor_invoice, editForm.nama_pelanggan);
       toast({ title: "Invoice diperbarui", description: `${editForm.nomor_invoice} berhasil disimpan.` });
       setEditOpen(false);
@@ -794,8 +857,12 @@ export default function Invoice() {
                   className="pl-10 focus-visible:ring-emerald-500"
                 />
               </div>
-              {suggestionOpen && filteredHistories.length > 0 && (
-                <HistorySuggestionList histories={filteredHistories} onSelect={selectHistory} />
+              {suggestionOpen && (
+                <HistorySuggestionList
+                  histories={filteredHistories}
+                  onSelect={selectHistory}
+                  onDelete={deleteHistory}
+                />
               )}
             </div>
             <div className="space-y-2">
@@ -942,8 +1009,8 @@ export default function Invoice() {
                         <TableCell className="font-mono font-semibold text-primary">{transaction.nomor_invoice}</TableCell>
                         <TableCell className="min-w-64">
                           {transaction.items?.length ? (
-                            <div className="flex max-w-sm flex-col gap-1.5">
-                              {transaction.items.slice(0, 3).map((item, itemIndex) => (
+                            <div className="flex max-h-36 max-w-sm flex-col gap-1.5 overflow-y-auto pr-1">
+                              {transaction.items.map((item, itemIndex) => (
                                 <div key={`${transaction.id}-${item.nama_barang}-${itemIndex}`} className="flex flex-wrap items-center gap-2">
                                   <span className="font-medium text-foreground">{item.nama_barang}</span>
                                   <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-medium text-emerald-800">
@@ -952,9 +1019,6 @@ export default function Invoice() {
                                   <span className="text-xs text-muted-foreground">x{item.jumlah}</span>
                                 </div>
                               ))}
-                              {transaction.items.length > 3 && (
-                                <span className="text-xs text-muted-foreground">+{transaction.items.length - 3} item lainnya</span>
-                              )}
                             </div>
                           ) : (
                             <span className="text-sm text-muted-foreground">Belum ada item</span>
@@ -1086,8 +1150,12 @@ export default function Invoice() {
                       className="pl-10 focus-visible:ring-emerald-500"
                     />
                   </div>
-                  {editSuggestionOpen && filteredEditHistories.length > 0 && (
-                    <HistorySuggestionList histories={filteredEditHistories} onSelect={selectEditHistory} />
+                  {editSuggestionOpen && (
+                    <HistorySuggestionList
+                      histories={filteredEditHistories}
+                      onSelect={selectEditHistory}
+                      onDelete={deleteHistory}
+                    />
                   )}
                 </div>
                 <div className="space-y-2">
@@ -1225,20 +1293,25 @@ export default function Invoice() {
 function HistorySuggestionList({
   histories,
   onSelect,
+  onDelete,
 }: {
   histories: BarangHistory[];
   onSelect: (history: BarangHistory) => void;
+  onDelete: (history: BarangHistory) => void;
 }) {
   return (
     <div className="absolute left-0 top-full z-50 mt-2 max-h-80 w-[min(92vw,34rem)] overflow-y-auto rounded-lg border border-emerald-200 bg-background shadow-xl shadow-emerald-950/10">
+      {histories.length === 0 && (
+        <div className="px-3 py-4 text-center text-sm text-muted-foreground">
+          Belum ada riwayat yang cocok
+        </div>
+      )}
       {histories.map((history) => (
-        <button
+        <div
           key={`${history.nama_barang}-${history.ukuran}-${history.harga}`}
-          type="button"
-          onClick={() => onSelect(history)}
-          className="grid w-full grid-cols-[1fr_auto] items-center gap-3 border-b border-border/60 px-3 py-3 text-left transition-colors last:border-b-0 hover:bg-emerald-50/80 focus:bg-emerald-50/80 focus:outline-none"
+          className="grid w-full grid-cols-[1fr_auto_auto] items-center gap-3 border-b border-border/60 px-3 py-3 transition-colors last:border-b-0 hover:bg-emerald-50/80"
         >
-          <span className="flex min-w-0 items-center gap-2">
+          <button type="button" onClick={() => onSelect(history)} className="flex min-w-0 items-center gap-2 text-left focus:outline-none">
             <span className="flex min-w-0 flex-col gap-1">
               <span className="flex min-w-0 items-center gap-2 font-medium text-foreground">
                 <Package className="h-4 w-4 shrink-0 text-emerald-600" />
@@ -1250,13 +1323,25 @@ function HistorySuggestionList({
                 {history.ukuran}
               </span>
             </span>
-          </span>
-          <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-emerald-600 px-2.5 py-1 text-[11px] font-semibold text-white">
+          </button>
+          <button
+            type="button"
+            onClick={() => onSelect(history)}
+            className="inline-flex shrink-0 items-center gap-1 rounded-full bg-emerald-600 px-2.5 py-1 text-[11px] font-semibold text-white focus:outline-none"
+          >
             <DollarSign className="h-3 w-3" />
             <span className="font-medium text-white/80">Harga:</span>
             {formatCurrency(history.harga)}
-          </span>
-        </button>
+          </button>
+          <button
+            type="button"
+            onClick={() => onDelete(history)}
+            className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive focus:outline-none focus:ring-2 focus:ring-destructive/30"
+            aria-label={`Hapus riwayat ${history.nama_barang}`}
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </button>
+        </div>
       ))}
     </div>
   );

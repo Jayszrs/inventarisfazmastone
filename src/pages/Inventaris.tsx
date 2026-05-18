@@ -26,9 +26,35 @@ interface BarangHistory {
 }
 
 const emptyForm = { nama_barang: "", kategori: "", stok: 0, harga_beli: 0, harga_jual: 0, supplier: "" };
+const HISTORY_SUGGESTION_LIMIT = 50;
+const HIDDEN_HISTORY_STORAGE_KEY = "fazma_hidden_barang_histories";
 
 const isMissingUkuranColumn = (error?: { message?: string } | null) =>
   Boolean(error?.message?.toLowerCase().includes("detail_transaksi.ukuran"));
+
+const normalizeHistoryText = (value: string) => value.trim().replace(/\s+/g, " ").toLowerCase();
+const normalizeHistoryPrice = (value: number) => Number(value) || 0;
+const getHistoryKey = (history: BarangHistory) =>
+  `${normalizeHistoryText(history.nama_barang)}|${normalizeHistoryText(history.ukuran)}|${normalizeHistoryPrice(history.harga)}`;
+const getHistoryIdentity = (history: Pick<BarangHistory, "nama_barang" | "ukuran">) =>
+  `${normalizeHistoryText(history.nama_barang)}|${normalizeHistoryText(history.ukuran)}`;
+const normalizeStoredHistoryKey = (key: string) => {
+  const [namaBarang = "", ukuran = "", harga = "0"] = key.split("|");
+  return `${normalizeHistoryText(namaBarang)}|${normalizeHistoryText(ukuran)}|${normalizeHistoryPrice(Number(harga))}`;
+};
+
+const readHiddenHistoryKeys = () => {
+  try {
+    const keys = JSON.parse(localStorage.getItem(HIDDEN_HISTORY_STORAGE_KEY) || "[]") as string[];
+    return Array.from(new Set(keys.map(normalizeStoredHistoryKey)));
+  } catch {
+    return [];
+  }
+};
+
+const saveHiddenHistoryKeys = (keys: string[]) => {
+  localStorage.setItem(HIDDEN_HISTORY_STORAGE_KEY, JSON.stringify(keys));
+};
 
 export default function Inventaris() {
   const [barang, setBarang] = useState<Barang[]>([]);
@@ -39,6 +65,7 @@ export default function Inventaris() {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [histories, setHistories] = useState<BarangHistory[]>([]);
+  const [hiddenHistoryKeys, setHiddenHistoryKeys] = useState<string[]>(readHiddenHistoryKeys);
   const [suggestionOpen, setSuggestionOpen] = useState(false);
   const formRef = useRef<HTMLFormElement | null>(null);
   const { toast } = useToast();
@@ -99,7 +126,8 @@ export default function Inventaris() {
       new Map(rows.map((item) => [`${item.nama_barang.toLowerCase()}|${item.ukuran.toLowerCase()}|${item.harga}`, item])).values(),
     );
 
-    setHistories(unique);
+    const hiddenKeys = readHiddenHistoryKeys();
+    setHistories(unique.filter((item) => !hiddenKeys.includes(getHistoryKey(item))));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -115,6 +143,13 @@ export default function Inventaris() {
         if (error) throw error;
         toast({ title: "Berhasil", description: "Barang berhasil ditambahkan" });
       }
+      const savedHistoryIdentity = getHistoryIdentity({
+        nama_barang: form.nama_barang,
+        ukuran: form.kategori,
+      });
+      const nextHiddenKeys = readHiddenHistoryKeys().filter((key) => !key.startsWith(`${savedHistoryIdentity}|`));
+      saveHiddenHistoryKeys(nextHiddenKeys);
+      setHiddenHistoryKeys(nextHiddenKeys);
       setOpen(false);
       setForm(emptyForm);
       setEditId(null);
@@ -149,9 +184,10 @@ export default function Inventaris() {
 
   const filteredHistories = useMemo(() => {
     const query = form.nama_barang.trim().toLowerCase();
-    if (!query) return histories.slice(0, 8);
-    return histories.filter((item) => item.nama_barang.toLowerCase().includes(query)).slice(0, 8);
-  }, [form.nama_barang, histories]);
+    const visibleHistories = histories.filter((item) => !hiddenHistoryKeys.includes(getHistoryKey(item)));
+    if (!query) return visibleHistories.slice(0, HISTORY_SUGGESTION_LIMIT);
+    return visibleHistories.filter((item) => item.nama_barang.toLowerCase().includes(query)).slice(0, HISTORY_SUGGESTION_LIMIT);
+  }, [form.nama_barang, hiddenHistoryKeys, histories]);
 
   const handleHistorySelect = (history: BarangHistory) => {
     setForm((current) => ({
@@ -161,6 +197,17 @@ export default function Inventaris() {
       harga_jual: history.harga,
     }));
     setSuggestionOpen(false);
+  };
+
+  const handleHistoryDelete = (history: BarangHistory) => {
+    const key = getHistoryKey(history);
+    setHiddenHistoryKeys((current) => {
+      const next = Array.from(new Set([...current, key]));
+      saveHiddenHistoryKeys(next);
+      return next;
+    });
+    setHistories((current) => current.filter((item) => getHistoryKey(item) !== key));
+    toast({ title: "Riwayat dihapus", description: "Item tidak akan muncul lagi di autocomplete." });
   };
 
   const filtered = barang.filter((b) => {
@@ -204,30 +251,47 @@ export default function Inventaris() {
                       placeholder="Ketik nama barang..."
                     />
                   </div>
-                  {suggestionOpen && filteredHistories.length > 0 && (
-                    <div className="absolute left-0 right-0 top-full z-50 mt-2 max-h-72 overflow-y-auto rounded-lg border border-emerald-200 bg-card shadow-xl shadow-emerald-950/10">
+                  {suggestionOpen && (
+                    <div className="absolute left-0 right-0 top-full z-50 mt-2 max-h-96 overflow-y-auto rounded-lg border border-emerald-200 bg-card shadow-xl shadow-emerald-950/10">
+                      {filteredHistories.length === 0 && (
+                        <div className="px-3 py-4 text-center text-sm text-muted-foreground">
+                          Belum ada riwayat yang cocok
+                        </div>
+                      )}
                       {filteredHistories.map((history) => (
-                        <button
+                        <div
                           key={`${history.nama_barang}-${history.ukuran}-${history.harga}`}
-                          type="button"
-                          onClick={() => handleHistorySelect(history)}
-                          className="flex w-full items-start justify-between gap-3 border-b border-border/60 px-3 py-3 text-left transition-colors last:border-b-0 hover:bg-emerald-50/80 focus:bg-emerald-50/80 focus:outline-none"
+                          className="flex w-full items-start gap-2 border-b border-border/60 px-3 py-3 transition-colors last:border-b-0 hover:bg-emerald-50/80"
                         >
-                          <span className="min-w-0">
+                          <button
+                            type="button"
+                            onClick={() => handleHistorySelect(history)}
+                            className="flex min-w-0 flex-1 items-start justify-between gap-3 text-left focus:outline-none"
+                          >
+                            <span className="min-w-0">
                             <span className="flex items-center gap-2 font-medium text-foreground">
                               <Package className="h-4 w-4 shrink-0 text-emerald-600" />
                               <span className="truncate">{history.nama_barang}</span>
                             </span>
-                          </span>
-                          <span className="flex shrink-0 flex-wrap justify-end gap-1.5">
+                            </span>
+                            <span className="flex shrink-0 flex-wrap justify-end gap-1.5">
                             <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-1 text-[11px] font-medium text-emerald-800">
                               <Maximize2 className="h-3 w-3" /> {history.ukuran}
                             </span>
                             <span className="inline-flex items-center gap-1 rounded-full bg-emerald-600 px-2 py-1 text-[11px] font-semibold text-white">
                               <DollarSign className="h-3 w-3" /> {formatCurrency(history.harga)}
                             </span>
-                          </span>
-                        </button>
+                            </span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleHistoryDelete(history)}
+                            className="mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive focus:outline-none focus:ring-2 focus:ring-destructive/30"
+                            aria-label={`Hapus riwayat ${history.nama_barang}`}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
                       ))}
                     </div>
                   )}
