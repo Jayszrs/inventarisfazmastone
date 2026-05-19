@@ -1,12 +1,9 @@
 import type { AppRole } from "@/contexts/AuthContext";
 
-export const ADMIN_EMAILS = [
-  "saputrajaelani423@gmail.com",
-  "jaelanisurya8@gmail.com",
-];
+// Admin role is now resolved exclusively from the database (`user_roles` table)
+// to avoid leaking admin email addresses in the client bundle.
+export const ADMIN_EMAILS: string[] = [];
 
-export const isAdminEmail = (email?: string | null) =>
-  Boolean(email && ADMIN_EMAILS.includes(email.toLowerCase()));
+export const isAdminEmail = (_email?: string | null) => false;
 
-export const defaultRoleForEmail = (email?: string | null): AppRole =>
-  isAdminEmail(email) ? "admin" : "user";
+export const defaultRoleForEmail = (_email?: string | null): AppRole => "user";
