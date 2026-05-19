@@ -342,13 +342,13 @@ export default function Invoice() {
       .select("nama_barang,kategori,harga_jual")
       .order("created_at", { ascending: false });
 
-    let details = await supabase
+    let details: any = await (supabase as any)
       .from("detail_transaksi")
       .select("ukuran,harga,barang:barang_id(nama_barang,kategori)")
       .order("created_at", { ascending: false });
 
     if (isMissingUkuranColumn(details.error)) {
-      details = await supabase
+      details = await (supabase as any)
         .from("detail_transaksi")
         .select("harga,barang:barang_id(nama_barang,kategori)")
         .order("created_at", { ascending: false });
