@@ -342,20 +342,10 @@ export default function Login() {
           </div>
       </section>
 
-      <section className="relative min-h-screen w-full overflow-hidden bg-[#020806] lg:hidden">
-        <div className="relative h-[42svh] min-h-[300px] max-h-[430px] overflow-hidden">
-          <img
-            src={LOGIN_REFERENCE_URL}
-            alt="Display batu alam Fazma Stone"
-            className="absolute inset-0 h-full w-full object-cover object-left-top"
-          />
-          <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(2,8,6,0.08),rgba(2,8,6,0.86)),linear-gradient(90deg,rgba(2,8,6,0.08),rgba(2,8,6,0.42))]" />
-        </div>
+      <section className="relative z-10 flex min-h-screen w-full items-center justify-start overflow-hidden bg-[#020806] px-6 py-20 lg:hidden">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_86%_93%,rgba(6,170,112,0.28),transparent_24%),radial-gradient(circle_at_20%_4%,rgba(255,255,255,0.07),transparent_18%),linear-gradient(110deg,rgba(255,255,255,0.018),transparent_45%)]" />
 
-        <div className="relative z-10 -mt-8 rounded-t-[28px] bg-[#020806]/95 px-6 pb-14 pt-10 shadow-[0_-24px_80px_rgba(0,0,0,0.45)] sm:px-8">
-          <div className="pointer-events-none absolute inset-0 rounded-t-[28px] bg-[radial-gradient(circle_at_86%_8%,rgba(6,170,112,0.22),transparent_30%),linear-gradient(110deg,rgba(255,255,255,0.018),transparent_45%)]" />
-
-          <div className="relative z-10 w-[290px] max-w-[calc(100vw-3rem)] min-w-0 min-[390px]:w-[326px] sm:mx-auto sm:w-full sm:max-w-[458px]">
+        <div className="relative z-10 w-full max-w-[342px] pt-14 sm:max-w-[458px]">
           <div className="mb-12">
             <a
               href="/"
@@ -527,7 +517,6 @@ export default function Login() {
               </p>
             </form>
           )}
-          </div>
         </div>
       </section>
     </main>
