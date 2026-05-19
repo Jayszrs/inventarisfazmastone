@@ -1,0 +1,1231 @@
+import { createHotContext as __vite__createHotContext } from "/@vite/client";import.meta.hot = __vite__createHotContext("/src/pages/Login.tsx");import * as RefreshRuntime from "/@react-refresh";
+const inWebWorker = typeof WorkerGlobalScope !== 'undefined' && self instanceof WorkerGlobalScope;
+
+let prevRefreshReg;
+let prevRefreshSig;
+
+if (import.meta.hot && !inWebWorker) {
+  if (!window.$RefreshReg$) {
+    throw new Error(
+      "@vitejs/plugin-react-swc can't detect preamble. Something is wrong."
+    );
+  }
+
+  prevRefreshReg = window.$RefreshReg$;
+  prevRefreshSig = window.$RefreshSig$;
+  window.$RefreshReg$ = RefreshRuntime.getRefreshReg("C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Login.tsx");
+  window.$RefreshSig$ = RefreshRuntime.createSignatureFunctionForTransform;
+}
+
+import __vite__cjsImport2_react_jsxDevRuntime from "/node_modules/.vite/deps/react_jsx-dev-runtime.js?v=df8fa318"; const _jsxDEV = __vite__cjsImport2_react_jsxDevRuntime["jsxDEV"];
+var _s = $RefreshSig$();
+import __vite__cjsImport3_react from "/node_modules/.vite/deps/react.js?v=df8fa318"; const useState = __vite__cjsImport3_react["useState"];
+import { supabase } from "/src/integrations/supabase/client.ts";
+import { Button } from "/src/components/ui/button.tsx";
+import { Input } from "/src/components/ui/input.tsx";
+import { Label } from "/src/components/ui/label.tsx";
+import { useToast } from "/src/hooks/use-toast.ts";
+import { defaultRoleForEmail } from "/src/lib/admin.ts";
+import { ArrowLeft, ChevronLeft, Lock, Mail, User } from "/node_modules/.vite/deps/lucide-react.js?v=df8fa318";
+import LOGIN_REFERENCE_URL from "/src/assets/login-admin-reference.png?import";
+const adminRpc = supabase;
+const getErrorMessage = (error)=>{
+    if (error instanceof Error) return error.message;
+    if (typeof error === "object" && error && "message" in error) {
+        return String(error.message ?? "");
+    }
+    return "";
+};
+export default function Login() {
+    _s();
+    const [mode, setMode] = useState("login");
+    const [identifier, setIdentifier] = useState("");
+    const [password, setPassword] = useState("");
+    const [name, setName] = useState("");
+    const [loading, setLoading] = useState(false);
+    const { toast } = useToast();
+    const getFormattedEmail = (input)=>{
+        const cleanInput = input.trim().toLowerCase();
+        if (!cleanInput) return "";
+        return cleanInput.includes("@") ? cleanInput : `${cleanInput}@fazmastone.com`;
+    };
+    const handleLogin = async (event)=>{
+        event.preventDefault();
+        setLoading(true);
+        const targetEmail = getFormattedEmail(identifier);
+        try {
+            const { error } = await supabase.auth.signInWithPassword({
+                email: targetEmail,
+                password
+            });
+            if (!error) {
+                toast({
+                    title: "Berhasil masuk",
+                    description: "Selamat datang kembali di sistem Fazma Stone."
+                });
+                return;
+            }
+            const errMsg = String(error.message || "").toLowerCase();
+            if (errMsg.includes("confirm") || errMsg.includes("credentials")) {
+                const { data: confirmed } = await adminRpc.rpc("confirm_allowed_admin_email", {
+                    target_email: targetEmail
+                });
+                if (confirmed) {
+                    const retry = await supabase.auth.signInWithPassword({
+                        email: targetEmail,
+                        password
+                    });
+                    if (!retry.error) {
+                        toast({
+                            title: "Masuk Berhasil",
+                            description: "Akun Anda telah diaktivasi otomatis dan berhasil masuk."
+                        });
+                        return;
+                    }
+                    throw retry.error;
+                }
+            }
+            throw error;
+        } catch  {
+            toast({
+                title: "Login gagal",
+                description: "Periksa kembali username/email dan password Anda.",
+                variant: "destructive"
+            });
+        } finally{
+            setLoading(false);
+        }
+    };
+    const handleSignUp = async (event)=>{
+        event.preventDefault();
+        setLoading(true);
+        const targetEmail = getFormattedEmail(identifier);
+        try {
+            const emailRedirectTo = `${window.location.origin}/`;
+            const { data, error } = await supabase.auth.signUp({
+                email: targetEmail,
+                password,
+                options: {
+                    data: {
+                        full_name: name
+                    },
+                    emailRedirectTo
+                }
+            });
+            if (error) throw error;
+            if (data.user?.id) {
+                const role = defaultRoleForEmail(targetEmail);
+                await supabase.from("user_roles").insert({
+                    user_id: data.user.id,
+                    role
+                });
+                await adminRpc.rpc("confirm_allowed_admin_email", {
+                    target_email: targetEmail
+                });
+                const autoLogin = await supabase.auth.signInWithPassword({
+                    email: targetEmail,
+                    password
+                });
+                if (!autoLogin.error) {
+                    toast({
+                        title: "Akun Berhasil Aktif",
+                        description: "Pendaftaran sukses dan Anda telah masuk secara otomatis."
+                    });
+                    return;
+                }
+            }
+            toast({
+                title: "Pendaftaran berhasil",
+                description: "Silakan beralih ke tab Masuk."
+            });
+            setMode("login");
+            setPassword("");
+        } catch (error) {
+            toast({
+                title: "Pendaftaran gagal",
+                description: getErrorMessage(error),
+                variant: "destructive"
+            });
+        } finally{
+            setLoading(false);
+        }
+    };
+    const handleResetPassword = async (event)=>{
+        event.preventDefault();
+        setLoading(true);
+        const targetEmail = getFormattedEmail(identifier);
+        try {
+            const redirectTo = `${window.location.origin}/reset-password`;
+            const { error } = await supabase.auth.resetPasswordForEmail(targetEmail, {
+                redirectTo
+            });
+            if (error) throw error;
+            toast({
+                title: "Email reset terkirim",
+                description: `Link reset password telah dikirim ke alamat email terkait (${targetEmail}).`
+            });
+            setMode("login");
+        } catch (error) {
+            toast({
+                title: "Reset password gagal",
+                description: getErrorMessage(error),
+                variant: "destructive"
+            });
+        } finally{
+            setLoading(false);
+        }
+    };
+    const fieldClass = "h-[50px] rounded-none border-white/55 bg-transparent pl-12 text-[15px] text-white shadow-[inset_0_0_0_1px_rgba(255,255,255,0.06)] placeholder:text-slate-300/62 focus-visible:border-emerald-300 focus-visible:ring-1 focus-visible:ring-emerald-400";
+    const labelClass = "text-xs font-black uppercase tracking-[0.05em] text-white";
+    const primaryButtonClass = "h-[50px] w-full rounded-none bg-gradient-to-r from-[#10b98a] via-[#10a57c] to-[#078761] text-sm font-black uppercase tracking-wide text-white shadow-[0_18px_45px_rgba(0,148,103,0.28)] transition-all hover:from-[#18c998] hover:to-[#0d946b]";
+    return /*#__PURE__*/ _jsxDEV("main", {
+        className: "min-h-screen overflow-hidden bg-[#020806] text-white lg:flex",
+        children: [
+            /*#__PURE__*/ _jsxDEV("section", {
+                className: "relative hidden min-h-screen overflow-hidden lg:block lg:w-[56%]",
+                children: /*#__PURE__*/ _jsxDEV("img", {
+                    src: LOGIN_REFERENCE_URL,
+                    alt: "",
+                    className: "absolute inset-0 h-full w-full object-cover object-left",
+                    "aria-hidden": "true"
+                }, void 0, false, {
+                    fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Login.tsx",
+                    lineNumber: 163,
+                    columnNumber: 9
+                }, this)
+            }, void 0, false, {
+                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Login.tsx",
+                lineNumber: 162,
+                columnNumber: 7
+            }, this),
+            /*#__PURE__*/ _jsxDEV("section", {
+                className: "relative hidden min-h-screen overflow-hidden bg-[#020806] lg:flex lg:w-[44%] lg:items-center lg:justify-center lg:px-12 xl:px-20",
+                children: [
+                    /*#__PURE__*/ _jsxDEV("div", {
+                        className: "pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_86%_93%,rgba(6,170,112,0.28),transparent_24%),radial-gradient(circle_at_20%_4%,rgba(255,255,255,0.07),transparent_18%)]"
+                    }, void 0, false, {
+                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Login.tsx",
+                        lineNumber: 172,
+                        columnNumber: 9
+                    }, this),
+                    /*#__PURE__*/ _jsxDEV("div", {
+                        className: "pointer-events-none absolute inset-y-0 left-0 w-px bg-white/12"
+                    }, void 0, false, {
+                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Login.tsx",
+                        lineNumber: 173,
+                        columnNumber: 9
+                    }, this),
+                    /*#__PURE__*/ _jsxDEV("div", {
+                        className: "relative z-10 w-full max-w-[458px]",
+                        children: [
+                            /*#__PURE__*/ _jsxDEV("a", {
+                                href: "/",
+                                className: "mb-10 inline-flex items-center gap-2 text-sm font-semibold text-white/82 transition-colors hover:text-white",
+                                children: [
+                                    /*#__PURE__*/ _jsxDEV(ArrowLeft, {
+                                        className: "h-4 w-4"
+                                    }, void 0, false, {
+                                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Login.tsx",
+                                        lineNumber: 177,
+                                        columnNumber: 15
+                                    }, this),
+                                    "Kembali ke beranda"
+                                ]
+                            }, void 0, true, {
+                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Login.tsx",
+                                lineNumber: 176,
+                                columnNumber: 13
+                            }, this),
+                            /*#__PURE__*/ _jsxDEV("div", {
+                                className: "mb-5 flex items-center gap-4",
+                                children: [
+                                    /*#__PURE__*/ _jsxDEV("span", {
+                                        className: "h-px w-12 bg-[#0ec487]"
+                                    }, void 0, false, {
+                                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Login.tsx",
+                                        lineNumber: 182,
+                                        columnNumber: 15
+                                    }, this),
+                                    /*#__PURE__*/ _jsxDEV("span", {
+                                        className: "text-xs font-black uppercase tracking-[0.58em] text-[#20df9c]",
+                                        children: "Area Terbatas"
+                                    }, void 0, false, {
+                                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Login.tsx",
+                                        lineNumber: 183,
+                                        columnNumber: 15
+                                    }, this)
+                                ]
+                            }, void 0, true, {
+                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Login.tsx",
+                                lineNumber: 181,
+                                columnNumber: 13
+                            }, this),
+                            /*#__PURE__*/ _jsxDEV("h2", {
+                                className: "font-heading text-[38px] font-black tracking-normal text-white drop-shadow-[0_5px_0_rgba(255,255,255,0.1)]",
+                                children: mode === "signup" ? "Buat Akun" : mode === "reset" ? "Reset Password" : "Login Admin"
+                            }, void 0, false, {
+                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Login.tsx",
+                                lineNumber: 185,
+                                columnNumber: 13
+                            }, this),
+                            /*#__PURE__*/ _jsxDEV("p", {
+                                className: "mt-4 max-w-[420px] text-base leading-8 text-white/88",
+                                children: mode === "signup" ? "Daftarkan akses baru untuk tim Fazma Stone." : mode === "reset" ? "Masukkan username atau email untuk menerima instruksi reset." : "Masuk untuk mengelola inventaris dan dashboard operasional."
+                            }, void 0, false, {
+                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Login.tsx",
+                                lineNumber: 188,
+                                columnNumber: 13
+                            }, this),
+                            mode === "reset" ? /*#__PURE__*/ _jsxDEV("form", {
+                                onSubmit: handleResetPassword,
+                                className: "mt-10 space-y-6",
+                                children: [
+                                    /*#__PURE__*/ _jsxDEV("div", {
+                                        className: "space-y-3",
+                                        children: [
+                                            /*#__PURE__*/ _jsxDEV(Label, {
+                                                htmlFor: "desktop-reset-identifier",
+                                                className: labelClass,
+                                                children: "Username atau Email"
+                                            }, void 0, false, {
+                                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Login.tsx",
+                                                lineNumber: 199,
+                                                columnNumber: 19
+                                            }, this),
+                                            /*#__PURE__*/ _jsxDEV("div", {
+                                                className: "relative",
+                                                children: [
+                                                    /*#__PURE__*/ _jsxDEV(Mail, {
+                                                        className: "absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-white/72"
+                                                    }, void 0, false, {
+                                                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Login.tsx",
+                                                        lineNumber: 203,
+                                                        columnNumber: 21
+                                                    }, this),
+                                                    /*#__PURE__*/ _jsxDEV(Input, {
+                                                        id: "desktop-reset-identifier",
+                                                        type: "text",
+                                                        value: identifier,
+                                                        onChange: (event)=>setIdentifier(event.target.value),
+                                                        placeholder: "admin atau email@fazmastone.com",
+                                                        className: fieldClass,
+                                                        required: true
+                                                    }, void 0, false, {
+                                                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Login.tsx",
+                                                        lineNumber: 204,
+                                                        columnNumber: 21
+                                                    }, this)
+                                                ]
+                                            }, void 0, true, {
+                                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Login.tsx",
+                                                lineNumber: 202,
+                                                columnNumber: 19
+                                            }, this)
+                                        ]
+                                    }, void 0, true, {
+                                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Login.tsx",
+                                        lineNumber: 198,
+                                        columnNumber: 17
+                                    }, this),
+                                    /*#__PURE__*/ _jsxDEV(Button, {
+                                        type: "submit",
+                                        className: primaryButtonClass,
+                                        disabled: loading,
+                                        children: loading ? "Mengirim..." : "Kirim Link Reset"
+                                    }, void 0, false, {
+                                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Login.tsx",
+                                        lineNumber: 216,
+                                        columnNumber: 17
+                                    }, this),
+                                    /*#__PURE__*/ _jsxDEV("button", {
+                                        type: "button",
+                                        className: "mx-auto flex items-center gap-2 text-sm text-white/55 hover:text-white",
+                                        onClick: ()=>setMode("login"),
+                                        children: [
+                                            /*#__PURE__*/ _jsxDEV(ChevronLeft, {
+                                                className: "h-4 w-4"
+                                            }, void 0, false, {
+                                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Login.tsx",
+                                                lineNumber: 221,
+                                                columnNumber: 19
+                                            }, this),
+                                            "Kembali ke login"
+                                        ]
+                                    }, void 0, true, {
+                                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Login.tsx",
+                                        lineNumber: 220,
+                                        columnNumber: 17
+                                    }, this)
+                                ]
+                            }, void 0, true, {
+                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Login.tsx",
+                                lineNumber: 197,
+                                columnNumber: 15
+                            }, this) : mode === "signup" ? /*#__PURE__*/ _jsxDEV("form", {
+                                onSubmit: handleSignUp,
+                                className: "mt-10 space-y-6",
+                                children: [
+                                    /*#__PURE__*/ _jsxDEV("div", {
+                                        className: "space-y-3",
+                                        children: [
+                                            /*#__PURE__*/ _jsxDEV(Label, {
+                                                htmlFor: "desktop-signup-name",
+                                                className: labelClass,
+                                                children: "Nama Lengkap"
+                                            }, void 0, false, {
+                                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Login.tsx",
+                                                lineNumber: 228,
+                                                columnNumber: 19
+                                            }, this),
+                                            /*#__PURE__*/ _jsxDEV(Input, {
+                                                id: "desktop-signup-name",
+                                                value: name,
+                                                onChange: (event)=>setName(event.target.value),
+                                                placeholder: "Nama lengkap",
+                                                className: "h-[54px] rounded-none border-white/40 bg-transparent text-[15px] text-white shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)] placeholder:text-slate-300/60 focus-visible:border-emerald-300 focus-visible:ring-1 focus-visible:ring-emerald-400",
+                                                required: true
+                                            }, void 0, false, {
+                                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Login.tsx",
+                                                lineNumber: 231,
+                                                columnNumber: 19
+                                            }, this)
+                                        ]
+                                    }, void 0, true, {
+                                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Login.tsx",
+                                        lineNumber: 227,
+                                        columnNumber: 17
+                                    }, this),
+                                    /*#__PURE__*/ _jsxDEV("div", {
+                                        className: "space-y-3",
+                                        children: [
+                                            /*#__PURE__*/ _jsxDEV(Label, {
+                                                htmlFor: "desktop-signup-identifier",
+                                                className: labelClass,
+                                                children: "Username atau Email Baru"
+                                            }, void 0, false, {
+                                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Login.tsx",
+                                                lineNumber: 242,
+                                                columnNumber: 19
+                                            }, this),
+                                            /*#__PURE__*/ _jsxDEV("div", {
+                                                className: "relative",
+                                                children: [
+                                                    /*#__PURE__*/ _jsxDEV(User, {
+                                                        className: "absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-white/72"
+                                                    }, void 0, false, {
+                                                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Login.tsx",
+                                                        lineNumber: 246,
+                                                        columnNumber: 21
+                                                    }, this),
+                                                    /*#__PURE__*/ _jsxDEV(Input, {
+                                                        id: "desktop-signup-identifier",
+                                                        type: "text",
+                                                        value: identifier,
+                                                        onChange: (event)=>setIdentifier(event.target.value),
+                                                        placeholder: "username baru",
+                                                        className: fieldClass,
+                                                        required: true
+                                                    }, void 0, false, {
+                                                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Login.tsx",
+                                                        lineNumber: 247,
+                                                        columnNumber: 21
+                                                    }, this)
+                                                ]
+                                            }, void 0, true, {
+                                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Login.tsx",
+                                                lineNumber: 245,
+                                                columnNumber: 19
+                                            }, this)
+                                        ]
+                                    }, void 0, true, {
+                                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Login.tsx",
+                                        lineNumber: 241,
+                                        columnNumber: 17
+                                    }, this),
+                                    /*#__PURE__*/ _jsxDEV("div", {
+                                        className: "space-y-3",
+                                        children: [
+                                            /*#__PURE__*/ _jsxDEV(Label, {
+                                                htmlFor: "desktop-signup-password",
+                                                className: labelClass,
+                                                children: "Password Baru"
+                                            }, void 0, false, {
+                                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Login.tsx",
+                                                lineNumber: 260,
+                                                columnNumber: 19
+                                            }, this),
+                                            /*#__PURE__*/ _jsxDEV("div", {
+                                                className: "relative",
+                                                children: [
+                                                    /*#__PURE__*/ _jsxDEV(Lock, {
+                                                        className: "absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-white/72"
+                                                    }, void 0, false, {
+                                                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Login.tsx",
+                                                        lineNumber: 264,
+                                                        columnNumber: 21
+                                                    }, this),
+                                                    /*#__PURE__*/ _jsxDEV(Input, {
+                                                        id: "desktop-signup-password",
+                                                        type: "password",
+                                                        value: password,
+                                                        onChange: (event)=>setPassword(event.target.value),
+                                                        placeholder: "Minimal 6 karakter",
+                                                        className: fieldClass,
+                                                        required: true,
+                                                        minLength: 6
+                                                    }, void 0, false, {
+                                                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Login.tsx",
+                                                        lineNumber: 265,
+                                                        columnNumber: 21
+                                                    }, this)
+                                                ]
+                                            }, void 0, true, {
+                                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Login.tsx",
+                                                lineNumber: 263,
+                                                columnNumber: 19
+                                            }, this)
+                                        ]
+                                    }, void 0, true, {
+                                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Login.tsx",
+                                        lineNumber: 259,
+                                        columnNumber: 17
+                                    }, this),
+                                    /*#__PURE__*/ _jsxDEV(Button, {
+                                        type: "submit",
+                                        className: primaryButtonClass,
+                                        disabled: loading,
+                                        children: loading ? "Mendaftarkan..." : "Daftarkan Akun"
+                                    }, void 0, false, {
+                                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Login.tsx",
+                                        lineNumber: 278,
+                                        columnNumber: 17
+                                    }, this),
+                                    /*#__PURE__*/ _jsxDEV("p", {
+                                        className: "text-center text-sm text-white/52",
+                                        children: [
+                                            "Sudah punya akun?",
+                                            " ",
+                                            /*#__PURE__*/ _jsxDEV("button", {
+                                                type: "button",
+                                                className: "font-bold text-emerald-400 hover:text-emerald-300",
+                                                onClick: ()=>setMode("login"),
+                                                children: "Masuk"
+                                            }, void 0, false, {
+                                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Login.tsx",
+                                                lineNumber: 284,
+                                                columnNumber: 19
+                                            }, this)
+                                        ]
+                                    }, void 0, true, {
+                                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Login.tsx",
+                                        lineNumber: 282,
+                                        columnNumber: 17
+                                    }, this)
+                                ]
+                            }, void 0, true, {
+                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Login.tsx",
+                                lineNumber: 226,
+                                columnNumber: 15
+                            }, this) : /*#__PURE__*/ _jsxDEV("form", {
+                                onSubmit: handleLogin,
+                                className: "mt-10 space-y-6",
+                                children: [
+                                    /*#__PURE__*/ _jsxDEV("div", {
+                                        className: "space-y-3",
+                                        children: [
+                                            /*#__PURE__*/ _jsxDEV(Label, {
+                                                htmlFor: "desktop-login-identifier",
+                                                className: labelClass,
+                                                children: "Email / Username"
+                                            }, void 0, false, {
+                                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Login.tsx",
+                                                lineNumber: 292,
+                                                columnNumber: 19
+                                            }, this),
+                                            /*#__PURE__*/ _jsxDEV("div", {
+                                                className: "relative",
+                                                children: [
+                                                    /*#__PURE__*/ _jsxDEV(Mail, {
+                                                        className: "absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-white/72"
+                                                    }, void 0, false, {
+                                                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Login.tsx",
+                                                        lineNumber: 296,
+                                                        columnNumber: 21
+                                                    }, this),
+                                                    /*#__PURE__*/ _jsxDEV(Input, {
+                                                        id: "desktop-login-identifier",
+                                                        type: "text",
+                                                        value: identifier,
+                                                        onChange: (event)=>setIdentifier(event.target.value),
+                                                        placeholder: "admin atau email@fazmastone.com",
+                                                        className: fieldClass,
+                                                        required: true
+                                                    }, void 0, false, {
+                                                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Login.tsx",
+                                                        lineNumber: 297,
+                                                        columnNumber: 21
+                                                    }, this)
+                                                ]
+                                            }, void 0, true, {
+                                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Login.tsx",
+                                                lineNumber: 295,
+                                                columnNumber: 19
+                                            }, this)
+                                        ]
+                                    }, void 0, true, {
+                                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Login.tsx",
+                                        lineNumber: 291,
+                                        columnNumber: 17
+                                    }, this),
+                                    /*#__PURE__*/ _jsxDEV("div", {
+                                        className: "space-y-3",
+                                        children: [
+                                            /*#__PURE__*/ _jsxDEV(Label, {
+                                                htmlFor: "desktop-login-password",
+                                                className: labelClass,
+                                                children: "Password"
+                                            }, void 0, false, {
+                                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Login.tsx",
+                                                lineNumber: 310,
+                                                columnNumber: 19
+                                            }, this),
+                                            /*#__PURE__*/ _jsxDEV("div", {
+                                                className: "relative",
+                                                children: [
+                                                    /*#__PURE__*/ _jsxDEV(Lock, {
+                                                        className: "absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-white/72"
+                                                    }, void 0, false, {
+                                                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Login.tsx",
+                                                        lineNumber: 314,
+                                                        columnNumber: 21
+                                                    }, this),
+                                                    /*#__PURE__*/ _jsxDEV(Input, {
+                                                        id: "desktop-login-password",
+                                                        type: "password",
+                                                        value: password,
+                                                        onChange: (event)=>setPassword(event.target.value),
+                                                        placeholder: "Masukkan password",
+                                                        className: fieldClass,
+                                                        required: true,
+                                                        minLength: 6
+                                                    }, void 0, false, {
+                                                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Login.tsx",
+                                                        lineNumber: 315,
+                                                        columnNumber: 21
+                                                    }, this)
+                                                ]
+                                            }, void 0, true, {
+                                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Login.tsx",
+                                                lineNumber: 313,
+                                                columnNumber: 19
+                                            }, this),
+                                            /*#__PURE__*/ _jsxDEV("div", {
+                                                className: "flex justify-end",
+                                                children: /*#__PURE__*/ _jsxDEV("button", {
+                                                    type: "button",
+                                                    onClick: ()=>setMode("reset"),
+                                                    className: "text-xs font-bold text-emerald-400 hover:text-emerald-300",
+                                                    children: "Lupa password?"
+                                                }, void 0, false, {
+                                                    fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Login.tsx",
+                                                    lineNumber: 327,
+                                                    columnNumber: 21
+                                                }, this)
+                                            }, void 0, false, {
+                                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Login.tsx",
+                                                lineNumber: 326,
+                                                columnNumber: 19
+                                            }, this)
+                                        ]
+                                    }, void 0, true, {
+                                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Login.tsx",
+                                        lineNumber: 309,
+                                        columnNumber: 17
+                                    }, this),
+                                    /*#__PURE__*/ _jsxDEV(Button, {
+                                        type: "submit",
+                                        className: primaryButtonClass,
+                                        disabled: loading,
+                                        children: loading ? "Memproses..." : "Masuk ke Dashboard"
+                                    }, void 0, false, {
+                                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Login.tsx",
+                                        lineNumber: 333,
+                                        columnNumber: 17
+                                    }, this),
+                                    /*#__PURE__*/ _jsxDEV("p", {
+                                        className: "text-center text-xs text-white/52",
+                                        children: "Akun baru hanya dapat dibuat oleh admin melalui Role Management."
+                                    }, void 0, false, {
+                                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Login.tsx",
+                                        lineNumber: 337,
+                                        columnNumber: 17
+                                    }, this)
+                                ]
+                            }, void 0, true, {
+                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Login.tsx",
+                                lineNumber: 290,
+                                columnNumber: 15
+                            }, this)
+                        ]
+                    }, void 0, true, {
+                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Login.tsx",
+                        lineNumber: 175,
+                        columnNumber: 9
+                    }, this)
+                ]
+            }, void 0, true, {
+                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Login.tsx",
+                lineNumber: 171,
+                columnNumber: 7
+            }, this),
+            /*#__PURE__*/ _jsxDEV("section", {
+                className: "relative min-h-screen w-full overflow-hidden bg-[#020806] lg:hidden",
+                children: [
+                    /*#__PURE__*/ _jsxDEV("div", {
+                        className: "relative h-[34svh] min-h-[220px] max-h-[320px] overflow-hidden",
+                        children: [
+                            /*#__PURE__*/ _jsxDEV("img", {
+                                src: LOGIN_REFERENCE_URL,
+                                alt: "Display batu alam Fazma Stone",
+                                className: "absolute inset-0 h-full w-full object-cover object-left-top"
+                            }, void 0, false, {
+                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Login.tsx",
+                                lineNumber: 347,
+                                columnNumber: 11
+                            }, this),
+                            /*#__PURE__*/ _jsxDEV("div", {
+                                className: "absolute inset-0 bg-[linear-gradient(180deg,rgba(2,8,6,0.02),rgba(2,8,6,0.78)),linear-gradient(90deg,rgba(2,8,6,0.04),rgba(2,8,6,0.34))]"
+                            }, void 0, false, {
+                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Login.tsx",
+                                lineNumber: 352,
+                                columnNumber: 11
+                            }, this)
+                        ]
+                    }, void 0, true, {
+                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Login.tsx",
+                        lineNumber: 346,
+                        columnNumber: 9
+                    }, this),
+                    /*#__PURE__*/ _jsxDEV("div", {
+                        className: "relative z-10 -mt-5 rounded-t-[24px] bg-[#020806]/96 px-5 pb-10 pt-7 shadow-[0_-24px_80px_rgba(0,0,0,0.45)] sm:px-8 sm:pb-14 sm:pt-10",
+                        children: [
+                            /*#__PURE__*/ _jsxDEV("div", {
+                                className: "pointer-events-none absolute inset-0 rounded-t-[24px] bg-[radial-gradient(circle_at_86%_8%,rgba(6,170,112,0.2),transparent_30%),linear-gradient(110deg,rgba(255,255,255,0.018),transparent_45%)]"
+                            }, void 0, false, {
+                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Login.tsx",
+                                lineNumber: 356,
+                                columnNumber: 11
+                            }, this),
+                            /*#__PURE__*/ _jsxDEV("div", {
+                                className: "relative z-10 w-full min-w-0 max-w-[342px] sm:mx-auto sm:max-w-[458px]",
+                                children: [
+                                    /*#__PURE__*/ _jsxDEV("div", {
+                                        className: "mb-8 sm:mb-12",
+                                        children: [
+                                            /*#__PURE__*/ _jsxDEV("a", {
+                                                href: "/",
+                                                className: "mb-7 inline-flex items-center gap-2 text-sm font-semibold text-white/82 transition-colors hover:text-white sm:mb-10",
+                                                children: [
+                                                    /*#__PURE__*/ _jsxDEV(ArrowLeft, {
+                                                        className: "h-4 w-4"
+                                                    }, void 0, false, {
+                                                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Login.tsx",
+                                                        lineNumber: 364,
+                                                        columnNumber: 15
+                                                    }, this),
+                                                    "Kembali ke beranda"
+                                                ]
+                                            }, void 0, true, {
+                                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Login.tsx",
+                                                lineNumber: 360,
+                                                columnNumber: 13
+                                            }, this),
+                                            /*#__PURE__*/ _jsxDEV("div", {
+                                                className: "mb-4 flex items-center gap-4 sm:mb-5",
+                                                children: [
+                                                    /*#__PURE__*/ _jsxDEV("span", {
+                                                        className: "h-px w-10 bg-[#0ec487] sm:w-12"
+                                                    }, void 0, false, {
+                                                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Login.tsx",
+                                                        lineNumber: 369,
+                                                        columnNumber: 15
+                                                    }, this),
+                                                    /*#__PURE__*/ _jsxDEV("span", {
+                                                        className: "text-[11px] font-black uppercase tracking-[0.42em] text-[#20df9c] sm:text-xs sm:tracking-[0.58em]",
+                                                        children: "Area Terbatas"
+                                                    }, void 0, false, {
+                                                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Login.tsx",
+                                                        lineNumber: 370,
+                                                        columnNumber: 15
+                                                    }, this)
+                                                ]
+                                            }, void 0, true, {
+                                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Login.tsx",
+                                                lineNumber: 368,
+                                                columnNumber: 13
+                                            }, this),
+                                            /*#__PURE__*/ _jsxDEV("h2", {
+                                                className: "font-heading text-[34px] font-black leading-tight tracking-normal text-white drop-shadow-[0_5px_0_rgba(255,255,255,0.1)] sm:text-[38px]",
+                                                children: mode === "signup" ? "Buat Akun" : mode === "reset" ? "Reset Password" : "Login Admin"
+                                            }, void 0, false, {
+                                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Login.tsx",
+                                                lineNumber: 372,
+                                                columnNumber: 13
+                                            }, this),
+                                            /*#__PURE__*/ _jsxDEV("p", {
+                                                className: "mt-3 max-w-[420px] text-[15px] leading-7 text-white/88 sm:mt-4 sm:text-base sm:leading-8",
+                                                children: mode === "signup" ? "Daftarkan akses baru untuk tim Fazma Stone." : mode === "reset" ? "Masukkan username atau email untuk menerima instruksi reset." : "Masuk untuk mengelola inventaris dan dashboard operasional."
+                                            }, void 0, false, {
+                                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Login.tsx",
+                                                lineNumber: 375,
+                                                columnNumber: 13
+                                            }, this)
+                                        ]
+                                    }, void 0, true, {
+                                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Login.tsx",
+                                        lineNumber: 359,
+                                        columnNumber: 11
+                                    }, this),
+                                    mode === "reset" ? /*#__PURE__*/ _jsxDEV("form", {
+                                        onSubmit: handleResetPassword,
+                                        className: "space-y-5 sm:space-y-6",
+                                        children: [
+                                            /*#__PURE__*/ _jsxDEV("div", {
+                                                className: "space-y-3",
+                                                children: [
+                                                    /*#__PURE__*/ _jsxDEV(Label, {
+                                                        htmlFor: "reset-identifier",
+                                                        className: labelClass,
+                                                        children: "Username atau Email"
+                                                    }, void 0, false, {
+                                                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Login.tsx",
+                                                        lineNumber: 387,
+                                                        columnNumber: 17
+                                                    }, this),
+                                                    /*#__PURE__*/ _jsxDEV("div", {
+                                                        className: "relative",
+                                                        children: [
+                                                            /*#__PURE__*/ _jsxDEV(Mail, {
+                                                                className: "absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-white/72"
+                                                            }, void 0, false, {
+                                                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Login.tsx",
+                                                                lineNumber: 391,
+                                                                columnNumber: 19
+                                                            }, this),
+                                                            /*#__PURE__*/ _jsxDEV(Input, {
+                                                                id: "reset-identifier",
+                                                                type: "text",
+                                                                value: identifier,
+                                                                onChange: (event)=>setIdentifier(event.target.value),
+                                                                placeholder: "admin atau email@fazmastone.com",
+                                                                className: fieldClass,
+                                                                required: true
+                                                            }, void 0, false, {
+                                                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Login.tsx",
+                                                                lineNumber: 392,
+                                                                columnNumber: 19
+                                                            }, this)
+                                                        ]
+                                                    }, void 0, true, {
+                                                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Login.tsx",
+                                                        lineNumber: 390,
+                                                        columnNumber: 17
+                                                    }, this)
+                                                ]
+                                            }, void 0, true, {
+                                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Login.tsx",
+                                                lineNumber: 386,
+                                                columnNumber: 15
+                                            }, this),
+                                            /*#__PURE__*/ _jsxDEV(Button, {
+                                                type: "submit",
+                                                className: primaryButtonClass,
+                                                disabled: loading,
+                                                children: loading ? "Mengirim..." : "Kirim Link Reset"
+                                            }, void 0, false, {
+                                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Login.tsx",
+                                                lineNumber: 404,
+                                                columnNumber: 15
+                                            }, this),
+                                            /*#__PURE__*/ _jsxDEV("button", {
+                                                type: "button",
+                                                className: "mx-auto flex items-center gap-2 text-sm text-white/55 hover:text-white",
+                                                onClick: ()=>setMode("login"),
+                                                children: [
+                                                    /*#__PURE__*/ _jsxDEV(ChevronLeft, {
+                                                        className: "h-4 w-4"
+                                                    }, void 0, false, {
+                                                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Login.tsx",
+                                                        lineNumber: 409,
+                                                        columnNumber: 17
+                                                    }, this),
+                                                    "Kembali ke login"
+                                                ]
+                                            }, void 0, true, {
+                                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Login.tsx",
+                                                lineNumber: 408,
+                                                columnNumber: 15
+                                            }, this)
+                                        ]
+                                    }, void 0, true, {
+                                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Login.tsx",
+                                        lineNumber: 385,
+                                        columnNumber: 13
+                                    }, this) : mode === "signup" ? /*#__PURE__*/ _jsxDEV("form", {
+                                        onSubmit: handleSignUp,
+                                        className: "space-y-5 sm:space-y-6",
+                                        children: [
+                                            /*#__PURE__*/ _jsxDEV("div", {
+                                                className: "space-y-3",
+                                                children: [
+                                                    /*#__PURE__*/ _jsxDEV(Label, {
+                                                        htmlFor: "signup-name",
+                                                        className: labelClass,
+                                                        children: "Nama Lengkap"
+                                                    }, void 0, false, {
+                                                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Login.tsx",
+                                                        lineNumber: 416,
+                                                        columnNumber: 17
+                                                    }, this),
+                                                    /*#__PURE__*/ _jsxDEV(Input, {
+                                                        id: "signup-name",
+                                                        value: name,
+                                                        onChange: (event)=>setName(event.target.value),
+                                                        placeholder: "Nama lengkap",
+                                                        className: "h-[54px] rounded-none border-white/40 bg-transparent text-[15px] text-white shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)] placeholder:text-slate-300/60 focus-visible:border-emerald-300 focus-visible:ring-1 focus-visible:ring-emerald-400",
+                                                        required: true
+                                                    }, void 0, false, {
+                                                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Login.tsx",
+                                                        lineNumber: 419,
+                                                        columnNumber: 17
+                                                    }, this)
+                                                ]
+                                            }, void 0, true, {
+                                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Login.tsx",
+                                                lineNumber: 415,
+                                                columnNumber: 15
+                                            }, this),
+                                            /*#__PURE__*/ _jsxDEV("div", {
+                                                className: "space-y-3",
+                                                children: [
+                                                    /*#__PURE__*/ _jsxDEV(Label, {
+                                                        htmlFor: "signup-identifier",
+                                                        className: labelClass,
+                                                        children: "Username atau Email Baru"
+                                                    }, void 0, false, {
+                                                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Login.tsx",
+                                                        lineNumber: 430,
+                                                        columnNumber: 17
+                                                    }, this),
+                                                    /*#__PURE__*/ _jsxDEV("div", {
+                                                        className: "relative",
+                                                        children: [
+                                                            /*#__PURE__*/ _jsxDEV(User, {
+                                                                className: "absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-white/72"
+                                                            }, void 0, false, {
+                                                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Login.tsx",
+                                                                lineNumber: 434,
+                                                                columnNumber: 19
+                                                            }, this),
+                                                            /*#__PURE__*/ _jsxDEV(Input, {
+                                                                id: "signup-identifier",
+                                                                type: "text",
+                                                                value: identifier,
+                                                                onChange: (event)=>setIdentifier(event.target.value),
+                                                                placeholder: "username baru",
+                                                                className: fieldClass,
+                                                                required: true
+                                                            }, void 0, false, {
+                                                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Login.tsx",
+                                                                lineNumber: 435,
+                                                                columnNumber: 19
+                                                            }, this)
+                                                        ]
+                                                    }, void 0, true, {
+                                                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Login.tsx",
+                                                        lineNumber: 433,
+                                                        columnNumber: 17
+                                                    }, this)
+                                                ]
+                                            }, void 0, true, {
+                                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Login.tsx",
+                                                lineNumber: 429,
+                                                columnNumber: 15
+                                            }, this),
+                                            /*#__PURE__*/ _jsxDEV("div", {
+                                                className: "space-y-3",
+                                                children: [
+                                                    /*#__PURE__*/ _jsxDEV(Label, {
+                                                        htmlFor: "signup-password",
+                                                        className: labelClass,
+                                                        children: "Password Baru"
+                                                    }, void 0, false, {
+                                                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Login.tsx",
+                                                        lineNumber: 448,
+                                                        columnNumber: 17
+                                                    }, this),
+                                                    /*#__PURE__*/ _jsxDEV("div", {
+                                                        className: "relative",
+                                                        children: [
+                                                            /*#__PURE__*/ _jsxDEV(Lock, {
+                                                                className: "absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-white/72"
+                                                            }, void 0, false, {
+                                                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Login.tsx",
+                                                                lineNumber: 452,
+                                                                columnNumber: 19
+                                                            }, this),
+                                                            /*#__PURE__*/ _jsxDEV(Input, {
+                                                                id: "signup-password",
+                                                                type: "password",
+                                                                value: password,
+                                                                onChange: (event)=>setPassword(event.target.value),
+                                                                placeholder: "Minimal 6 karakter",
+                                                                className: fieldClass,
+                                                                required: true,
+                                                                minLength: 6
+                                                            }, void 0, false, {
+                                                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Login.tsx",
+                                                                lineNumber: 453,
+                                                                columnNumber: 19
+                                                            }, this)
+                                                        ]
+                                                    }, void 0, true, {
+                                                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Login.tsx",
+                                                        lineNumber: 451,
+                                                        columnNumber: 17
+                                                    }, this)
+                                                ]
+                                            }, void 0, true, {
+                                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Login.tsx",
+                                                lineNumber: 447,
+                                                columnNumber: 15
+                                            }, this),
+                                            /*#__PURE__*/ _jsxDEV(Button, {
+                                                type: "submit",
+                                                className: primaryButtonClass,
+                                                disabled: loading,
+                                                children: loading ? "Mendaftarkan..." : "Daftarkan Akun"
+                                            }, void 0, false, {
+                                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Login.tsx",
+                                                lineNumber: 466,
+                                                columnNumber: 15
+                                            }, this),
+                                            /*#__PURE__*/ _jsxDEV("p", {
+                                                className: "text-center text-sm text-white/52",
+                                                children: [
+                                                    "Sudah punya akun?",
+                                                    " ",
+                                                    /*#__PURE__*/ _jsxDEV("button", {
+                                                        type: "button",
+                                                        className: "font-bold text-emerald-400 hover:text-emerald-300",
+                                                        onClick: ()=>setMode("login"),
+                                                        children: "Masuk"
+                                                    }, void 0, false, {
+                                                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Login.tsx",
+                                                        lineNumber: 472,
+                                                        columnNumber: 17
+                                                    }, this)
+                                                ]
+                                            }, void 0, true, {
+                                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Login.tsx",
+                                                lineNumber: 470,
+                                                columnNumber: 15
+                                            }, this)
+                                        ]
+                                    }, void 0, true, {
+                                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Login.tsx",
+                                        lineNumber: 414,
+                                        columnNumber: 13
+                                    }, this) : /*#__PURE__*/ _jsxDEV("form", {
+                                        onSubmit: handleLogin,
+                                        className: "space-y-5 sm:space-y-6",
+                                        children: [
+                                            /*#__PURE__*/ _jsxDEV("div", {
+                                                className: "space-y-3",
+                                                children: [
+                                                    /*#__PURE__*/ _jsxDEV(Label, {
+                                                        htmlFor: "login-identifier",
+                                                        className: labelClass,
+                                                        children: "Email / Username"
+                                                    }, void 0, false, {
+                                                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Login.tsx",
+                                                        lineNumber: 480,
+                                                        columnNumber: 17
+                                                    }, this),
+                                                    /*#__PURE__*/ _jsxDEV("div", {
+                                                        className: "relative",
+                                                        children: [
+                                                            /*#__PURE__*/ _jsxDEV(Mail, {
+                                                                className: "absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-white/72"
+                                                            }, void 0, false, {
+                                                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Login.tsx",
+                                                                lineNumber: 484,
+                                                                columnNumber: 19
+                                                            }, this),
+                                                            /*#__PURE__*/ _jsxDEV(Input, {
+                                                                id: "login-identifier",
+                                                                type: "text",
+                                                                value: identifier,
+                                                                onChange: (event)=>setIdentifier(event.target.value),
+                                                                placeholder: "admin atau email@fazmastone.com",
+                                                                className: fieldClass,
+                                                                required: true
+                                                            }, void 0, false, {
+                                                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Login.tsx",
+                                                                lineNumber: 485,
+                                                                columnNumber: 19
+                                                            }, this)
+                                                        ]
+                                                    }, void 0, true, {
+                                                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Login.tsx",
+                                                        lineNumber: 483,
+                                                        columnNumber: 17
+                                                    }, this)
+                                                ]
+                                            }, void 0, true, {
+                                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Login.tsx",
+                                                lineNumber: 479,
+                                                columnNumber: 15
+                                            }, this),
+                                            /*#__PURE__*/ _jsxDEV("div", {
+                                                className: "space-y-3",
+                                                children: [
+                                                    /*#__PURE__*/ _jsxDEV(Label, {
+                                                        htmlFor: "login-password",
+                                                        className: labelClass,
+                                                        children: "Password"
+                                                    }, void 0, false, {
+                                                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Login.tsx",
+                                                        lineNumber: 498,
+                                                        columnNumber: 17
+                                                    }, this),
+                                                    /*#__PURE__*/ _jsxDEV("div", {
+                                                        className: "relative",
+                                                        children: [
+                                                            /*#__PURE__*/ _jsxDEV(Lock, {
+                                                                className: "absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-white/72"
+                                                            }, void 0, false, {
+                                                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Login.tsx",
+                                                                lineNumber: 502,
+                                                                columnNumber: 19
+                                                            }, this),
+                                                            /*#__PURE__*/ _jsxDEV(Input, {
+                                                                id: "login-password",
+                                                                type: "password",
+                                                                value: password,
+                                                                onChange: (event)=>setPassword(event.target.value),
+                                                                placeholder: "Masukkan password",
+                                                                className: fieldClass,
+                                                                required: true,
+                                                                minLength: 6
+                                                            }, void 0, false, {
+                                                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Login.tsx",
+                                                                lineNumber: 503,
+                                                                columnNumber: 19
+                                                            }, this)
+                                                        ]
+                                                    }, void 0, true, {
+                                                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Login.tsx",
+                                                        lineNumber: 501,
+                                                        columnNumber: 17
+                                                    }, this),
+                                                    /*#__PURE__*/ _jsxDEV("div", {
+                                                        className: "flex justify-end",
+                                                        children: /*#__PURE__*/ _jsxDEV("button", {
+                                                            type: "button",
+                                                            onClick: ()=>setMode("reset"),
+                                                            className: "text-xs font-bold text-emerald-400 hover:text-emerald-300",
+                                                            children: "Lupa password?"
+                                                        }, void 0, false, {
+                                                            fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Login.tsx",
+                                                            lineNumber: 515,
+                                                            columnNumber: 19
+                                                        }, this)
+                                                    }, void 0, false, {
+                                                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Login.tsx",
+                                                        lineNumber: 514,
+                                                        columnNumber: 17
+                                                    }, this)
+                                                ]
+                                            }, void 0, true, {
+                                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Login.tsx",
+                                                lineNumber: 497,
+                                                columnNumber: 15
+                                            }, this),
+                                            /*#__PURE__*/ _jsxDEV(Button, {
+                                                type: "submit",
+                                                className: primaryButtonClass,
+                                                disabled: loading,
+                                                children: loading ? "Memproses..." : "Masuk ke Dashboard"
+                                            }, void 0, false, {
+                                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Login.tsx",
+                                                lineNumber: 521,
+                                                columnNumber: 15
+                                            }, this),
+                                            /*#__PURE__*/ _jsxDEV("p", {
+                                                className: "text-center text-xs text-white/52",
+                                                children: "Akun baru hanya dapat dibuat oleh admin melalui Role Management."
+                                            }, void 0, false, {
+                                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Login.tsx",
+                                                lineNumber: 525,
+                                                columnNumber: 15
+                                            }, this)
+                                        ]
+                                    }, void 0, true, {
+                                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Login.tsx",
+                                        lineNumber: 478,
+                                        columnNumber: 13
+                                    }, this)
+                                ]
+                            }, void 0, true, {
+                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Login.tsx",
+                                lineNumber: 358,
+                                columnNumber: 11
+                            }, this)
+                        ]
+                    }, void 0, true, {
+                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Login.tsx",
+                        lineNumber: 355,
+                        columnNumber: 9
+                    }, this)
+                ]
+            }, void 0, true, {
+                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Login.tsx",
+                lineNumber: 345,
+                columnNumber: 7
+            }, this)
+        ]
+    }, void 0, true, {
+        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Login.tsx",
+        lineNumber: 161,
+        columnNumber: 5
+    }, this);
+}
+_s(Login, "mOQS5U0ToZjuMIEvCHRWsma3g3w=", false, function() {
+    return [
+        useToast
+    ];
+});
+_c = Login;
+var _c;
+$RefreshReg$(_c, "Login");
+
+
+if (import.meta.hot && !inWebWorker) {
+  window.$RefreshReg$ = prevRefreshReg;
+  window.$RefreshSig$ = prevRefreshSig;
+}
+
+
+if (import.meta.hot && !inWebWorker) {
+  RefreshRuntime.__hmr_import(import.meta.url).then((currentExports) => {
+    RefreshRuntime.registerExportsForReactRefresh("C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Login.tsx", currentExports);
+    import.meta.hot.accept((nextExports) => {
+      if (!nextExports) return;
+      const invalidateMessage = RefreshRuntime.validateRefreshBoundaryAndEnqueueUpdate("C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Login.tsx", currentExports, nextExports);
+      if (invalidateMessage) import.meta.hot.invalidate(invalidateMessage);
+    });
+  });
+}
+
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIkxvZ2luLnRzeCJdLCJzb3VyY2VzQ29udGVudCI6WyJpbXBvcnQgeyBGb3JtRXZlbnQsIHVzZVN0YXRlIH0gZnJvbSBcInJlYWN0XCI7XHJcbmltcG9ydCB7IHN1cGFiYXNlIH0gZnJvbSBcIkAvaW50ZWdyYXRpb25zL3N1cGFiYXNlL2NsaWVudFwiO1xyXG5pbXBvcnQgeyBCdXR0b24gfSBmcm9tIFwiQC9jb21wb25lbnRzL3VpL2J1dHRvblwiO1xyXG5pbXBvcnQgeyBJbnB1dCB9IGZyb20gXCJAL2NvbXBvbmVudHMvdWkvaW5wdXRcIjtcclxuaW1wb3J0IHsgTGFiZWwgfSBmcm9tIFwiQC9jb21wb25lbnRzL3VpL2xhYmVsXCI7XHJcbmltcG9ydCB7IHVzZVRvYXN0IH0gZnJvbSBcIkAvaG9va3MvdXNlLXRvYXN0XCI7XHJcbmltcG9ydCB7IGRlZmF1bHRSb2xlRm9yRW1haWwgfSBmcm9tIFwiQC9saWIvYWRtaW5cIjtcclxuaW1wb3J0IHsgQXJyb3dMZWZ0LCBDaGV2cm9uTGVmdCwgTG9jaywgTWFpbCwgVXNlciB9IGZyb20gXCJsdWNpZGUtcmVhY3RcIjtcclxuXHJcbmltcG9ydCBMT0dJTl9SRUZFUkVOQ0VfVVJMIGZyb20gXCJAL2Fzc2V0cy9sb2dpbi1hZG1pbi1yZWZlcmVuY2UucG5nXCI7XHJcblxyXG50eXBlIEF1dGhNb2RlID0gXCJsb2dpblwiIHwgXCJzaWdudXBcIiB8IFwicmVzZXRcIjtcclxuXHJcbnR5cGUgQWRtaW5ScGNDbGllbnQgPSB7XHJcbiAgcnBjOiAoXHJcbiAgICBmbjogXCJjb25maXJtX2FsbG93ZWRfYWRtaW5fZW1haWxcIixcclxuICAgIGFyZ3M6IHsgdGFyZ2V0X2VtYWlsOiBzdHJpbmcgfSxcclxuICApID0+IFByb21pc2U8eyBkYXRhOiBib29sZWFuIHwgbnVsbDsgZXJyb3I6IHsgbWVzc2FnZT86IHN0cmluZyB9IHwgbnVsbCB9PjtcclxufTtcclxuXHJcbmNvbnN0IGFkbWluUnBjID0gc3VwYWJhc2UgYXMgdW5rbm93biBhcyBBZG1pblJwY0NsaWVudDtcclxuXHJcbmNvbnN0IGdldEVycm9yTWVzc2FnZSA9IChlcnJvcjogdW5rbm93bikgPT4ge1xyXG4gIGlmIChlcnJvciBpbnN0YW5jZW9mIEVycm9yKSByZXR1cm4gZXJyb3IubWVzc2FnZTtcclxuICBpZiAodHlwZW9mIGVycm9yID09PSBcIm9iamVjdFwiICYmIGVycm9yICYmIFwibWVzc2FnZVwiIGluIGVycm9yKSB7XHJcbiAgICByZXR1cm4gU3RyaW5nKChlcnJvciBhcyB7IG1lc3NhZ2U/OiB1bmtub3duIH0pLm1lc3NhZ2UgPz8gXCJcIik7XHJcbiAgfVxyXG4gIHJldHVybiBcIlwiO1xyXG59O1xyXG5cclxuZXhwb3J0IGRlZmF1bHQgZnVuY3Rpb24gTG9naW4oKSB7XHJcbiAgY29uc3QgW21vZGUsIHNldE1vZGVdID0gdXNlU3RhdGU8QXV0aE1vZGU+KFwibG9naW5cIik7XHJcbiAgY29uc3QgW2lkZW50aWZpZXIsIHNldElkZW50aWZpZXJdID0gdXNlU3RhdGUoXCJcIik7XHJcbiAgY29uc3QgW3Bhc3N3b3JkLCBzZXRQYXNzd29yZF0gPSB1c2VTdGF0ZShcIlwiKTtcclxuICBjb25zdCBbbmFtZSwgc2V0TmFtZV0gPSB1c2VTdGF0ZShcIlwiKTtcclxuICBjb25zdCBbbG9hZGluZywgc2V0TG9hZGluZ10gPSB1c2VTdGF0ZShmYWxzZSk7XHJcbiAgY29uc3QgeyB0b2FzdCB9ID0gdXNlVG9hc3QoKTtcclxuXHJcbiAgY29uc3QgZ2V0Rm9ybWF0dGVkRW1haWwgPSAoaW5wdXQ6IHN0cmluZykgPT4ge1xyXG4gICAgY29uc3QgY2xlYW5JbnB1dCA9IGlucHV0LnRyaW0oKS50b0xvd2VyQ2FzZSgpO1xyXG4gICAgaWYgKCFjbGVhbklucHV0KSByZXR1cm4gXCJcIjtcclxuICAgIHJldHVybiBjbGVhbklucHV0LmluY2x1ZGVzKFwiQFwiKSA/IGNsZWFuSW5wdXQgOiBgJHtjbGVhbklucHV0fUBmYXptYXN0b25lLmNvbWA7XHJcbiAgfTtcclxuXHJcbiAgY29uc3QgaGFuZGxlTG9naW4gPSBhc3luYyAoZXZlbnQ6IEZvcm1FdmVudCkgPT4ge1xyXG4gICAgZXZlbnQucHJldmVudERlZmF1bHQoKTtcclxuICAgIHNldExvYWRpbmcodHJ1ZSk7XHJcblxyXG4gICAgY29uc3QgdGFyZ2V0RW1haWwgPSBnZXRGb3JtYXR0ZWRFbWFpbChpZGVudGlmaWVyKTtcclxuXHJcbiAgICB0cnkge1xyXG4gICAgICBjb25zdCB7IGVycm9yIH0gPSBhd2FpdCBzdXBhYmFzZS5hdXRoLnNpZ25JbldpdGhQYXNzd29yZCh7IGVtYWlsOiB0YXJnZXRFbWFpbCwgcGFzc3dvcmQgfSk7XHJcblxyXG4gICAgICBpZiAoIWVycm9yKSB7XHJcbiAgICAgICAgdG9hc3QoeyB0aXRsZTogXCJCZXJoYXNpbCBtYXN1a1wiLCBkZXNjcmlwdGlvbjogXCJTZWxhbWF0IGRhdGFuZyBrZW1iYWxpIGRpIHNpc3RlbSBGYXptYSBTdG9uZS5cIiB9KTtcclxuICAgICAgICByZXR1cm47XHJcbiAgICAgIH1cclxuXHJcbiAgICAgIGNvbnN0IGVyck1zZyA9IFN0cmluZyhlcnJvci5tZXNzYWdlIHx8IFwiXCIpLnRvTG93ZXJDYXNlKCk7XHJcbiAgICAgIGlmIChlcnJNc2cuaW5jbHVkZXMoXCJjb25maXJtXCIpIHx8IGVyck1zZy5pbmNsdWRlcyhcImNyZWRlbnRpYWxzXCIpKSB7XHJcbiAgICAgICAgY29uc3QgeyBkYXRhOiBjb25maXJtZWQgfSA9IGF3YWl0IGFkbWluUnBjLnJwYyhcImNvbmZpcm1fYWxsb3dlZF9hZG1pbl9lbWFpbFwiLCB7XHJcbiAgICAgICAgICB0YXJnZXRfZW1haWw6IHRhcmdldEVtYWlsLFxyXG4gICAgICAgIH0pO1xyXG5cclxuICAgICAgICBpZiAoY29uZmlybWVkKSB7XHJcbiAgICAgICAgICBjb25zdCByZXRyeSA9IGF3YWl0IHN1cGFiYXNlLmF1dGguc2lnbkluV2l0aFBhc3N3b3JkKHsgZW1haWw6IHRhcmdldEVtYWlsLCBwYXNzd29yZCB9KTtcclxuICAgICAgICAgIGlmICghcmV0cnkuZXJyb3IpIHtcclxuICAgICAgICAgICAgdG9hc3Qoe1xyXG4gICAgICAgICAgICAgIHRpdGxlOiBcIk1hc3VrIEJlcmhhc2lsXCIsXHJcbiAgICAgICAgICAgICAgZGVzY3JpcHRpb246IFwiQWt1biBBbmRhIHRlbGFoIGRpYWt0aXZhc2kgb3RvbWF0aXMgZGFuIGJlcmhhc2lsIG1hc3VrLlwiLFxyXG4gICAgICAgICAgICB9KTtcclxuICAgICAgICAgICAgcmV0dXJuO1xyXG4gICAgICAgICAgfVxyXG4gICAgICAgICAgdGhyb3cgcmV0cnkuZXJyb3I7XHJcbiAgICAgICAgfVxyXG4gICAgICB9XHJcblxyXG4gICAgICB0aHJvdyBlcnJvcjtcclxuICAgIH0gY2F0Y2gge1xyXG4gICAgICB0b2FzdCh7XHJcbiAgICAgICAgdGl0bGU6IFwiTG9naW4gZ2FnYWxcIixcclxuICAgICAgICBkZXNjcmlwdGlvbjogXCJQZXJpa3NhIGtlbWJhbGkgdXNlcm5hbWUvZW1haWwgZGFuIHBhc3N3b3JkIEFuZGEuXCIsXHJcbiAgICAgICAgdmFyaWFudDogXCJkZXN0cnVjdGl2ZVwiLFxyXG4gICAgICB9KTtcclxuICAgIH0gZmluYWxseSB7XHJcbiAgICAgIHNldExvYWRpbmcoZmFsc2UpO1xyXG4gICAgfVxyXG4gIH07XHJcblxyXG4gIGNvbnN0IGhhbmRsZVNpZ25VcCA9IGFzeW5jIChldmVudDogRm9ybUV2ZW50KSA9PiB7XHJcbiAgICBldmVudC5wcmV2ZW50RGVmYXVsdCgpO1xyXG4gICAgc2V0TG9hZGluZyh0cnVlKTtcclxuXHJcbiAgICBjb25zdCB0YXJnZXRFbWFpbCA9IGdldEZvcm1hdHRlZEVtYWlsKGlkZW50aWZpZXIpO1xyXG5cclxuICAgIHRyeSB7XHJcbiAgICAgIGNvbnN0IGVtYWlsUmVkaXJlY3RUbyA9IGAke3dpbmRvdy5sb2NhdGlvbi5vcmlnaW59L2A7XHJcbiAgICAgIGNvbnN0IHsgZGF0YSwgZXJyb3IgfSA9IGF3YWl0IHN1cGFiYXNlLmF1dGguc2lnblVwKHtcclxuICAgICAgICBlbWFpbDogdGFyZ2V0RW1haWwsXHJcbiAgICAgICAgcGFzc3dvcmQsXHJcbiAgICAgICAgb3B0aW9uczogeyBkYXRhOiB7IGZ1bGxfbmFtZTogbmFtZSB9LCBlbWFpbFJlZGlyZWN0VG8gfSxcclxuICAgICAgfSk7XHJcblxyXG4gICAgICBpZiAoZXJyb3IpIHRocm93IGVycm9yO1xyXG5cclxuICAgICAgaWYgKGRhdGEudXNlcj8uaWQpIHtcclxuICAgICAgICBjb25zdCByb2xlID0gZGVmYXVsdFJvbGVGb3JFbWFpbCh0YXJnZXRFbWFpbCk7XHJcbiAgICAgICAgYXdhaXQgc3VwYWJhc2UuZnJvbShcInVzZXJfcm9sZXNcIikuaW5zZXJ0KHsgdXNlcl9pZDogZGF0YS51c2VyLmlkLCByb2xlIH0pO1xyXG4gICAgICAgIGF3YWl0IGFkbWluUnBjLnJwYyhcImNvbmZpcm1fYWxsb3dlZF9hZG1pbl9lbWFpbFwiLCB7IHRhcmdldF9lbWFpbDogdGFyZ2V0RW1haWwgfSk7XHJcblxyXG4gICAgICAgIGNvbnN0IGF1dG9Mb2dpbiA9IGF3YWl0IHN1cGFiYXNlLmF1dGguc2lnbkluV2l0aFBhc3N3b3JkKHsgZW1haWw6IHRhcmdldEVtYWlsLCBwYXNzd29yZCB9KTtcclxuICAgICAgICBpZiAoIWF1dG9Mb2dpbi5lcnJvcikge1xyXG4gICAgICAgICAgdG9hc3Qoe1xyXG4gICAgICAgICAgICB0aXRsZTogXCJBa3VuIEJlcmhhc2lsIEFrdGlmXCIsXHJcbiAgICAgICAgICAgIGRlc2NyaXB0aW9uOiBcIlBlbmRhZnRhcmFuIHN1a3NlcyBkYW4gQW5kYSB0ZWxhaCBtYXN1ayBzZWNhcmEgb3RvbWF0aXMuXCIsXHJcbiAgICAgICAgICB9KTtcclxuICAgICAgICAgIHJldHVybjtcclxuICAgICAgICB9XHJcbiAgICAgIH1cclxuXHJcbiAgICAgIHRvYXN0KHsgdGl0bGU6IFwiUGVuZGFmdGFyYW4gYmVyaGFzaWxcIiwgZGVzY3JpcHRpb246IFwiU2lsYWthbiBiZXJhbGloIGtlIHRhYiBNYXN1ay5cIiB9KTtcclxuICAgICAgc2V0TW9kZShcImxvZ2luXCIpO1xyXG4gICAgICBzZXRQYXNzd29yZChcIlwiKTtcclxuICAgIH0gY2F0Y2ggKGVycm9yOiB1bmtub3duKSB7XHJcbiAgICAgIHRvYXN0KHsgdGl0bGU6IFwiUGVuZGFmdGFyYW4gZ2FnYWxcIiwgZGVzY3JpcHRpb246IGdldEVycm9yTWVzc2FnZShlcnJvciksIHZhcmlhbnQ6IFwiZGVzdHJ1Y3RpdmVcIiB9KTtcclxuICAgIH0gZmluYWxseSB7XHJcbiAgICAgIHNldExvYWRpbmcoZmFsc2UpO1xyXG4gICAgfVxyXG4gIH07XHJcblxyXG4gIGNvbnN0IGhhbmRsZVJlc2V0UGFzc3dvcmQgPSBhc3luYyAoZXZlbnQ6IEZvcm1FdmVudCkgPT4ge1xyXG4gICAgZXZlbnQucHJldmVudERlZmF1bHQoKTtcclxuICAgIHNldExvYWRpbmcodHJ1ZSk7XHJcblxyXG4gICAgY29uc3QgdGFyZ2V0RW1haWwgPSBnZXRGb3JtYXR0ZWRFbWFpbChpZGVudGlmaWVyKTtcclxuXHJcbiAgICB0cnkge1xyXG4gICAgICBjb25zdCByZWRpcmVjdFRvID0gYCR7d2luZG93LmxvY2F0aW9uLm9yaWdpbn0vcmVzZXQtcGFzc3dvcmRgO1xyXG4gICAgICBjb25zdCB7IGVycm9yIH0gPSBhd2FpdCBzdXBhYmFzZS5hdXRoLnJlc2V0UGFzc3dvcmRGb3JFbWFpbCh0YXJnZXRFbWFpbCwgeyByZWRpcmVjdFRvIH0pO1xyXG4gICAgICBpZiAoZXJyb3IpIHRocm93IGVycm9yO1xyXG5cclxuICAgICAgdG9hc3Qoe1xyXG4gICAgICAgIHRpdGxlOiBcIkVtYWlsIHJlc2V0IHRlcmtpcmltXCIsXHJcbiAgICAgICAgZGVzY3JpcHRpb246IGBMaW5rIHJlc2V0IHBhc3N3b3JkIHRlbGFoIGRpa2lyaW0ga2UgYWxhbWF0IGVtYWlsIHRlcmthaXQgKCR7dGFyZ2V0RW1haWx9KS5gLFxyXG4gICAgICB9KTtcclxuICAgICAgc2V0TW9kZShcImxvZ2luXCIpO1xyXG4gICAgfSBjYXRjaCAoZXJyb3I6IHVua25vd24pIHtcclxuICAgICAgdG9hc3QoeyB0aXRsZTogXCJSZXNldCBwYXNzd29yZCBnYWdhbFwiLCBkZXNjcmlwdGlvbjogZ2V0RXJyb3JNZXNzYWdlKGVycm9yKSwgdmFyaWFudDogXCJkZXN0cnVjdGl2ZVwiIH0pO1xyXG4gICAgfSBmaW5hbGx5IHtcclxuICAgICAgc2V0TG9hZGluZyhmYWxzZSk7XHJcbiAgICB9XHJcbiAgfTtcclxuXHJcbiAgY29uc3QgZmllbGRDbGFzcyA9XHJcbiAgICBcImgtWzUwcHhdIHJvdW5kZWQtbm9uZSBib3JkZXItd2hpdGUvNTUgYmctdHJhbnNwYXJlbnQgcGwtMTIgdGV4dC1bMTVweF0gdGV4dC13aGl0ZSBzaGFkb3ctW2luc2V0XzBfMF8wXzFweF9yZ2JhKDI1NSwyNTUsMjU1LDAuMDYpXSBwbGFjZWhvbGRlcjp0ZXh0LXNsYXRlLTMwMC82MiBmb2N1cy12aXNpYmxlOmJvcmRlci1lbWVyYWxkLTMwMCBmb2N1cy12aXNpYmxlOnJpbmctMSBmb2N1cy12aXNpYmxlOnJpbmctZW1lcmFsZC00MDBcIjtcclxuICBjb25zdCBsYWJlbENsYXNzID0gXCJ0ZXh0LXhzIGZvbnQtYmxhY2sgdXBwZXJjYXNlIHRyYWNraW5nLVswLjA1ZW1dIHRleHQtd2hpdGVcIjtcclxuICBjb25zdCBwcmltYXJ5QnV0dG9uQ2xhc3MgPVxyXG4gICAgXCJoLVs1MHB4XSB3LWZ1bGwgcm91bmRlZC1ub25lIGJnLWdyYWRpZW50LXRvLXIgZnJvbS1bIzEwYjk4YV0gdmlhLVsjMTBhNTdjXSB0by1bIzA3ODc2MV0gdGV4dC1zbSBmb250LWJsYWNrIHVwcGVyY2FzZSB0cmFja2luZy13aWRlIHRleHQtd2hpdGUgc2hhZG93LVswXzE4cHhfNDVweF9yZ2JhKDAsMTQ4LDEwMywwLjI4KV0gdHJhbnNpdGlvbi1hbGwgaG92ZXI6ZnJvbS1bIzE4Yzk5OF0gaG92ZXI6dG8tWyMwZDk0NmJdXCI7XHJcblxyXG4gIHJldHVybiAoXHJcbiAgICA8bWFpbiBjbGFzc05hbWU9XCJtaW4taC1zY3JlZW4gb3ZlcmZsb3ctaGlkZGVuIGJnLVsjMDIwODA2XSB0ZXh0LXdoaXRlIGxnOmZsZXhcIj5cclxuICAgICAgPHNlY3Rpb24gY2xhc3NOYW1lPVwicmVsYXRpdmUgaGlkZGVuIG1pbi1oLXNjcmVlbiBvdmVyZmxvdy1oaWRkZW4gbGc6YmxvY2sgbGc6dy1bNTYlXVwiPlxyXG4gICAgICAgIDxpbWdcclxuICAgICAgICAgIHNyYz17TE9HSU5fUkVGRVJFTkNFX1VSTH1cclxuICAgICAgICAgIGFsdD1cIlwiXHJcbiAgICAgICAgICBjbGFzc05hbWU9XCJhYnNvbHV0ZSBpbnNldC0wIGgtZnVsbCB3LWZ1bGwgb2JqZWN0LWNvdmVyIG9iamVjdC1sZWZ0XCJcclxuICAgICAgICAgIGFyaWEtaGlkZGVuPVwidHJ1ZVwiXHJcbiAgICAgICAgLz5cclxuICAgICAgPC9zZWN0aW9uPlxyXG5cclxuICAgICAgPHNlY3Rpb24gY2xhc3NOYW1lPVwicmVsYXRpdmUgaGlkZGVuIG1pbi1oLXNjcmVlbiBvdmVyZmxvdy1oaWRkZW4gYmctWyMwMjA4MDZdIGxnOmZsZXggbGc6dy1bNDQlXSBsZzppdGVtcy1jZW50ZXIgbGc6anVzdGlmeS1jZW50ZXIgbGc6cHgtMTIgeGw6cHgtMjBcIj5cclxuICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cInBvaW50ZXItZXZlbnRzLW5vbmUgYWJzb2x1dGUgaW5zZXQtMCBiZy1bcmFkaWFsLWdyYWRpZW50KGNpcmNsZV9hdF84NiVfOTMlLHJnYmEoNiwxNzAsMTEyLDAuMjgpLHRyYW5zcGFyZW50XzI0JSkscmFkaWFsLWdyYWRpZW50KGNpcmNsZV9hdF8yMCVfNCUscmdiYSgyNTUsMjU1LDI1NSwwLjA3KSx0cmFuc3BhcmVudF8xOCUpXVwiIC8+XHJcbiAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJwb2ludGVyLWV2ZW50cy1ub25lIGFic29sdXRlIGluc2V0LXktMCBsZWZ0LTAgdy1weCBiZy13aGl0ZS8xMlwiIC8+XHJcblxyXG4gICAgICAgIDxkaXYgY2xhc3NOYW1lPVwicmVsYXRpdmUgei0xMCB3LWZ1bGwgbWF4LXctWzQ1OHB4XVwiPlxyXG4gICAgICAgICAgICA8YSBocmVmPVwiL1wiIGNsYXNzTmFtZT1cIm1iLTEwIGlubGluZS1mbGV4IGl0ZW1zLWNlbnRlciBnYXAtMiB0ZXh0LXNtIGZvbnQtc2VtaWJvbGQgdGV4dC13aGl0ZS84MiB0cmFuc2l0aW9uLWNvbG9ycyBob3Zlcjp0ZXh0LXdoaXRlXCI+XHJcbiAgICAgICAgICAgICAgPEFycm93TGVmdCBjbGFzc05hbWU9XCJoLTQgdy00XCIgLz5cclxuICAgICAgICAgICAgICBLZW1iYWxpIGtlIGJlcmFuZGFcclxuICAgICAgICAgICAgPC9hPlxyXG5cclxuICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJtYi01IGZsZXggaXRlbXMtY2VudGVyIGdhcC00XCI+XHJcbiAgICAgICAgICAgICAgPHNwYW4gY2xhc3NOYW1lPVwiaC1weCB3LTEyIGJnLVsjMGVjNDg3XVwiIC8+XHJcbiAgICAgICAgICAgICAgPHNwYW4gY2xhc3NOYW1lPVwidGV4dC14cyBmb250LWJsYWNrIHVwcGVyY2FzZSB0cmFja2luZy1bMC41OGVtXSB0ZXh0LVsjMjBkZjljXVwiPkFyZWEgVGVyYmF0YXM8L3NwYW4+XHJcbiAgICAgICAgICAgIDwvZGl2PlxyXG4gICAgICAgICAgICA8aDIgY2xhc3NOYW1lPVwiZm9udC1oZWFkaW5nIHRleHQtWzM4cHhdIGZvbnQtYmxhY2sgdHJhY2tpbmctbm9ybWFsIHRleHQtd2hpdGUgZHJvcC1zaGFkb3ctWzBfNXB4XzBfcmdiYSgyNTUsMjU1LDI1NSwwLjEpXVwiPlxyXG4gICAgICAgICAgICAgIHttb2RlID09PSBcInNpZ251cFwiID8gXCJCdWF0IEFrdW5cIiA6IG1vZGUgPT09IFwicmVzZXRcIiA/IFwiUmVzZXQgUGFzc3dvcmRcIiA6IFwiTG9naW4gQWRtaW5cIn1cclxuICAgICAgICAgICAgPC9oMj5cclxuICAgICAgICAgICAgPHAgY2xhc3NOYW1lPVwibXQtNCBtYXgtdy1bNDIwcHhdIHRleHQtYmFzZSBsZWFkaW5nLTggdGV4dC13aGl0ZS84OFwiPlxyXG4gICAgICAgICAgICAgIHttb2RlID09PSBcInNpZ251cFwiXHJcbiAgICAgICAgICAgICAgICA/IFwiRGFmdGFya2FuIGFrc2VzIGJhcnUgdW50dWsgdGltIEZhem1hIFN0b25lLlwiXHJcbiAgICAgICAgICAgICAgICA6IG1vZGUgPT09IFwicmVzZXRcIlxyXG4gICAgICAgICAgICAgICAgICA/IFwiTWFzdWtrYW4gdXNlcm5hbWUgYXRhdSBlbWFpbCB1bnR1ayBtZW5lcmltYSBpbnN0cnVrc2kgcmVzZXQuXCJcclxuICAgICAgICAgICAgICAgICAgOiBcIk1hc3VrIHVudHVrIG1lbmdlbG9sYSBpbnZlbnRhcmlzIGRhbiBkYXNoYm9hcmQgb3BlcmFzaW9uYWwuXCJ9XHJcbiAgICAgICAgICAgIDwvcD5cclxuXHJcbiAgICAgICAgICAgIHttb2RlID09PSBcInJlc2V0XCIgPyAoXHJcbiAgICAgICAgICAgICAgPGZvcm0gb25TdWJtaXQ9e2hhbmRsZVJlc2V0UGFzc3dvcmR9IGNsYXNzTmFtZT1cIm10LTEwIHNwYWNlLXktNlwiPlxyXG4gICAgICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJzcGFjZS15LTNcIj5cclxuICAgICAgICAgICAgICAgICAgPExhYmVsIGh0bWxGb3I9XCJkZXNrdG9wLXJlc2V0LWlkZW50aWZpZXJcIiBjbGFzc05hbWU9e2xhYmVsQ2xhc3N9PlxyXG4gICAgICAgICAgICAgICAgICAgIFVzZXJuYW1lIGF0YXUgRW1haWxcclxuICAgICAgICAgICAgICAgICAgPC9MYWJlbD5cclxuICAgICAgICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJyZWxhdGl2ZVwiPlxyXG4gICAgICAgICAgICAgICAgICAgIDxNYWlsIGNsYXNzTmFtZT1cImFic29sdXRlIGxlZnQtNCB0b3AtMS8yIGgtNCB3LTQgLXRyYW5zbGF0ZS15LTEvMiB0ZXh0LXdoaXRlLzcyXCIgLz5cclxuICAgICAgICAgICAgICAgICAgICA8SW5wdXRcclxuICAgICAgICAgICAgICAgICAgICAgIGlkPVwiZGVza3RvcC1yZXNldC1pZGVudGlmaWVyXCJcclxuICAgICAgICAgICAgICAgICAgICAgIHR5cGU9XCJ0ZXh0XCJcclxuICAgICAgICAgICAgICAgICAgICAgIHZhbHVlPXtpZGVudGlmaWVyfVxyXG4gICAgICAgICAgICAgICAgICAgICAgb25DaGFuZ2U9eyhldmVudCkgPT4gc2V0SWRlbnRpZmllcihldmVudC50YXJnZXQudmFsdWUpfVxyXG4gICAgICAgICAgICAgICAgICAgICAgcGxhY2Vob2xkZXI9XCJhZG1pbiBhdGF1IGVtYWlsQGZhem1hc3RvbmUuY29tXCJcclxuICAgICAgICAgICAgICAgICAgICAgIGNsYXNzTmFtZT17ZmllbGRDbGFzc31cclxuICAgICAgICAgICAgICAgICAgICAgIHJlcXVpcmVkXHJcbiAgICAgICAgICAgICAgICAgICAgLz5cclxuICAgICAgICAgICAgICAgICAgPC9kaXY+XHJcbiAgICAgICAgICAgICAgICA8L2Rpdj5cclxuXHJcbiAgICAgICAgICAgICAgICA8QnV0dG9uIHR5cGU9XCJzdWJtaXRcIiBjbGFzc05hbWU9e3ByaW1hcnlCdXR0b25DbGFzc30gZGlzYWJsZWQ9e2xvYWRpbmd9PlxyXG4gICAgICAgICAgICAgICAgICB7bG9hZGluZyA/IFwiTWVuZ2lyaW0uLi5cIiA6IFwiS2lyaW0gTGluayBSZXNldFwifVxyXG4gICAgICAgICAgICAgICAgPC9CdXR0b24+XHJcblxyXG4gICAgICAgICAgICAgICAgPGJ1dHRvbiB0eXBlPVwiYnV0dG9uXCIgY2xhc3NOYW1lPVwibXgtYXV0byBmbGV4IGl0ZW1zLWNlbnRlciBnYXAtMiB0ZXh0LXNtIHRleHQtd2hpdGUvNTUgaG92ZXI6dGV4dC13aGl0ZVwiIG9uQ2xpY2s9eygpID0+IHNldE1vZGUoXCJsb2dpblwiKX0+XHJcbiAgICAgICAgICAgICAgICAgIDxDaGV2cm9uTGVmdCBjbGFzc05hbWU9XCJoLTQgdy00XCIgLz5cclxuICAgICAgICAgICAgICAgICAgS2VtYmFsaSBrZSBsb2dpblxyXG4gICAgICAgICAgICAgICAgPC9idXR0b24+XHJcbiAgICAgICAgICAgICAgPC9mb3JtPlxyXG4gICAgICAgICAgICApIDogbW9kZSA9PT0gXCJzaWdudXBcIiA/IChcclxuICAgICAgICAgICAgICA8Zm9ybSBvblN1Ym1pdD17aGFuZGxlU2lnblVwfSBjbGFzc05hbWU9XCJtdC0xMCBzcGFjZS15LTZcIj5cclxuICAgICAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwic3BhY2UteS0zXCI+XHJcbiAgICAgICAgICAgICAgICAgIDxMYWJlbCBodG1sRm9yPVwiZGVza3RvcC1zaWdudXAtbmFtZVwiIGNsYXNzTmFtZT17bGFiZWxDbGFzc30+XHJcbiAgICAgICAgICAgICAgICAgICAgTmFtYSBMZW5na2FwXHJcbiAgICAgICAgICAgICAgICAgIDwvTGFiZWw+XHJcbiAgICAgICAgICAgICAgICAgIDxJbnB1dFxyXG4gICAgICAgICAgICAgICAgICAgIGlkPVwiZGVza3RvcC1zaWdudXAtbmFtZVwiXHJcbiAgICAgICAgICAgICAgICAgICAgdmFsdWU9e25hbWV9XHJcbiAgICAgICAgICAgICAgICAgICAgb25DaGFuZ2U9eyhldmVudCkgPT4gc2V0TmFtZShldmVudC50YXJnZXQudmFsdWUpfVxyXG4gICAgICAgICAgICAgICAgICAgIHBsYWNlaG9sZGVyPVwiTmFtYSBsZW5na2FwXCJcclxuICAgICAgICAgICAgICAgICAgICBjbGFzc05hbWU9XCJoLVs1NHB4XSByb3VuZGVkLW5vbmUgYm9yZGVyLXdoaXRlLzQwIGJnLXRyYW5zcGFyZW50IHRleHQtWzE1cHhdIHRleHQtd2hpdGUgc2hhZG93LVtpbnNldF8wXzBfMF8xcHhfcmdiYSgyNTUsMjU1LDI1NSwwLjA4KV0gcGxhY2Vob2xkZXI6dGV4dC1zbGF0ZS0zMDAvNjAgZm9jdXMtdmlzaWJsZTpib3JkZXItZW1lcmFsZC0zMDAgZm9jdXMtdmlzaWJsZTpyaW5nLTEgZm9jdXMtdmlzaWJsZTpyaW5nLWVtZXJhbGQtNDAwXCJcclxuICAgICAgICAgICAgICAgICAgICByZXF1aXJlZFxyXG4gICAgICAgICAgICAgICAgICAvPlxyXG4gICAgICAgICAgICAgICAgPC9kaXY+XHJcblxyXG4gICAgICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJzcGFjZS15LTNcIj5cclxuICAgICAgICAgICAgICAgICAgPExhYmVsIGh0bWxGb3I9XCJkZXNrdG9wLXNpZ251cC1pZGVudGlmaWVyXCIgY2xhc3NOYW1lPXtsYWJlbENsYXNzfT5cclxuICAgICAgICAgICAgICAgICAgICBVc2VybmFtZSBhdGF1IEVtYWlsIEJhcnVcclxuICAgICAgICAgICAgICAgICAgPC9MYWJlbD5cclxuICAgICAgICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJyZWxhdGl2ZVwiPlxyXG4gICAgICAgICAgICAgICAgICAgIDxVc2VyIGNsYXNzTmFtZT1cImFic29sdXRlIGxlZnQtNCB0b3AtMS8yIGgtNCB3LTQgLXRyYW5zbGF0ZS15LTEvMiB0ZXh0LXdoaXRlLzcyXCIgLz5cclxuICAgICAgICAgICAgICAgICAgICA8SW5wdXRcclxuICAgICAgICAgICAgICAgICAgICAgIGlkPVwiZGVza3RvcC1zaWdudXAtaWRlbnRpZmllclwiXHJcbiAgICAgICAgICAgICAgICAgICAgICB0eXBlPVwidGV4dFwiXHJcbiAgICAgICAgICAgICAgICAgICAgICB2YWx1ZT17aWRlbnRpZmllcn1cclxuICAgICAgICAgICAgICAgICAgICAgIG9uQ2hhbmdlPXsoZXZlbnQpID0+IHNldElkZW50aWZpZXIoZXZlbnQudGFyZ2V0LnZhbHVlKX1cclxuICAgICAgICAgICAgICAgICAgICAgIHBsYWNlaG9sZGVyPVwidXNlcm5hbWUgYmFydVwiXHJcbiAgICAgICAgICAgICAgICAgICAgICBjbGFzc05hbWU9e2ZpZWxkQ2xhc3N9XHJcbiAgICAgICAgICAgICAgICAgICAgICByZXF1aXJlZFxyXG4gICAgICAgICAgICAgICAgICAgIC8+XHJcbiAgICAgICAgICAgICAgICAgIDwvZGl2PlxyXG4gICAgICAgICAgICAgICAgPC9kaXY+XHJcblxyXG4gICAgICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJzcGFjZS15LTNcIj5cclxuICAgICAgICAgICAgICAgICAgPExhYmVsIGh0bWxGb3I9XCJkZXNrdG9wLXNpZ251cC1wYXNzd29yZFwiIGNsYXNzTmFtZT17bGFiZWxDbGFzc30+XHJcbiAgICAgICAgICAgICAgICAgICAgUGFzc3dvcmQgQmFydVxyXG4gICAgICAgICAgICAgICAgICA8L0xhYmVsPlxyXG4gICAgICAgICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cInJlbGF0aXZlXCI+XHJcbiAgICAgICAgICAgICAgICAgICAgPExvY2sgY2xhc3NOYW1lPVwiYWJzb2x1dGUgbGVmdC00IHRvcC0xLzIgaC00IHctNCAtdHJhbnNsYXRlLXktMS8yIHRleHQtd2hpdGUvNzJcIiAvPlxyXG4gICAgICAgICAgICAgICAgICAgIDxJbnB1dFxyXG4gICAgICAgICAgICAgICAgICAgICAgaWQ9XCJkZXNrdG9wLXNpZ251cC1wYXNzd29yZFwiXHJcbiAgICAgICAgICAgICAgICAgICAgICB0eXBlPVwicGFzc3dvcmRcIlxyXG4gICAgICAgICAgICAgICAgICAgICAgdmFsdWU9e3Bhc3N3b3JkfVxyXG4gICAgICAgICAgICAgICAgICAgICAgb25DaGFuZ2U9eyhldmVudCkgPT4gc2V0UGFzc3dvcmQoZXZlbnQudGFyZ2V0LnZhbHVlKX1cclxuICAgICAgICAgICAgICAgICAgICAgIHBsYWNlaG9sZGVyPVwiTWluaW1hbCA2IGthcmFrdGVyXCJcclxuICAgICAgICAgICAgICAgICAgICAgIGNsYXNzTmFtZT17ZmllbGRDbGFzc31cclxuICAgICAgICAgICAgICAgICAgICAgIHJlcXVpcmVkXHJcbiAgICAgICAgICAgICAgICAgICAgICBtaW5MZW5ndGg9ezZ9XHJcbiAgICAgICAgICAgICAgICAgICAgLz5cclxuICAgICAgICAgICAgICAgICAgPC9kaXY+XHJcbiAgICAgICAgICAgICAgICA8L2Rpdj5cclxuXHJcbiAgICAgICAgICAgICAgICA8QnV0dG9uIHR5cGU9XCJzdWJtaXRcIiBjbGFzc05hbWU9e3ByaW1hcnlCdXR0b25DbGFzc30gZGlzYWJsZWQ9e2xvYWRpbmd9PlxyXG4gICAgICAgICAgICAgICAgICB7bG9hZGluZyA/IFwiTWVuZGFmdGFya2FuLi4uXCIgOiBcIkRhZnRhcmthbiBBa3VuXCJ9XHJcbiAgICAgICAgICAgICAgICA8L0J1dHRvbj5cclxuXHJcbiAgICAgICAgICAgICAgICA8cCBjbGFzc05hbWU9XCJ0ZXh0LWNlbnRlciB0ZXh0LXNtIHRleHQtd2hpdGUvNTJcIj5cclxuICAgICAgICAgICAgICAgICAgU3VkYWggcHVueWEgYWt1bj97XCIgXCJ9XHJcbiAgICAgICAgICAgICAgICAgIDxidXR0b24gdHlwZT1cImJ1dHRvblwiIGNsYXNzTmFtZT1cImZvbnQtYm9sZCB0ZXh0LWVtZXJhbGQtNDAwIGhvdmVyOnRleHQtZW1lcmFsZC0zMDBcIiBvbkNsaWNrPXsoKSA9PiBzZXRNb2RlKFwibG9naW5cIil9PlxyXG4gICAgICAgICAgICAgICAgICAgIE1hc3VrXHJcbiAgICAgICAgICAgICAgICAgIDwvYnV0dG9uPlxyXG4gICAgICAgICAgICAgICAgPC9wPlxyXG4gICAgICAgICAgICAgIDwvZm9ybT5cclxuICAgICAgICAgICAgKSA6IChcclxuICAgICAgICAgICAgICA8Zm9ybSBvblN1Ym1pdD17aGFuZGxlTG9naW59IGNsYXNzTmFtZT1cIm10LTEwIHNwYWNlLXktNlwiPlxyXG4gICAgICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJzcGFjZS15LTNcIj5cclxuICAgICAgICAgICAgICAgICAgPExhYmVsIGh0bWxGb3I9XCJkZXNrdG9wLWxvZ2luLWlkZW50aWZpZXJcIiBjbGFzc05hbWU9e2xhYmVsQ2xhc3N9PlxyXG4gICAgICAgICAgICAgICAgICAgIEVtYWlsIC8gVXNlcm5hbWVcclxuICAgICAgICAgICAgICAgICAgPC9MYWJlbD5cclxuICAgICAgICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJyZWxhdGl2ZVwiPlxyXG4gICAgICAgICAgICAgICAgICAgIDxNYWlsIGNsYXNzTmFtZT1cImFic29sdXRlIGxlZnQtNCB0b3AtMS8yIGgtNCB3LTQgLXRyYW5zbGF0ZS15LTEvMiB0ZXh0LXdoaXRlLzcyXCIgLz5cclxuICAgICAgICAgICAgICAgICAgICA8SW5wdXRcclxuICAgICAgICAgICAgICAgICAgICAgIGlkPVwiZGVza3RvcC1sb2dpbi1pZGVudGlmaWVyXCJcclxuICAgICAgICAgICAgICAgICAgICAgIHR5cGU9XCJ0ZXh0XCJcclxuICAgICAgICAgICAgICAgICAgICAgIHZhbHVlPXtpZGVudGlmaWVyfVxyXG4gICAgICAgICAgICAgICAgICAgICAgb25DaGFuZ2U9eyhldmVudCkgPT4gc2V0SWRlbnRpZmllcihldmVudC50YXJnZXQudmFsdWUpfVxyXG4gICAgICAgICAgICAgICAgICAgICAgcGxhY2Vob2xkZXI9XCJhZG1pbiBhdGF1IGVtYWlsQGZhem1hc3RvbmUuY29tXCJcclxuICAgICAgICAgICAgICAgICAgICAgIGNsYXNzTmFtZT17ZmllbGRDbGFzc31cclxuICAgICAgICAgICAgICAgICAgICAgIHJlcXVpcmVkXHJcbiAgICAgICAgICAgICAgICAgICAgLz5cclxuICAgICAgICAgICAgICAgICAgPC9kaXY+XHJcbiAgICAgICAgICAgICAgICA8L2Rpdj5cclxuXHJcbiAgICAgICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cInNwYWNlLXktM1wiPlxyXG4gICAgICAgICAgICAgICAgICA8TGFiZWwgaHRtbEZvcj1cImRlc2t0b3AtbG9naW4tcGFzc3dvcmRcIiBjbGFzc05hbWU9e2xhYmVsQ2xhc3N9PlxyXG4gICAgICAgICAgICAgICAgICAgIFBhc3N3b3JkXHJcbiAgICAgICAgICAgICAgICAgIDwvTGFiZWw+XHJcbiAgICAgICAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwicmVsYXRpdmVcIj5cclxuICAgICAgICAgICAgICAgICAgICA8TG9jayBjbGFzc05hbWU9XCJhYnNvbHV0ZSBsZWZ0LTQgdG9wLTEvMiBoLTQgdy00IC10cmFuc2xhdGUteS0xLzIgdGV4dC13aGl0ZS83MlwiIC8+XHJcbiAgICAgICAgICAgICAgICAgICAgPElucHV0XHJcbiAgICAgICAgICAgICAgICAgICAgICBpZD1cImRlc2t0b3AtbG9naW4tcGFzc3dvcmRcIlxyXG4gICAgICAgICAgICAgICAgICAgICAgdHlwZT1cInBhc3N3b3JkXCJcclxuICAgICAgICAgICAgICAgICAgICAgIHZhbHVlPXtwYXNzd29yZH1cclxuICAgICAgICAgICAgICAgICAgICAgIG9uQ2hhbmdlPXsoZXZlbnQpID0+IHNldFBhc3N3b3JkKGV2ZW50LnRhcmdldC52YWx1ZSl9XHJcbiAgICAgICAgICAgICAgICAgICAgICBwbGFjZWhvbGRlcj1cIk1hc3Vra2FuIHBhc3N3b3JkXCJcclxuICAgICAgICAgICAgICAgICAgICAgIGNsYXNzTmFtZT17ZmllbGRDbGFzc31cclxuICAgICAgICAgICAgICAgICAgICAgIHJlcXVpcmVkXHJcbiAgICAgICAgICAgICAgICAgICAgICBtaW5MZW5ndGg9ezZ9XHJcbiAgICAgICAgICAgICAgICAgICAgLz5cclxuICAgICAgICAgICAgICAgICAgPC9kaXY+XHJcbiAgICAgICAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwiZmxleCBqdXN0aWZ5LWVuZFwiPlxyXG4gICAgICAgICAgICAgICAgICAgIDxidXR0b24gdHlwZT1cImJ1dHRvblwiIG9uQ2xpY2s9eygpID0+IHNldE1vZGUoXCJyZXNldFwiKX0gY2xhc3NOYW1lPVwidGV4dC14cyBmb250LWJvbGQgdGV4dC1lbWVyYWxkLTQwMCBob3Zlcjp0ZXh0LWVtZXJhbGQtMzAwXCI+XHJcbiAgICAgICAgICAgICAgICAgICAgICBMdXBhIHBhc3N3b3JkP1xyXG4gICAgICAgICAgICAgICAgICAgIDwvYnV0dG9uPlxyXG4gICAgICAgICAgICAgICAgICA8L2Rpdj5cclxuICAgICAgICAgICAgICAgIDwvZGl2PlxyXG5cclxuICAgICAgICAgICAgICAgIDxCdXR0b24gdHlwZT1cInN1Ym1pdFwiIGNsYXNzTmFtZT17cHJpbWFyeUJ1dHRvbkNsYXNzfSBkaXNhYmxlZD17bG9hZGluZ30+XHJcbiAgICAgICAgICAgICAgICAgIHtsb2FkaW5nID8gXCJNZW1wcm9zZXMuLi5cIiA6IFwiTWFzdWsga2UgRGFzaGJvYXJkXCJ9XHJcbiAgICAgICAgICAgICAgICA8L0J1dHRvbj5cclxuXHJcbiAgICAgICAgICAgICAgICA8cCBjbGFzc05hbWU9XCJ0ZXh0LWNlbnRlciB0ZXh0LXhzIHRleHQtd2hpdGUvNTJcIj5cclxuICAgICAgICAgICAgICAgICAgQWt1biBiYXJ1IGhhbnlhIGRhcGF0IGRpYnVhdCBvbGVoIGFkbWluIG1lbGFsdWkgUm9sZSBNYW5hZ2VtZW50LlxyXG4gICAgICAgICAgICAgICAgPC9wPlxyXG4gICAgICAgICAgICAgIDwvZm9ybT5cclxuICAgICAgICAgICAgKX1cclxuICAgICAgICAgIDwvZGl2PlxyXG4gICAgICA8L3NlY3Rpb24+XHJcblxyXG4gICAgICA8c2VjdGlvbiBjbGFzc05hbWU9XCJyZWxhdGl2ZSBtaW4taC1zY3JlZW4gdy1mdWxsIG92ZXJmbG93LWhpZGRlbiBiZy1bIzAyMDgwNl0gbGc6aGlkZGVuXCI+XHJcbiAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJyZWxhdGl2ZSBoLVszNHN2aF0gbWluLWgtWzIyMHB4XSBtYXgtaC1bMzIwcHhdIG92ZXJmbG93LWhpZGRlblwiPlxuICAgICAgICAgIDxpbWdcclxuICAgICAgICAgICAgc3JjPXtMT0dJTl9SRUZFUkVOQ0VfVVJMfVxyXG4gICAgICAgICAgICBhbHQ9XCJEaXNwbGF5IGJhdHUgYWxhbSBGYXptYSBTdG9uZVwiXHJcbiAgICAgICAgICAgIGNsYXNzTmFtZT1cImFic29sdXRlIGluc2V0LTAgaC1mdWxsIHctZnVsbCBvYmplY3QtY292ZXIgb2JqZWN0LWxlZnQtdG9wXCJcclxuICAgICAgICAgIC8+XHJcbiAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cImFic29sdXRlIGluc2V0LTAgYmctW2xpbmVhci1ncmFkaWVudCgxODBkZWcscmdiYSgyLDgsNiwwLjAyKSxyZ2JhKDIsOCw2LDAuNzgpKSxsaW5lYXItZ3JhZGllbnQoOTBkZWcscmdiYSgyLDgsNiwwLjA0KSxyZ2JhKDIsOCw2LDAuMzQpKV1cIiAvPlxuICAgICAgICA8L2Rpdj5cblxuICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cInJlbGF0aXZlIHotMTAgLW10LTUgcm91bmRlZC10LVsyNHB4XSBiZy1bIzAyMDgwNl0vOTYgcHgtNSBwYi0xMCBwdC03IHNoYWRvdy1bMF8tMjRweF84MHB4X3JnYmEoMCwwLDAsMC40NSldIHNtOnB4LTggc206cGItMTQgc206cHQtMTBcIj5cbiAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cInBvaW50ZXItZXZlbnRzLW5vbmUgYWJzb2x1dGUgaW5zZXQtMCByb3VuZGVkLXQtWzI0cHhdIGJnLVtyYWRpYWwtZ3JhZGllbnQoY2lyY2xlX2F0Xzg2JV84JSxyZ2JhKDYsMTcwLDExMiwwLjIpLHRyYW5zcGFyZW50XzMwJSksbGluZWFyLWdyYWRpZW50KDExMGRlZyxyZ2JhKDI1NSwyNTUsMjU1LDAuMDE4KSx0cmFuc3BhcmVudF80NSUpXVwiIC8+XG5cbiAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cInJlbGF0aXZlIHotMTAgdy1mdWxsIG1pbi13LTAgbWF4LXctWzM0MnB4XSBzbTpteC1hdXRvIHNtOm1heC13LVs0NThweF1cIj5cbiAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cIm1iLTggc206bWItMTJcIj5cbiAgICAgICAgICAgIDxhXG4gICAgICAgICAgICAgIGhyZWY9XCIvXCJcbiAgICAgICAgICAgICAgY2xhc3NOYW1lPVwibWItNyBpbmxpbmUtZmxleCBpdGVtcy1jZW50ZXIgZ2FwLTIgdGV4dC1zbSBmb250LXNlbWlib2xkIHRleHQtd2hpdGUvODIgdHJhbnNpdGlvbi1jb2xvcnMgaG92ZXI6dGV4dC13aGl0ZSBzbTptYi0xMFwiXG4gICAgICAgICAgICA+XG4gICAgICAgICAgICAgIDxBcnJvd0xlZnQgY2xhc3NOYW1lPVwiaC00IHctNFwiIC8+XG4gICAgICAgICAgICAgIEtlbWJhbGkga2UgYmVyYW5kYVxuICAgICAgICAgICAgPC9hPlxuXG4gICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cIm1iLTQgZmxleCBpdGVtcy1jZW50ZXIgZ2FwLTQgc206bWItNVwiPlxuICAgICAgICAgICAgICA8c3BhbiBjbGFzc05hbWU9XCJoLXB4IHctMTAgYmctWyMwZWM0ODddIHNtOnctMTJcIiAvPlxuICAgICAgICAgICAgICA8c3BhbiBjbGFzc05hbWU9XCJ0ZXh0LVsxMXB4XSBmb250LWJsYWNrIHVwcGVyY2FzZSB0cmFja2luZy1bMC40MmVtXSB0ZXh0LVsjMjBkZjljXSBzbTp0ZXh0LXhzIHNtOnRyYWNraW5nLVswLjU4ZW1dXCI+QXJlYSBUZXJiYXRhczwvc3Bhbj5cbiAgICAgICAgICAgIDwvZGl2PlxuICAgICAgICAgICAgPGgyIGNsYXNzTmFtZT1cImZvbnQtaGVhZGluZyB0ZXh0LVszNHB4XSBmb250LWJsYWNrIGxlYWRpbmctdGlnaHQgdHJhY2tpbmctbm9ybWFsIHRleHQtd2hpdGUgZHJvcC1zaGFkb3ctWzBfNXB4XzBfcmdiYSgyNTUsMjU1LDI1NSwwLjEpXSBzbTp0ZXh0LVszOHB4XVwiPlxuICAgICAgICAgICAgICB7bW9kZSA9PT0gXCJzaWdudXBcIiA/IFwiQnVhdCBBa3VuXCIgOiBtb2RlID09PSBcInJlc2V0XCIgPyBcIlJlc2V0IFBhc3N3b3JkXCIgOiBcIkxvZ2luIEFkbWluXCJ9XG4gICAgICAgICAgICA8L2gyPlxuICAgICAgICAgICAgPHAgY2xhc3NOYW1lPVwibXQtMyBtYXgtdy1bNDIwcHhdIHRleHQtWzE1cHhdIGxlYWRpbmctNyB0ZXh0LXdoaXRlLzg4IHNtOm10LTQgc206dGV4dC1iYXNlIHNtOmxlYWRpbmctOFwiPlxuICAgICAgICAgICAgICB7bW9kZSA9PT0gXCJzaWdudXBcIlxuICAgICAgICAgICAgICAgID8gXCJEYWZ0YXJrYW4gYWtzZXMgYmFydSB1bnR1ayB0aW0gRmF6bWEgU3RvbmUuXCJcbiAgICAgICAgICAgICAgICA6IG1vZGUgPT09IFwicmVzZXRcIlxuICAgICAgICAgICAgICAgICAgPyBcIk1hc3Vra2FuIHVzZXJuYW1lIGF0YXUgZW1haWwgdW50dWsgbWVuZXJpbWEgaW5zdHJ1a3NpIHJlc2V0LlwiXHJcbiAgICAgICAgICAgICAgICAgIDogXCJNYXN1ayB1bnR1ayBtZW5nZWxvbGEgaW52ZW50YXJpcyBkYW4gZGFzaGJvYXJkIG9wZXJhc2lvbmFsLlwifVxyXG4gICAgICAgICAgICA8L3A+XHJcbiAgICAgICAgICA8L2Rpdj5cclxuXHJcbiAgICAgICAgICB7bW9kZSA9PT0gXCJyZXNldFwiID8gKFxyXG4gICAgICAgICAgICA8Zm9ybSBvblN1Ym1pdD17aGFuZGxlUmVzZXRQYXNzd29yZH0gY2xhc3NOYW1lPVwic3BhY2UteS01IHNtOnNwYWNlLXktNlwiPlxuICAgICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cInNwYWNlLXktM1wiPlxyXG4gICAgICAgICAgICAgICAgPExhYmVsIGh0bWxGb3I9XCJyZXNldC1pZGVudGlmaWVyXCIgY2xhc3NOYW1lPXtsYWJlbENsYXNzfT5cclxuICAgICAgICAgICAgICAgICAgVXNlcm5hbWUgYXRhdSBFbWFpbFxyXG4gICAgICAgICAgICAgICAgPC9MYWJlbD5cclxuICAgICAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwicmVsYXRpdmVcIj5cclxuICAgICAgICAgICAgICAgICAgPE1haWwgY2xhc3NOYW1lPVwiYWJzb2x1dGUgbGVmdC00IHRvcC0xLzIgaC00IHctNCAtdHJhbnNsYXRlLXktMS8yIHRleHQtd2hpdGUvNzJcIiAvPlxyXG4gICAgICAgICAgICAgICAgICA8SW5wdXRcclxuICAgICAgICAgICAgICAgICAgICBpZD1cInJlc2V0LWlkZW50aWZpZXJcIlxyXG4gICAgICAgICAgICAgICAgICAgIHR5cGU9XCJ0ZXh0XCJcclxuICAgICAgICAgICAgICAgICAgICB2YWx1ZT17aWRlbnRpZmllcn1cclxuICAgICAgICAgICAgICAgICAgICBvbkNoYW5nZT17KGV2ZW50KSA9PiBzZXRJZGVudGlmaWVyKGV2ZW50LnRhcmdldC52YWx1ZSl9XHJcbiAgICAgICAgICAgICAgICAgICAgcGxhY2Vob2xkZXI9XCJhZG1pbiBhdGF1IGVtYWlsQGZhem1hc3RvbmUuY29tXCJcclxuICAgICAgICAgICAgICAgICAgICBjbGFzc05hbWU9e2ZpZWxkQ2xhc3N9XHJcbiAgICAgICAgICAgICAgICAgICAgcmVxdWlyZWRcclxuICAgICAgICAgICAgICAgICAgLz5cclxuICAgICAgICAgICAgICAgIDwvZGl2PlxyXG4gICAgICAgICAgICAgIDwvZGl2PlxyXG5cclxuICAgICAgICAgICAgICA8QnV0dG9uIHR5cGU9XCJzdWJtaXRcIiBjbGFzc05hbWU9e3ByaW1hcnlCdXR0b25DbGFzc30gZGlzYWJsZWQ9e2xvYWRpbmd9PlxyXG4gICAgICAgICAgICAgICAge2xvYWRpbmcgPyBcIk1lbmdpcmltLi4uXCIgOiBcIktpcmltIExpbmsgUmVzZXRcIn1cclxuICAgICAgICAgICAgICA8L0J1dHRvbj5cclxuXHJcbiAgICAgICAgICAgICAgPGJ1dHRvbiB0eXBlPVwiYnV0dG9uXCIgY2xhc3NOYW1lPVwibXgtYXV0byBmbGV4IGl0ZW1zLWNlbnRlciBnYXAtMiB0ZXh0LXNtIHRleHQtd2hpdGUvNTUgaG92ZXI6dGV4dC13aGl0ZVwiIG9uQ2xpY2s9eygpID0+IHNldE1vZGUoXCJsb2dpblwiKX0+XHJcbiAgICAgICAgICAgICAgICA8Q2hldnJvbkxlZnQgY2xhc3NOYW1lPVwiaC00IHctNFwiIC8+XHJcbiAgICAgICAgICAgICAgICBLZW1iYWxpIGtlIGxvZ2luXHJcbiAgICAgICAgICAgICAgPC9idXR0b24+XHJcbiAgICAgICAgICAgIDwvZm9ybT5cclxuICAgICAgICAgICkgOiBtb2RlID09PSBcInNpZ251cFwiID8gKFxyXG4gICAgICAgICAgICA8Zm9ybSBvblN1Ym1pdD17aGFuZGxlU2lnblVwfSBjbGFzc05hbWU9XCJzcGFjZS15LTUgc206c3BhY2UteS02XCI+XG4gICAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwic3BhY2UteS0zXCI+XHJcbiAgICAgICAgICAgICAgICA8TGFiZWwgaHRtbEZvcj1cInNpZ251cC1uYW1lXCIgY2xhc3NOYW1lPXtsYWJlbENsYXNzfT5cclxuICAgICAgICAgICAgICAgICAgTmFtYSBMZW5na2FwXHJcbiAgICAgICAgICAgICAgICA8L0xhYmVsPlxyXG4gICAgICAgICAgICAgICAgPElucHV0XHJcbiAgICAgICAgICAgICAgICAgIGlkPVwic2lnbnVwLW5hbWVcIlxyXG4gICAgICAgICAgICAgICAgICB2YWx1ZT17bmFtZX1cclxuICAgICAgICAgICAgICAgICAgb25DaGFuZ2U9eyhldmVudCkgPT4gc2V0TmFtZShldmVudC50YXJnZXQudmFsdWUpfVxyXG4gICAgICAgICAgICAgICAgICBwbGFjZWhvbGRlcj1cIk5hbWEgbGVuZ2thcFwiXHJcbiAgICAgICAgICAgICAgICAgIGNsYXNzTmFtZT1cImgtWzU0cHhdIHJvdW5kZWQtbm9uZSBib3JkZXItd2hpdGUvNDAgYmctdHJhbnNwYXJlbnQgdGV4dC1bMTVweF0gdGV4dC13aGl0ZSBzaGFkb3ctW2luc2V0XzBfMF8wXzFweF9yZ2JhKDI1NSwyNTUsMjU1LDAuMDgpXSBwbGFjZWhvbGRlcjp0ZXh0LXNsYXRlLTMwMC82MCBmb2N1cy12aXNpYmxlOmJvcmRlci1lbWVyYWxkLTMwMCBmb2N1cy12aXNpYmxlOnJpbmctMSBmb2N1cy12aXNpYmxlOnJpbmctZW1lcmFsZC00MDBcIlxyXG4gICAgICAgICAgICAgICAgICByZXF1aXJlZFxyXG4gICAgICAgICAgICAgICAgLz5cclxuICAgICAgICAgICAgICA8L2Rpdj5cclxuXHJcbiAgICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJzcGFjZS15LTNcIj5cclxuICAgICAgICAgICAgICAgIDxMYWJlbCBodG1sRm9yPVwic2lnbnVwLWlkZW50aWZpZXJcIiBjbGFzc05hbWU9e2xhYmVsQ2xhc3N9PlxyXG4gICAgICAgICAgICAgICAgICBVc2VybmFtZSBhdGF1IEVtYWlsIEJhcnVcclxuICAgICAgICAgICAgICAgIDwvTGFiZWw+XHJcbiAgICAgICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cInJlbGF0aXZlXCI+XHJcbiAgICAgICAgICAgICAgICAgIDxVc2VyIGNsYXNzTmFtZT1cImFic29sdXRlIGxlZnQtNCB0b3AtMS8yIGgtNCB3LTQgLXRyYW5zbGF0ZS15LTEvMiB0ZXh0LXdoaXRlLzcyXCIgLz5cclxuICAgICAgICAgICAgICAgICAgPElucHV0XHJcbiAgICAgICAgICAgICAgICAgICAgaWQ9XCJzaWdudXAtaWRlbnRpZmllclwiXHJcbiAgICAgICAgICAgICAgICAgICAgdHlwZT1cInRleHRcIlxyXG4gICAgICAgICAgICAgICAgICAgIHZhbHVlPXtpZGVudGlmaWVyfVxyXG4gICAgICAgICAgICAgICAgICAgIG9uQ2hhbmdlPXsoZXZlbnQpID0+IHNldElkZW50aWZpZXIoZXZlbnQudGFyZ2V0LnZhbHVlKX1cclxuICAgICAgICAgICAgICAgICAgICBwbGFjZWhvbGRlcj1cInVzZXJuYW1lIGJhcnVcIlxyXG4gICAgICAgICAgICAgICAgICAgIGNsYXNzTmFtZT17ZmllbGRDbGFzc31cclxuICAgICAgICAgICAgICAgICAgICByZXF1aXJlZFxyXG4gICAgICAgICAgICAgICAgICAvPlxyXG4gICAgICAgICAgICAgICAgPC9kaXY+XHJcbiAgICAgICAgICAgICAgPC9kaXY+XHJcblxyXG4gICAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwic3BhY2UteS0zXCI+XHJcbiAgICAgICAgICAgICAgICA8TGFiZWwgaHRtbEZvcj1cInNpZ251cC1wYXNzd29yZFwiIGNsYXNzTmFtZT17bGFiZWxDbGFzc30+XHJcbiAgICAgICAgICAgICAgICAgIFBhc3N3b3JkIEJhcnVcclxuICAgICAgICAgICAgICAgIDwvTGFiZWw+XHJcbiAgICAgICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cInJlbGF0aXZlXCI+XHJcbiAgICAgICAgICAgICAgICAgIDxMb2NrIGNsYXNzTmFtZT1cImFic29sdXRlIGxlZnQtNCB0b3AtMS8yIGgtNCB3LTQgLXRyYW5zbGF0ZS15LTEvMiB0ZXh0LXdoaXRlLzcyXCIgLz5cclxuICAgICAgICAgICAgICAgICAgPElucHV0XHJcbiAgICAgICAgICAgICAgICAgICAgaWQ9XCJzaWdudXAtcGFzc3dvcmRcIlxyXG4gICAgICAgICAgICAgICAgICAgIHR5cGU9XCJwYXNzd29yZFwiXHJcbiAgICAgICAgICAgICAgICAgICAgdmFsdWU9e3Bhc3N3b3JkfVxyXG4gICAgICAgICAgICAgICAgICAgIG9uQ2hhbmdlPXsoZXZlbnQpID0+IHNldFBhc3N3b3JkKGV2ZW50LnRhcmdldC52YWx1ZSl9XHJcbiAgICAgICAgICAgICAgICAgICAgcGxhY2Vob2xkZXI9XCJNaW5pbWFsIDYga2FyYWt0ZXJcIlxyXG4gICAgICAgICAgICAgICAgICAgIGNsYXNzTmFtZT17ZmllbGRDbGFzc31cclxuICAgICAgICAgICAgICAgICAgICByZXF1aXJlZFxyXG4gICAgICAgICAgICAgICAgICAgIG1pbkxlbmd0aD17Nn1cclxuICAgICAgICAgICAgICAgICAgLz5cclxuICAgICAgICAgICAgICAgIDwvZGl2PlxyXG4gICAgICAgICAgICAgIDwvZGl2PlxyXG5cclxuICAgICAgICAgICAgICA8QnV0dG9uIHR5cGU9XCJzdWJtaXRcIiBjbGFzc05hbWU9e3ByaW1hcnlCdXR0b25DbGFzc30gZGlzYWJsZWQ9e2xvYWRpbmd9PlxyXG4gICAgICAgICAgICAgICAge2xvYWRpbmcgPyBcIk1lbmRhZnRhcmthbi4uLlwiIDogXCJEYWZ0YXJrYW4gQWt1blwifVxyXG4gICAgICAgICAgICAgIDwvQnV0dG9uPlxyXG5cclxuICAgICAgICAgICAgICA8cCBjbGFzc05hbWU9XCJ0ZXh0LWNlbnRlciB0ZXh0LXNtIHRleHQtd2hpdGUvNTJcIj5cclxuICAgICAgICAgICAgICAgIFN1ZGFoIHB1bnlhIGFrdW4/e1wiIFwifVxyXG4gICAgICAgICAgICAgICAgPGJ1dHRvbiB0eXBlPVwiYnV0dG9uXCIgY2xhc3NOYW1lPVwiZm9udC1ib2xkIHRleHQtZW1lcmFsZC00MDAgaG92ZXI6dGV4dC1lbWVyYWxkLTMwMFwiIG9uQ2xpY2s9eygpID0+IHNldE1vZGUoXCJsb2dpblwiKX0+XHJcbiAgICAgICAgICAgICAgICAgIE1hc3VrXHJcbiAgICAgICAgICAgICAgICA8L2J1dHRvbj5cclxuICAgICAgICAgICAgICA8L3A+XHJcbiAgICAgICAgICAgIDwvZm9ybT5cclxuICAgICAgICAgICkgOiAoXHJcbiAgICAgICAgICAgIDxmb3JtIG9uU3VibWl0PXtoYW5kbGVMb2dpbn0gY2xhc3NOYW1lPVwic3BhY2UteS01IHNtOnNwYWNlLXktNlwiPlxuICAgICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cInNwYWNlLXktM1wiPlxyXG4gICAgICAgICAgICAgICAgPExhYmVsIGh0bWxGb3I9XCJsb2dpbi1pZGVudGlmaWVyXCIgY2xhc3NOYW1lPXtsYWJlbENsYXNzfT5cclxuICAgICAgICAgICAgICAgICAgRW1haWwgLyBVc2VybmFtZVxyXG4gICAgICAgICAgICAgICAgPC9MYWJlbD5cclxuICAgICAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwicmVsYXRpdmVcIj5cclxuICAgICAgICAgICAgICAgICAgPE1haWwgY2xhc3NOYW1lPVwiYWJzb2x1dGUgbGVmdC00IHRvcC0xLzIgaC00IHctNCAtdHJhbnNsYXRlLXktMS8yIHRleHQtd2hpdGUvNzJcIiAvPlxyXG4gICAgICAgICAgICAgICAgICA8SW5wdXRcclxuICAgICAgICAgICAgICAgICAgICBpZD1cImxvZ2luLWlkZW50aWZpZXJcIlxyXG4gICAgICAgICAgICAgICAgICAgIHR5cGU9XCJ0ZXh0XCJcclxuICAgICAgICAgICAgICAgICAgICB2YWx1ZT17aWRlbnRpZmllcn1cclxuICAgICAgICAgICAgICAgICAgICBvbkNoYW5nZT17KGV2ZW50KSA9PiBzZXRJZGVudGlmaWVyKGV2ZW50LnRhcmdldC52YWx1ZSl9XHJcbiAgICAgICAgICAgICAgICAgICAgcGxhY2Vob2xkZXI9XCJhZG1pbiBhdGF1IGVtYWlsQGZhem1hc3RvbmUuY29tXCJcclxuICAgICAgICAgICAgICAgICAgICBjbGFzc05hbWU9e2ZpZWxkQ2xhc3N9XHJcbiAgICAgICAgICAgICAgICAgICAgcmVxdWlyZWRcclxuICAgICAgICAgICAgICAgICAgLz5cclxuICAgICAgICAgICAgICAgIDwvZGl2PlxyXG4gICAgICAgICAgICAgIDwvZGl2PlxyXG5cclxuICAgICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cInNwYWNlLXktM1wiPlxyXG4gICAgICAgICAgICAgICAgPExhYmVsIGh0bWxGb3I9XCJsb2dpbi1wYXNzd29yZFwiIGNsYXNzTmFtZT17bGFiZWxDbGFzc30+XHJcbiAgICAgICAgICAgICAgICAgIFBhc3N3b3JkXHJcbiAgICAgICAgICAgICAgICA8L0xhYmVsPlxyXG4gICAgICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJyZWxhdGl2ZVwiPlxyXG4gICAgICAgICAgICAgICAgICA8TG9jayBjbGFzc05hbWU9XCJhYnNvbHV0ZSBsZWZ0LTQgdG9wLTEvMiBoLTQgdy00IC10cmFuc2xhdGUteS0xLzIgdGV4dC13aGl0ZS83MlwiIC8+XHJcbiAgICAgICAgICAgICAgICAgIDxJbnB1dFxyXG4gICAgICAgICAgICAgICAgICAgIGlkPVwibG9naW4tcGFzc3dvcmRcIlxyXG4gICAgICAgICAgICAgICAgICAgIHR5cGU9XCJwYXNzd29yZFwiXHJcbiAgICAgICAgICAgICAgICAgICAgdmFsdWU9e3Bhc3N3b3JkfVxyXG4gICAgICAgICAgICAgICAgICAgIG9uQ2hhbmdlPXsoZXZlbnQpID0+IHNldFBhc3N3b3JkKGV2ZW50LnRhcmdldC52YWx1ZSl9XHJcbiAgICAgICAgICAgICAgICAgICAgcGxhY2Vob2xkZXI9XCJNYXN1a2thbiBwYXNzd29yZFwiXHJcbiAgICAgICAgICAgICAgICAgICAgY2xhc3NOYW1lPXtmaWVsZENsYXNzfVxyXG4gICAgICAgICAgICAgICAgICAgIHJlcXVpcmVkXHJcbiAgICAgICAgICAgICAgICAgICAgbWluTGVuZ3RoPXs2fVxyXG4gICAgICAgICAgICAgICAgICAvPlxyXG4gICAgICAgICAgICAgICAgPC9kaXY+XHJcbiAgICAgICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cImZsZXgganVzdGlmeS1lbmRcIj5cclxuICAgICAgICAgICAgICAgICAgPGJ1dHRvbiB0eXBlPVwiYnV0dG9uXCIgb25DbGljaz17KCkgPT4gc2V0TW9kZShcInJlc2V0XCIpfSBjbGFzc05hbWU9XCJ0ZXh0LXhzIGZvbnQtYm9sZCB0ZXh0LWVtZXJhbGQtNDAwIGhvdmVyOnRleHQtZW1lcmFsZC0zMDBcIj5cclxuICAgICAgICAgICAgICAgICAgICBMdXBhIHBhc3N3b3JkP1xyXG4gICAgICAgICAgICAgICAgICA8L2J1dHRvbj5cclxuICAgICAgICAgICAgICAgIDwvZGl2PlxyXG4gICAgICAgICAgICAgIDwvZGl2PlxyXG5cclxuICAgICAgICAgICAgICA8QnV0dG9uIHR5cGU9XCJzdWJtaXRcIiBjbGFzc05hbWU9e3ByaW1hcnlCdXR0b25DbGFzc30gZGlzYWJsZWQ9e2xvYWRpbmd9PlxyXG4gICAgICAgICAgICAgICAge2xvYWRpbmcgPyBcIk1lbXByb3Nlcy4uLlwiIDogXCJNYXN1ayBrZSBEYXNoYm9hcmRcIn1cclxuICAgICAgICAgICAgICA8L0J1dHRvbj5cclxuXHJcbiAgICAgICAgICAgICAgPHAgY2xhc3NOYW1lPVwidGV4dC1jZW50ZXIgdGV4dC14cyB0ZXh0LXdoaXRlLzUyXCI+XHJcbiAgICAgICAgICAgICAgICBBa3VuIGJhcnUgaGFueWEgZGFwYXQgZGlidWF0IG9sZWggYWRtaW4gbWVsYWx1aSBSb2xlIE1hbmFnZW1lbnQuXHJcbiAgICAgICAgICAgICAgPC9wPlxyXG4gICAgICAgICAgICA8L2Zvcm0+XHJcbiAgICAgICAgICApfVxyXG4gICAgICAgICAgPC9kaXY+XHJcbiAgICAgICAgPC9kaXY+XHJcbiAgICAgIDwvc2VjdGlvbj5cclxuICAgIDwvbWFpbj5cclxuICApO1xyXG59XHJcbiJdLCJuYW1lcyI6WyJ1c2VTdGF0ZSIsInN1cGFiYXNlIiwiQnV0dG9uIiwiSW5wdXQiLCJMYWJlbCIsInVzZVRvYXN0IiwiZGVmYXVsdFJvbGVGb3JFbWFpbCIsIkFycm93TGVmdCIsIkNoZXZyb25MZWZ0IiwiTG9jayIsIk1haWwiLCJVc2VyIiwiTE9HSU5fUkVGRVJFTkNFX1VSTCIsImFkbWluUnBjIiwiZ2V0RXJyb3JNZXNzYWdlIiwiZXJyb3IiLCJFcnJvciIsIm1lc3NhZ2UiLCJTdHJpbmciLCJMb2dpbiIsIm1vZGUiLCJzZXRNb2RlIiwiaWRlbnRpZmllciIsInNldElkZW50aWZpZXIiLCJwYXNzd29yZCIsInNldFBhc3N3b3JkIiwibmFtZSIsInNldE5hbWUiLCJsb2FkaW5nIiwic2V0TG9hZGluZyIsInRvYXN0IiwiZ2V0Rm9ybWF0dGVkRW1haWwiLCJpbnB1dCIsImNsZWFuSW5wdXQiLCJ0cmltIiwidG9Mb3dlckNhc2UiLCJpbmNsdWRlcyIsImhhbmRsZUxvZ2luIiwiZXZlbnQiLCJwcmV2ZW50RGVmYXVsdCIsInRhcmdldEVtYWlsIiwiYXV0aCIsInNpZ25JbldpdGhQYXNzd29yZCIsImVtYWlsIiwidGl0bGUiLCJkZXNjcmlwdGlvbiIsImVyck1zZyIsImRhdGEiLCJjb25maXJtZWQiLCJycGMiLCJ0YXJnZXRfZW1haWwiLCJyZXRyeSIsInZhcmlhbnQiLCJoYW5kbGVTaWduVXAiLCJlbWFpbFJlZGlyZWN0VG8iLCJ3aW5kb3ciLCJsb2NhdGlvbiIsIm9yaWdpbiIsInNpZ25VcCIsIm9wdGlvbnMiLCJmdWxsX25hbWUiLCJ1c2VyIiwiaWQiLCJyb2xlIiwiZnJvbSIsImluc2VydCIsInVzZXJfaWQiLCJhdXRvTG9naW4iLCJoYW5kbGVSZXNldFBhc3N3b3JkIiwicmVkaXJlY3RUbyIsInJlc2V0UGFzc3dvcmRGb3JFbWFpbCIsImZpZWxkQ2xhc3MiLCJsYWJlbENsYXNzIiwicHJpbWFyeUJ1dHRvbkNsYXNzIiwibWFpbiIsImNsYXNzTmFtZSIsInNlY3Rpb24iLCJpbWciLCJzcmMiLCJhbHQiLCJhcmlhLWhpZGRlbiIsImRpdiIsImEiLCJocmVmIiwic3BhbiIsImgyIiwicCIsImZvcm0iLCJvblN1Ym1pdCIsImh0bWxGb3IiLCJ0eXBlIiwidmFsdWUiLCJvbkNoYW5nZSIsInRhcmdldCIsInBsYWNlaG9sZGVyIiwicmVxdWlyZWQiLCJkaXNhYmxlZCIsImJ1dHRvbiIsIm9uQ2xpY2siLCJtaW5MZW5ndGgiXSwibWFwcGluZ3MiOiI7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7OztBQUFBLFNBQW9CQSxRQUFRLFFBQVEsUUFBUTtBQUM1QyxTQUFTQyxRQUFRLFFBQVEsaUNBQWlDO0FBQzFELFNBQVNDLE1BQU0sUUFBUSx5QkFBeUI7QUFDaEQsU0FBU0MsS0FBSyxRQUFRLHdCQUF3QjtBQUM5QyxTQUFTQyxLQUFLLFFBQVEsd0JBQXdCO0FBQzlDLFNBQVNDLFFBQVEsUUFBUSxvQkFBb0I7QUFDN0MsU0FBU0MsbUJBQW1CLFFBQVEsY0FBYztBQUNsRCxTQUFTQyxTQUFTLEVBQUVDLFdBQVcsRUFBRUMsSUFBSSxFQUFFQyxJQUFJLEVBQUVDLElBQUksUUFBUSxlQUFlO0FBRXhFLE9BQU9DLHlCQUF5QixxQ0FBcUM7QUFXckUsTUFBTUMsV0FBV1o7QUFFakIsTUFBTWEsa0JBQWtCLENBQUNDO0lBQ3ZCLElBQUlBLGlCQUFpQkMsT0FBTyxPQUFPRCxNQUFNRSxPQUFPO0lBQ2hELElBQUksT0FBT0YsVUFBVSxZQUFZQSxTQUFTLGFBQWFBLE9BQU87UUFDNUQsT0FBT0csT0FBTyxBQUFDSCxNQUFnQ0UsT0FBTyxJQUFJO0lBQzVEO0lBQ0EsT0FBTztBQUNUO0FBRUEsZUFBZSxTQUFT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

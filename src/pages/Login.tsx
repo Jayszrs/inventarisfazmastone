@@ -343,36 +343,36 @@ export default function Login() {
       </section>
 
       <section className="relative min-h-screen w-full overflow-hidden bg-[#020806] lg:hidden">
-        <div className="relative h-[42svh] min-h-[300px] max-h-[430px] overflow-hidden">
+        <div className="relative h-[34svh] min-h-[220px] max-h-[320px] overflow-hidden">
           <img
             src={LOGIN_REFERENCE_URL}
             alt="Display batu alam Fazma Stone"
-            className="absolute inset-0 h-full w-full object-cover object-left-top"
+            className="absolute inset-y-0 left-0 h-full w-[205%] max-w-none object-cover object-[left_48%] sm:w-[180%]"
           />
-          <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(2,8,6,0.08),rgba(2,8,6,0.86)),linear-gradient(90deg,rgba(2,8,6,0.08),rgba(2,8,6,0.42))]" />
+          <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(2,8,6,0.02),rgba(2,8,6,0.78)),linear-gradient(90deg,rgba(2,8,6,0.04),rgba(2,8,6,0.34))]" />
         </div>
 
-        <div className="relative z-10 -mt-8 rounded-t-[28px] bg-[#020806]/95 px-6 pb-14 pt-10 shadow-[0_-24px_80px_rgba(0,0,0,0.45)] sm:px-8">
-          <div className="pointer-events-none absolute inset-0 rounded-t-[28px] bg-[radial-gradient(circle_at_86%_8%,rgba(6,170,112,0.22),transparent_30%),linear-gradient(110deg,rgba(255,255,255,0.018),transparent_45%)]" />
+        <div className="relative z-10 -mt-5 rounded-t-[24px] bg-[#020806]/96 px-5 pb-10 pt-7 shadow-[0_-24px_80px_rgba(0,0,0,0.45)] sm:px-8 sm:pb-14 sm:pt-10">
+          <div className="pointer-events-none absolute inset-0 rounded-t-[24px] bg-[radial-gradient(circle_at_86%_8%,rgba(6,170,112,0.2),transparent_30%),linear-gradient(110deg,rgba(255,255,255,0.018),transparent_45%)]" />
 
-          <div className="relative z-10 w-[290px] max-w-[calc(100vw-3rem)] min-w-0 min-[390px]:w-[326px] sm:mx-auto sm:w-full sm:max-w-[458px]">
-          <div className="mb-12">
+          <div className="relative z-10 w-full min-w-0 max-w-[342px] sm:mx-auto sm:max-w-[458px]">
+          <div className="mb-8 sm:mb-12">
             <a
               href="/"
-              className="mb-10 inline-flex items-center gap-2 text-sm font-semibold text-white/82 transition-colors hover:text-white"
+              className="mb-7 inline-flex items-center gap-2 text-sm font-semibold text-white/82 transition-colors hover:text-white sm:mb-10"
             >
               <ArrowLeft className="h-4 w-4" />
               Kembali ke beranda
             </a>
 
-            <div className="mb-5 flex items-center gap-4">
-              <span className="h-px w-12 bg-[#0ec487]" />
-              <span className="text-xs font-black uppercase tracking-[0.58em] text-[#20df9c]">Area Terbatas</span>
+            <div className="mb-4 flex items-center gap-4 sm:mb-5">
+              <span className="h-px w-10 bg-[#0ec487] sm:w-12" />
+              <span className="text-[11px] font-black uppercase tracking-[0.42em] text-[#20df9c] sm:text-xs sm:tracking-[0.58em]">Area Terbatas</span>
             </div>
-            <h2 className="font-heading text-[38px] font-black tracking-normal text-white drop-shadow-[0_5px_0_rgba(255,255,255,0.1)]">
+            <h2 className="font-heading text-[34px] font-black leading-tight tracking-normal text-white drop-shadow-[0_5px_0_rgba(255,255,255,0.1)] sm:text-[38px]">
               {mode === "signup" ? "Buat Akun" : mode === "reset" ? "Reset Password" : "Login Admin"}
             </h2>
-            <p className="mt-4 max-w-[420px] text-base leading-8 text-white/88">
+            <p className="mt-3 max-w-[420px] text-[15px] leading-7 text-white/88 sm:mt-4 sm:text-base sm:leading-8">
               {mode === "signup"
                 ? "Daftarkan akses baru untuk tim Fazma Stone."
                 : mode === "reset"
@@ -382,7 +382,7 @@ export default function Login() {
           </div>
 
           {mode === "reset" ? (
-            <form onSubmit={handleResetPassword} className="space-y-6">
+            <form onSubmit={handleResetPassword} className="space-y-5 sm:space-y-6">
               <div className="space-y-3">
                 <Label htmlFor="reset-identifier" className={labelClass}>
                   Username atau Email
@@ -411,7 +411,7 @@ export default function Login() {
               </button>
             </form>
           ) : mode === "signup" ? (
-            <form onSubmit={handleSignUp} className="space-y-6">
+            <form onSubmit={handleSignUp} className="space-y-5 sm:space-y-6">
               <div className="space-y-3">
                 <Label htmlFor="signup-name" className={labelClass}>
                   Nama Lengkap
@@ -475,7 +475,7 @@ export default function Login() {
               </p>
             </form>
           ) : (
-            <form onSubmit={handleLogin} className="space-y-6">
+            <form onSubmit={handleLogin} className="space-y-5 sm:space-y-6">
               <div className="space-y-3">
                 <Label htmlFor="login-identifier" className={labelClass}>
                   Email / Username

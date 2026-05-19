@@ -1,0 +1,243 @@
+import { createHotContext as __vite__createHotContext } from "/@vite/client";import.meta.hot = __vite__createHotContext("/src/components/AppSidebar.tsx");import * as RefreshRuntime from "/@react-refresh";
+const inWebWorker = typeof WorkerGlobalScope !== 'undefined' && self instanceof WorkerGlobalScope;
+
+let prevRefreshReg;
+let prevRefreshSig;
+
+if (import.meta.hot && !inWebWorker) {
+  if (!window.$RefreshReg$) {
+    throw new Error(
+      "@vitejs/plugin-react-swc can't detect preamble. Something is wrong."
+    );
+  }
+
+  prevRefreshReg = window.$RefreshReg$;
+  prevRefreshSig = window.$RefreshSig$;
+  window.$RefreshReg$ = RefreshRuntime.getRefreshReg("C:/Users/jaela/Downloads/inventarisfazmastone/src/components/AppSidebar.tsx");
+  window.$RefreshSig$ = RefreshRuntime.createSignatureFunctionForTransform;
+}
+
+import __vite__cjsImport2_react_jsxDevRuntime from "/node_modules/.vite/deps/react_jsx-dev-runtime.js?v=df8fa318"; const _jsxDEV = __vite__cjsImport2_react_jsxDevRuntime["jsxDEV"];
+var _s = $RefreshSig$();
+import { LayoutDashboard, FileText, FolderOpen, LogOut, UserCog } from "/node_modules/.vite/deps/lucide-react.js?v=df8fa318";
+import { NavLink } from "/src/components/NavLink.tsx";
+import { useAuth } from "/src/contexts/AuthContext.tsx";
+import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarFooter, useSidebar } from "/src/components/ui/sidebar.tsx";
+const menuItems = [
+    {
+        title: "Dashboard",
+        url: "/",
+        icon: LayoutDashboard
+    },
+    {
+        title: "Invoice",
+        url: "/invoice",
+        icon: FileText,
+        roles: [
+            "admin",
+            "staff"
+        ]
+    },
+    {
+        title: "Dokumentasi",
+        url: "/dokumentasi",
+        icon: FolderOpen,
+        roles: [
+            "admin"
+        ]
+    },
+    {
+        title: "Role Management",
+        url: "/roles",
+        icon: UserCog,
+        roles: [
+            "admin"
+        ]
+    }
+];
+const LOGO_URL = encodeURI("/Logo Fazma Stone Hitam.png");
+export function AppSidebar() {
+    _s();
+    const { state } = useSidebar();
+    const collapsed = state === "collapsed";
+    const { role, signOut } = useAuth();
+    const visibleMenuItems = menuItems.filter((item)=>!item.roles || role && item.roles.includes(role));
+    return /*#__PURE__*/ _jsxDEV(Sidebar, {
+        collapsible: "icon",
+        children: [
+            /*#__PURE__*/ _jsxDEV(SidebarContent, {
+                children: /*#__PURE__*/ _jsxDEV(SidebarGroup, {
+                    children: [
+                        /*#__PURE__*/ _jsxDEV(SidebarGroupLabel, {
+                            className: "h-auto py-3",
+                            children: /*#__PURE__*/ _jsxDEV("div", {
+                                className: collapsed ? "flex w-full justify-center" : "flex w-full items-center gap-3",
+                                children: [
+                                    /*#__PURE__*/ _jsxDEV("img", {
+                                        src: LOGO_URL,
+                                        alt: "Fazma Stone",
+                                        className: collapsed ? "h-8 w-8 object-contain" : "h-10 w-auto max-w-[150px] object-contain"
+                                    }, void 0, false, {
+                                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/components/AppSidebar.tsx",
+                                        lineNumber: 44,
+                                        columnNumber: 15
+                                    }, this),
+                                    !collapsed && role && /*#__PURE__*/ _jsxDEV("span", {
+                                        className: "rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary",
+                                        children: role
+                                    }, void 0, false, {
+                                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/components/AppSidebar.tsx",
+                                        lineNumber: 50,
+                                        columnNumber: 17
+                                    }, this)
+                                ]
+                            }, void 0, true, {
+                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/components/AppSidebar.tsx",
+                                lineNumber: 43,
+                                columnNumber: 13
+                            }, this)
+                        }, void 0, false, {
+                            fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/components/AppSidebar.tsx",
+                            lineNumber: 42,
+                            columnNumber: 11
+                        }, this),
+                        /*#__PURE__*/ _jsxDEV(SidebarGroupContent, {
+                            children: /*#__PURE__*/ _jsxDEV(SidebarMenu, {
+                                children: visibleMenuItems.map((item)=>/*#__PURE__*/ _jsxDEV(SidebarMenuItem, {
+                                        children: /*#__PURE__*/ _jsxDEV(SidebarMenuButton, {
+                                            asChild: true,
+                                            children: /*#__PURE__*/ _jsxDEV(NavLink, {
+                                                to: item.url,
+                                                end: item.url === "/",
+                                                className: "hover:bg-accent/50 transition-colors",
+                                                activeClassName: "bg-primary/10 text-primary font-medium",
+                                                children: [
+                                                    /*#__PURE__*/ _jsxDEV(item.icon, {
+                                                        className: "mr-2 h-4 w-4"
+                                                    }, void 0, false, {
+                                                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/components/AppSidebar.tsx",
+                                                        lineNumber: 67,
+                                                        columnNumber: 23
+                                                    }, this),
+                                                    !collapsed && /*#__PURE__*/ _jsxDEV("span", {
+                                                        children: item.title
+                                                    }, void 0, false, {
+                                                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/components/AppSidebar.tsx",
+                                                        lineNumber: 68,
+                                                        columnNumber: 38
+                                                    }, this)
+                                                ]
+                                            }, void 0, true, {
+                                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/components/AppSidebar.tsx",
+                                                lineNumber: 61,
+                                                columnNumber: 21
+                                            }, this)
+                                        }, void 0, false, {
+                                            fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/components/AppSidebar.tsx",
+                                            lineNumber: 60,
+                                            columnNumber: 19
+                                        }, this)
+                                    }, item.title, false, {
+                                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/components/AppSidebar.tsx",
+                                        lineNumber: 59,
+                                        columnNumber: 17
+                                    }, this))
+                            }, void 0, false, {
+                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/components/AppSidebar.tsx",
+                                lineNumber: 57,
+                                columnNumber: 13
+                            }, this)
+                        }, void 0, false, {
+                            fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/components/AppSidebar.tsx",
+                            lineNumber: 56,
+                            columnNumber: 11
+                        }, this)
+                    ]
+                }, void 0, true, {
+                    fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/components/AppSidebar.tsx",
+                    lineNumber: 41,
+                    columnNumber: 9
+                }, this)
+            }, void 0, false, {
+                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/components/AppSidebar.tsx",
+                lineNumber: 40,
+                columnNumber: 7
+            }, this),
+            /*#__PURE__*/ _jsxDEV(SidebarFooter, {
+                children: /*#__PURE__*/ _jsxDEV(SidebarMenu, {
+                    children: /*#__PURE__*/ _jsxDEV(SidebarMenuItem, {
+                        children: /*#__PURE__*/ _jsxDEV(SidebarMenuButton, {
+                            onClick: signOut,
+                            className: "hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors cursor-pointer",
+                            children: [
+                                /*#__PURE__*/ _jsxDEV(LogOut, {
+                                    className: "mr-2 h-4 w-4"
+                                }, void 0, false, {
+                                    fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/components/AppSidebar.tsx",
+                                    lineNumber: 84,
+                                    columnNumber: 15
+                                }, this),
+                                !collapsed && /*#__PURE__*/ _jsxDEV("span", {
+                                    children: "Keluar"
+                                }, void 0, false, {
+                                    fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/components/AppSidebar.tsx",
+                                    lineNumber: 85,
+                                    columnNumber: 30
+                                }, this)
+                            ]
+                        }, void 0, true, {
+                            fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/components/AppSidebar.tsx",
+                            lineNumber: 80,
+                            columnNumber: 13
+                        }, this)
+                    }, void 0, false, {
+                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/components/AppSidebar.tsx",
+                        lineNumber: 79,
+                        columnNumber: 11
+                    }, this)
+                }, void 0, false, {
+                    fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/components/AppSidebar.tsx",
+                    lineNumber: 78,
+                    columnNumber: 9
+                }, this)
+            }, void 0, false, {
+                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/components/AppSidebar.tsx",
+                lineNumber: 77,
+                columnNumber: 7
+            }, this)
+        ]
+    }, void 0, true, {
+        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/components/AppSidebar.tsx",
+        lineNumber: 39,
+        columnNumber: 5
+    }, this);
+}
+_s(AppSidebar, "nxb6tSMeuarrznh1ADG2qAj85dk=", false, function() {
+    return [
+        useSidebar,
+        useAuth
+    ];
+});
+_c = AppSidebar;
+var _c;
+$RefreshReg$(_c, "AppSidebar");
+
+
+if (import.meta.hot && !inWebWorker) {
+  window.$RefreshReg$ = prevRefreshReg;
+  window.$RefreshSig$ = prevRefreshSig;
+}
+
+
+if (import.meta.hot && !inWebWorker) {
+  RefreshRuntime.__hmr_import(import.meta.url).then((currentExports) => {
+    RefreshRuntime.registerExportsForReactRefresh("C:/Users/jaela/Downloads/inventarisfazmastone/src/components/AppSidebar.tsx", currentExports);
+    import.meta.hot.accept((nextExports) => {
+      if (!nextExports) return;
+      const invalidateMessage = RefreshRuntime.validateRefreshBoundaryAndEnqueueUpdate("C:/Users/jaela/Downloads/inventarisfazmastone/src/components/AppSidebar.tsx", currentExports, nextExports);
+      if (invalidateMessage) import.meta.hot.invalidate(invalidateMessage);
+    });
+  });
+}
+
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIkFwcFNpZGViYXIudHN4Il0sInNvdXJjZXNDb250ZW50IjpbImltcG9ydCB7XG4gIExheW91dERhc2hib2FyZCxcbiAgRmlsZVRleHQsXG4gIEZvbGRlck9wZW4sXG4gIExvZ091dCxcbiAgVXNlckNvZyxcbn0gZnJvbSBcImx1Y2lkZS1yZWFjdFwiO1xuaW1wb3J0IHsgTmF2TGluayB9IGZyb20gXCJAL2NvbXBvbmVudHMvTmF2TGlua1wiO1xuaW1wb3J0IHsgQXBwUm9sZSwgdXNlQXV0aCB9IGZyb20gXCJAL2NvbnRleHRzL0F1dGhDb250ZXh0XCI7XG5pbXBvcnQge1xyXG4gIFNpZGViYXIsXHJcbiAgU2lkZWJhckNvbnRlbnQsXHJcbiAgU2lkZWJhckdyb3VwLFxyXG4gIFNpZGViYXJHcm91cENvbnRlbnQsXHJcbiAgU2lkZWJhckdyb3VwTGFiZWwsXHJcbiAgU2lkZWJhck1lbnUsXHJcbiAgU2lkZWJhck1lbnVCdXR0b24sXHJcbiAgU2lkZWJhck1lbnVJdGVtLFxyXG4gIFNpZGViYXJGb290ZXIsXHJcbiAgdXNlU2lkZWJhcixcclxufSBmcm9tIFwiQC9jb21wb25lbnRzL3VpL3NpZGViYXJcIjtcclxuXHJcbmNvbnN0IG1lbnVJdGVtczogQXJyYXk8eyB0aXRsZTogc3RyaW5nOyB1cmw6IHN0cmluZzsgaWNvbjogdHlwZW9mIExheW91dERhc2hib2FyZDsgcm9sZXM/OiBBcHBSb2xlW10gfT4gPSBbXG4gIHsgdGl0bGU6IFwiRGFzaGJvYXJkXCIsIHVybDogXCIvXCIsIGljb246IExheW91dERhc2hib2FyZCB9LFxuICB7IHRpdGxlOiBcIkludm9pY2VcIiwgdXJsOiBcIi9pbnZvaWNlXCIsIGljb246IEZpbGVUZXh0LCByb2xlczogW1wiYWRtaW5cIiwgXCJzdGFmZlwiXSB9LFxuICB7IHRpdGxlOiBcIkRva3VtZW50YXNpXCIsIHVybDogXCIvZG9rdW1lbnRhc2lcIiwgaWNvbjogRm9sZGVyT3Blbiwgcm9sZXM6IFtcImFkbWluXCJdIH0sXG4gIHsgdGl0bGU6IFwiUm9sZSBNYW5hZ2VtZW50XCIsIHVybDogXCIvcm9sZXNcIiwgaWNvbjogVXNlckNvZywgcm9sZXM6IFtcImFkbWluXCJdIH0sXG5dO1xuXG5jb25zdCBMT0dPX1VSTCA9IGVuY29kZVVSSShcIi9Mb2dvIEZhem1hIFN0b25lIEhpdGFtLnBuZ1wiKTtcblxuZXhwb3J0IGZ1bmN0aW9uIEFwcFNpZGViYXIoKSB7XG4gIGNvbnN0IHsgc3RhdGUgfSA9IHVzZVNpZGViYXIoKTtcbiAgY29uc3QgY29sbGFwc2VkID0gc3RhdGUgPT09IFwiY29sbGFwc2VkXCI7XG4gIGNvbnN0IHsgcm9sZSwgc2lnbk91dCB9ID0gdXNlQXV0aCgpO1xuICBjb25zdCB2aXNpYmxlTWVudUl0ZW1zID0gbWVudUl0ZW1zLmZpbHRlcigoaXRlbSkgPT4gIWl0ZW0ucm9sZXMgfHwgKHJvbGUgJiYgaXRlbS5yb2xlcy5pbmNsdWRlcyhyb2xlKSkpO1xuXG4gIHJldHVybiAoXG4gICAgPFNpZGViYXIgY29sbGFwc2libGU9XCJpY29uXCI+XG4gICAgICA8U2lkZWJhckNvbnRlbnQ+XG4gICAgICAgIDxTaWRlYmFyR3JvdXA+XG4gICAgICAgICAgPFNpZGViYXJHcm91cExhYmVsIGNsYXNzTmFtZT1cImgtYXV0byBweS0zXCI+XG4gICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT17Y29sbGFwc2VkID8gXCJmbGV4IHctZnVsbCBqdXN0aWZ5LWNlbnRlclwiIDogXCJmbGV4IHctZnVsbCBpdGVtcy1jZW50ZXIgZ2FwLTNcIn0+XG4gICAgICAgICAgICAgIDxpbWdcbiAgICAgICAgICAgICAgICBzcmM9e0xPR09fVVJMfVxuICAgICAgICAgICAgICAgIGFsdD1cIkZhem1hIFN0b25lXCJcbiAgICAgICAgICAgICAgICBjbGFzc05hbWU9e2NvbGxhcHNlZCA/IFwiaC04IHctOCBvYmplY3QtY29udGFpblwiIDogXCJoLTEwIHctYXV0byBtYXgtdy1bMTUwcHhdIG9iamVjdC1jb250YWluXCJ9XG4gICAgICAgICAgICAgIC8+XG4gICAgICAgICAgICAgIHshY29sbGFwc2VkICYmIHJvbGUgJiYgKFxuICAgICAgICAgICAgICAgIDxzcGFuIGNsYXNzTmFtZT1cInJvdW5kZWQtZnVsbCBiZy1wcmltYXJ5LzEwIHB4LTIgcHktMC41IHRleHQtWzEwcHhdIGZvbnQtc2VtaWJvbGQgdXBwZXJjYXNlIHRyYWNraW5nLXdpZGUgdGV4dC1wcmltYXJ5XCI+XG4gICAgICAgICAgICAgICAgICB7cm9sZX1cbiAgICAgICAgICAgICAgICA8L3NwYW4+XG4gICAgICAgICAgICAgICl9XG4gICAgICAgICAgICA8L2Rpdj5cbiAgICAgICAgICA8L1NpZGViYXJHcm91cExhYmVsPlxuICAgICAgICAgIDxTaWRlYmFyR3JvdXBDb250ZW50PlxyXG4gICAgICAgICAgICA8U2lkZWJhck1lbnU+XHJcbiAgICAgICAgICAgICAge3Zpc2libGVNZW51SXRlbXMubWFwKChpdGVtKSA9PiAoXG4gICAgICAgICAgICAgICAgPFNpZGViYXJNZW51SXRlbSBrZXk9e2l0ZW0udGl0bGV9PlxyXG4gICAgICAgICAgICAgICAgICA8U2lkZWJhck1lbnVCdXR0b24gYXNDaGlsZD5cclxuICAgICAgICAgICAgICAgICAgICA8TmF2TGlua1xyXG4gICAgICAgICAgICAgICAgICAgICAgdG89e2l0ZW0udXJsfVxyXG4gICAgICAgICAgICAgICAgICAgICAgZW5kPXtpdGVtLnVybCA9PT0gXCIvXCJ9XHJcbiAgICAgICAgICAgICAgICAgICAgICBjbGFzc05hbWU9XCJob3ZlcjpiZy1hY2NlbnQvNTAgdHJhbnNpdGlvbi1jb2xvcnNcIlxyXG4gICAgICAgICAgICAgICAgICAgICAgYWN0aXZlQ2xhc3NOYW1lPVwiYmctcHJpbWFyeS8xMCB0ZXh0LXByaW1hcnkgZm9udC1tZWRpdW1cIlxyXG4gICAgICAgICAgICAgICAgICAgID5cclxuICAgICAgICAgICAgICAgICAgICAgIDxpdGVtLmljb24gY2xhc3NOYW1lPVwibXItMiBoLTQgdy00XCIgLz5cclxuICAgICAgICAgICAgICAgICAgICAgIHshY29sbGFwc2VkICYmIDxzcGFuPntpdGVtLnRpdGxlfTwvc3Bhbj59XHJcbiAgICAgICAgICAgICAgICAgICAgPC9OYXZMaW5rPlxyXG4gICAgICAgICAgICAgICAgICA8L1NpZGViYXJNZW51QnV0dG9uPlxyXG4gICAgICAgICAgICAgICAgPC9TaWRlYmFyTWVudUl0ZW0+XHJcbiAgICAgICAgICAgICAgKSl9XHJcbiAgICAgICAgICAgIDwvU2lkZWJhck1lbnU+XHJcbiAgICAgICAgICA8L1NpZGViYXJHcm91cENvbnRlbnQ+XHJcbiAgICAgICAgPC9TaWRlYmFyR3JvdXA+XHJcbiAgICAgIDwvU2lkZWJhckNvbnRlbnQ+XHJcbiAgICAgIDxTaWRlYmFyRm9vdGVyPlxyXG4gICAgICAgIDxTaWRlYmFyTWVudT5cclxuICAgICAgICAgIDxTaWRlYmFyTWVudUl0ZW0+XHJcbiAgICAgICAgICAgIDxTaWRlYmFyTWVudUJ1dHRvblxyXG4gICAgICAgICAgICAgIG9uQ2xpY2s9e3NpZ25PdXR9XHJcbiAgICAgICAgICAgICAgY2xhc3NOYW1lPVwiaG92ZXI6YmctZGVzdHJ1Y3RpdmUvMTAgdGV4dC1tdXRlZC1mb3JlZ3JvdW5kIGhvdmVyOnRleHQtZGVzdHJ1Y3RpdmUgdHJhbnNpdGlvbi1jb2xvcnMgY3Vyc29yLXBvaW50ZXJcIlxyXG4gICAgICAgICAgICA+XHJcbiAgICAgICAgICAgICAgPExvZ091dCBjbGFzc05hbWU9XCJtci0yIGgtNCB3LTRcIiAvPlxyXG4gICAgICAgICAgICAgIHshY29sbGFwc2VkICYmIDxzcGFuPktlbHVhcjwvc3Bhbj59XHJcbiAgICAgICAgICAgIDwvU2lkZWJhck1lbnVCdXR0b24+XHJcbiAgICAgICAgICA8L1NpZGViYXJNZW51SXRlbT5cclxuICAgICAgICA8L1NpZGViYXJNZW51PlxyXG4gICAgICA8L1NpZGViYXJGb290ZXI+XHJcbiAgICA8L1NpZGViYXI+XHJcbiAgKTtcclxufVxyXG4iXSwibmFtZXMiOlsiTGF5b3V0RGFzaGJvYXJkIiwiRmlsZVRleHQiLCJGb2xkZXJPcGVuIiwiTG9nT3V0IiwiVXNlckNvZyIsIk5hdkxpbmsiLCJ1c2VBdXRoIiwiU2lkZWJhciIsIlNpZGViYXJDb250ZW50IiwiU2lkZWJhckdyb3VwIiwiU2lkZWJhckdyb3VwQ29udGVudCIsIlNpZGViYXJHcm91cExhYmVsIiwiU2lkZWJhck1lbnUiLCJTaWRlYmFyTWVudUJ1dHRvbiIsIlNpZGViYXJNZW51SXRlbSIsIlNpZGViYXJGb290ZXIiLCJ1c2VTaWRlYmFyIiwibWVudUl0ZW1zIiwidGl0bGUiLCJ1cmwiLCJpY29uIiwicm9sZXMiLCJMT0dPX1VSTCIsImVuY29kZVVSSSIsIkFwcFNpZGViYXIiLCJzdGF0ZSIsImNvbGxhcHNlZCIsInJvbGUiLCJzaWduT3V0IiwidmlzaWJsZU1lbnVJdGVtcyIsImZpbHRlciIsIml0ZW0iLCJpbmNsdWRlcyIsImNvbGxhcHNpYmxlIiwiY2xhc3NOYW1lIiwiZGl2IiwiaW1nIiwic3JjIiwiYWx0Iiwic3BhbiIsIm1hcCIsImFzQ2hpbGQiLCJ0byIsImVuZCIsImFjdGl2ZUNsYXNzTmFtZSIsIm9uQ2xpY2siXSwibWFwcGluZ3MiOiI7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7OztBQUFBLFNBQ0VBLGVBQWUsRUFDZkMsUUFBUSxFQUNSQyxVQUFVLEVBQ1ZDLE1BQU0sRUFDTkMsT0FBTyxRQUNGLGVBQWU7QUFDdEIsU0FBU0MsT0FBTyxRQUFRLHVCQUF1QjtBQUMvQyxTQUFrQkMsT0FBTyxRQUFRLHlCQUF5QjtBQUMxRCxTQUNFQyxPQUFPLEVBQ1BDLGNBQWMsRUFDZEMsWUFBWSxFQUNaQyxtQkFBbUIsRUFDbkJDLGlCQUFpQixFQUNqQkMsV0FBVyxFQUNYQyxpQkFBaUIsRUFDakJDLGVBQWUsRUFDZkMsYUFBYSxFQUNiQyxVQUFVLFFBQ0wsMEJBQTBCO0FBRWpDLE1BQU1DLFlBQW9HO0lBQ3hHO1FBQUVDLE9BQU87UUFBYUMsS0FBSztRQUFLQyxNQUFNcEI7SUFBZ0I7SUFDdEQ7UUFBRWtCLE9BQU87UUFBV0MsS0FBSztRQUFZQyxNQUFNbkI7UUFBVW9CLE9BQU87WUFBQztZQUFTO1NBQVE7SUFBQztJQUMvRTtRQUFFSCxPQUFPO1FBQWVDLEtBQUs7UUFBZ0JDLE1BQU1sQjtRQUFZbUIsT0FBTztZQUFDO1NBQVE7SUFBQztJQUNoRjtRQUFFSCxPQUFPO1FBQW1CQyxLQUFLO1FBQVVDLE1BQU1oQjtRQUFTaUIsT0FBTztZQUFDO1NBQVE7SUFBQztDQUM1RTtBQUVELE1BQU1DLFdBQVdDLFVBQVU7QUFFM0IsT0FBTyxTQUFTQzs7SUFDZCxNQUFNLEVBQUVDLEtBQUssRUFBRSxHQUFHVDtJQUNsQixNQUFNVSxZQUFZRCxVQUFVO0lBQzVCLE1BQU0sRUFBRUUsSUFBSSxFQUFFQyxPQUFPLEVBQUUsR0FBR3RCO0lBQzFCLE1BQU11QixtQkFBbUJaLFVBQVVhLE1BQU0sQ0FBQyxDQUFDQyxPQUFTLENBQUNBLEtBQUtWLEtBQUssSUFBS00sUUFBUUksS0FBS1YsS0FBSyxDQUFDVyxRQUFRLENBQUNMO0lBRWhHLHFCQUNFLFFBQUNwQjtRQUFRMEIsYUFBWTs7MEJBQ25CLFFBQUN6QjswQkFDQyxjQUFBLFFBQUNDOztzQ0FDQyxRQUFDRTs0QkFBa0J1QixXQUFVO3NDQUMzQixjQUFBLFFBQUNDO2dDQUFJRCxXQUFXUixZQUFZLCtCQUErQjs7a0RBQ3pELFFBQUNVO3dDQUNDQyxLQUFLZjt3Q0FDTGdCLEtBQUk7d0NBQ0pKLFdBQVdSLFlBQVksMkJBQTJCOzs7Ozs7b0NBRW5ELENBQUNBLGFBQWFDLHNCQUNiLFFBQUNZO3dDQUFLTCxXQUFVO2tEQUNiUDs7Ozs7Ozs7Ozs7Ozs7Ozs7c0NBS1QsUUFBQ2pCO3NDQUNDLGNBQUEsUUFBQ0U7MENBQ0VpQixpQkFBaUJXLEdBQUcsQ0FBQyxDQUFDVCxxQkFDckIsUUFBQ2pCO2tEQUNDLGNBQUEsUUFBQ0Q7NENBQWtCNEIsT0FBTztzREFDeEIsY0FBQSxRQUFDcEM7Z0RBQ0NxQyxJQUFJWCxLQUFLWixHQUFHO2dEQUNad0IsS0FBS1osS0FBS1osR0FBRyxLQUFLO2dEQUNsQmUsV0FBVTtnREFDVlUsaUJBQWdCOztrRUFFaEIsUUFBQ2IsS0FBS1gsSUFBSTt3REFBQ2MsV0FBVTs7Ozs7O29EQUNwQixDQUFDUiwyQkFBYSxRQUFDYTtrRUFBTVIsS0FBS2IsS0FBSzs7Ozs7Ozs7Ozs7Ozs7Ozs7dUNBVGhCYSxLQUFLYixLQUFLOzs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7OzswQkFrQjFDLFFBQUNIOzBCQUNDLGNBQUEsUUFBQ0g7OEJBQ0MsY0FBQSxRQUFDRTtrQ0FDQyxjQUFBLFFBQUNEOzRCQUNDZ0MsU0FBU2pCOzRCQUNUTSxXQUFVOzs4Q0FFVixRQUFDL0I7b0NBQU8rQixXQUFVOzs7Ozs7Z0NBQ2pCLENBQUNSLDJCQUFhLFFBQUNhOzhDQUFLOzs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7QUFPbkM7R0E1RGdCZjs7UUFDSVI7UUFFUVY7OztLQUhaa0IifQ==

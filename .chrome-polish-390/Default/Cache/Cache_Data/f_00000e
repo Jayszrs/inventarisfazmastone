@@ -1,0 +1,1174 @@
+import { createHotContext as __vite__createHotContext } from "/@vite/client";import.meta.hot = __vite__createHotContext("/src/pages/RoleManagement.tsx");import.meta.env = {"BASE_URL": "/", "DEV": true, "MODE": "development", "PROD": false, "SSR": false, "VITE_SUPABASE_PROJECT_ID": "uvissadwypuuzcjtwjnc", "VITE_SUPABASE_PUBLISHABLE_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV2aXNzYWR3eXB1dXpjanR3am5jIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYwOTIxODUsImV4cCI6MjA5MTY2ODE4NX0.21h9QSFM5o1XibCiTVfGwclPb-ird_FAir9JgPfVbKI", "VITE_SUPABASE_URL": "https://uvissadwypuuzcjtwjnc.supabase.co"};import * as RefreshRuntime from "/@react-refresh";
+const inWebWorker = typeof WorkerGlobalScope !== 'undefined' && self instanceof WorkerGlobalScope;
+
+let prevRefreshReg;
+let prevRefreshSig;
+
+if (import.meta.hot && !inWebWorker) {
+  if (!window.$RefreshReg$) {
+    throw new Error(
+      "@vitejs/plugin-react-swc can't detect preamble. Something is wrong."
+    );
+  }
+
+  prevRefreshReg = window.$RefreshReg$;
+  prevRefreshSig = window.$RefreshSig$;
+  window.$RefreshReg$ = RefreshRuntime.getRefreshReg("C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/RoleManagement.tsx");
+  window.$RefreshSig$ = RefreshRuntime.createSignatureFunctionForTransform;
+}
+
+import __vite__cjsImport2_react_jsxDevRuntime from "/node_modules/.vite/deps/react_jsx-dev-runtime.js?v=df8fa318"; const _jsxDEV = __vite__cjsImport2_react_jsxDevRuntime["jsxDEV"];
+var _s = $RefreshSig$();
+import __vite__cjsImport3_react from "/node_modules/.vite/deps/react.js?v=df8fa318"; const useEffect = __vite__cjsImport3_react["useEffect"]; const useMemo = __vite__cjsImport3_react["useMemo"]; const useState = __vite__cjsImport3_react["useState"];
+import { DashboardLayout } from "/src/components/DashboardLayout.tsx";
+import { supabase } from "/src/integrations/supabase/client.ts";
+import { useAuth } from "/src/contexts/AuthContext.tsx";
+import { Button } from "/src/components/ui/button.tsx";
+import { Input } from "/src/components/ui/input.tsx";
+import { Label } from "/src/components/ui/label.tsx";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "/src/components/ui/select.tsx";
+import { Badge } from "/src/components/ui/badge.tsx";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "/src/components/ui/table.tsx";
+import { useToast } from "/src/hooks/use-toast.ts";
+import { createClient } from "/node_modules/.vite/deps/@supabase_supabase-js.js?v=df8fa318";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "/src/components/ui/dialog.tsx";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "/src/components/ui/alert-dialog.tsx";
+import { RefreshCw, Search, ShieldCheck, UserCog, UserPlus, Trash2, KeyRound } from "/node_modules/.vite/deps/lucide-react.js?v=df8fa318";
+const roleLabels = {
+    admin: "Admin",
+    staff: "Staff",
+    user: "User"
+};
+const formatDate = (date)=>{
+    if (!date) return "-";
+    return new Date(date).toLocaleDateString("id-ID", {
+        day: "2-digit",
+        month: "long",
+        year: "numeric"
+    });
+};
+const getPrimaryRole = (roles = [])=>{
+    if (roles.includes("admin")) return "admin";
+    if (roles.includes("staff")) return "staff";
+    return "user";
+};
+export default function RoleManagement() {
+    _s();
+    const { toast } = useToast();
+    const { refreshRole, user: currentUser } = useAuth();
+    const [users, setUsers] = useState([]);
+    const [search, setSearch] = useState("");
+    const [loading, setLoading] = useState(true);
+    const [savingUserId, setSavingUserId] = useState(null);
+    // State Form Tambah User
+    const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+    const [newUsername, setNewUsername] = useState("");
+    const [newPassword, setNewPassword] = useState("");
+    const [newRole, setNewRole] = useState("staff");
+    const [isCreating, setIsCreating] = useState(false);
+    // State Form Ubah Password
+    const [isPasswordDialogOpen, setIsPasswordDialogOpen] = useState(false);
+    const [selectedUser, setSelectedUser] = useState(null);
+    const [changedPassword, setChangedPassword] = useState("");
+    const [isChangingPassword, setIsChangingPassword] = useState(false);
+    useEffect(()=>{
+        loadUsers();
+    }, []);
+    const loadUsers = async ()=>{
+        setLoading(true);
+        try {
+            try {
+                await supabase.rpc("claim_allowed_admin_role");
+            } catch (e) {
+                console.warn("RPC claim_allowed_admin_role dilewati.");
+            }
+            await refreshRole();
+            const { data, error } = await supabase.rpc("admin_list_users_with_roles");
+            if (error) throw error;
+            setUsers(data || []);
+        } catch (error) {
+            toast({
+                title: "Gagal memuat user",
+                description: error.message || "Terjadi kesalahan hak akses database.",
+                variant: "destructive"
+            });
+        } finally{
+            setLoading(false);
+        }
+    };
+    const handleAddUserRole = async (e)=>{
+        e.preventDefault();
+        const usernameClean = newUsername.trim();
+        const passwordClean = newPassword.trim();
+        if (!usernameClean || !passwordClean) {
+            toast({
+                title: "Username & Password wajib diisi!",
+                variant: "destructive"
+            });
+            return;
+        }
+        setIsCreating(true);
+        try {
+            const targetEmail = usernameClean.includes("@") ? usernameClean.toLowerCase() : `${usernameClean.toLowerCase()}@fazmastone.com`;
+            const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+            const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+            const isolatedClient = createClient(supabaseUrl, supabaseKey, {
+                auth: {
+                    persistSession: false,
+                    autoRefreshToken: false
+                }
+            });
+            const { data: authData, error: authError } = await isolatedClient.auth.signUp({
+                email: targetEmail,
+                password: passwordClean
+            });
+            if (authError) throw authError;
+            if (!authData.user?.id) throw new Error("Gagal mengesahkan user ID.");
+            await supabase.rpc("confirm_allowed_admin_email", {
+                target_email: targetEmail
+            });
+            const { error: roleError } = await supabase.from("user_roles").insert({
+                user_id: authData.user.id,
+                role: newRole
+            });
+            if (roleError) throw roleError;
+            toast({
+                title: "Karyawan Berhasil Ditambahkan",
+                description: `Akun "${usernameClean}" sukses terdaftar sebagai ${roleLabels[newRole]}.`
+            });
+            setIsAddDialogOpen(false);
+            setNewUsername("");
+            setNewPassword("");
+            loadUsers();
+        } catch (error) {
+            toast({
+                title: "Gagal mendaftarkan user baru",
+                description: error.message || "Pastikan password minimal 6 karakter.",
+                variant: "destructive"
+            });
+        } finally{
+            setIsCreating(false);
+        }
+    };
+    const handleChangeUserPasswordSubmit = async (e)=>{
+        e.preventDefault();
+        if (!selectedUser || !changedPassword.trim()) return;
+        if (changedPassword.trim().length < 6) {
+            toast({
+                title: "Password baru minimal 6 karakter!",
+                variant: "destructive"
+            });
+            return;
+        }
+        setIsChangingPassword(true);
+        try {
+            const { error } = await supabase.rpc("admin_change_user_password", {
+                target_user_id: selectedUser.user_id,
+                new_password: changedPassword.trim()
+            });
+            if (error) throw error;
+            toast({
+                title: "Password Diperbarui",
+                description: `Password untuk user ${selectedUser.email} berhasil diubah.`
+            });
+            setIsPasswordDialogOpen(false);
+            setChangedPassword("");
+            setSelectedUser(null);
+        } catch (error) {
+            toast({
+                title: "Gagal mengubah password",
+                description: error.message,
+                variant: "destructive"
+            });
+        } finally{
+            setIsChangingPassword(false);
+        }
+    };
+    const updateRole = async (user, role)=>{
+        setSavingUserId(user.user_id);
+        try {
+            const { error } = await supabase.rpc("admin_set_user_role", {
+                target_user_id: user.user_id,
+                target_role: role
+            });
+            if (error) throw error;
+            setUsers((items)=>items.map((item)=>item.user_id === user.user_id ? {
+                        ...item,
+                        roles: [
+                            role
+                        ]
+                    } : item));
+            toast({
+                title: "Role diperbarui",
+                description: `${user.email} sekarang menjadi ${roleLabels[role]}.`
+            });
+            await refreshRole();
+        } catch (error) {
+            toast({
+                title: "Gagal mengubah role",
+                description: error.message,
+                variant: "destructive"
+            });
+        } finally{
+            setSavingUserId(null);
+        }
+    };
+    const handleDeleteUserRole = async (userId, email)=>{
+        try {
+            const { error } = await supabase.rpc("admin_delete_user_role", {
+                target_user_id: userId
+            });
+            if (error) throw error;
+            toast({
+                title: "Akses Dicabut",
+                description: `Seluruh hak akses khusus untuk ${email} berhasil dihapus.`
+            });
+            loadUsers();
+        } catch (error) {
+            toast({
+                title: "Gagal mencabut akses",
+                description: error.message || "Terjadi kesalahan server.",
+                variant: "destructive"
+            });
+        }
+    };
+    const filteredUsers = useMemo(()=>{
+        const activeTeamMembers = users.filter((user)=>user.roles && user.roles.length > 0);
+        const query = search.toLowerCase().trim();
+        if (!query) return activeTeamMembers;
+        return activeTeamMembers.filter((user)=>{
+            const role = getPrimaryRole(user.roles);
+            return `${user.email} ${role}`.toLowerCase().includes(query);
+        });
+    }, [
+        users,
+        search
+    ]);
+    return /*#__PURE__*/ _jsxDEV(DashboardLayout, {
+        children: /*#__PURE__*/ _jsxDEV("div", {
+            className: "mx-auto max-w-6xl space-y-6",
+            children: [
+                /*#__PURE__*/ _jsxDEV("div", {
+                    className: "flex flex-col justify-between gap-4 sm:flex-row sm:items-center",
+                    children: [
+                        /*#__PURE__*/ _jsxDEV("div", {
+                            children: [
+                                /*#__PURE__*/ _jsxDEV("h1", {
+                                    className: "font-heading text-2xl font-bold text-foreground",
+                                    children: "Role Management"
+                                }, void 0, false, {
+                                    fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/RoleManagement.tsx",
+                                    lineNumber: 268,
+                                    columnNumber: 13
+                                }, this),
+                                /*#__PURE__*/ _jsxDEV("p", {
+                                    className: "text-sm text-muted-foreground",
+                                    children: "Kelola akun dan tingkat jabatan Admin, Staff, atau User lapangan."
+                                }, void 0, false, {
+                                    fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/RoleManagement.tsx",
+                                    lineNumber: 269,
+                                    columnNumber: 13
+                                }, this)
+                            ]
+                        }, void 0, true, {
+                            fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/RoleManagement.tsx",
+                            lineNumber: 267,
+                            columnNumber: 11
+                        }, this),
+                        /*#__PURE__*/ _jsxDEV("div", {
+                            className: "flex gap-2",
+                            children: [
+                                /*#__PURE__*/ _jsxDEV(Dialog, {
+                                    open: isAddDialogOpen,
+                                    onOpenChange: setIsAddDialogOpen,
+                                    children: [
+                                        /*#__PURE__*/ _jsxDEV(DialogTrigger, {
+                                            asChild: true,
+                                            children: /*#__PURE__*/ _jsxDEV(Button, {
+                                                className: "bg-primary hover:bg-primary/90 text-white flex items-center gap-2",
+                                                children: [
+                                                    /*#__PURE__*/ _jsxDEV(UserPlus, {
+                                                        className: "h-4 w-4"
+                                                    }, void 0, false, {
+                                                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/RoleManagement.tsx",
+                                                        lineNumber: 277,
+                                                        columnNumber: 19
+                                                    }, this),
+                                                    " Tambah Akses"
+                                                ]
+                                            }, void 0, true, {
+                                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/RoleManagement.tsx",
+                                                lineNumber: 276,
+                                                columnNumber: 17
+                                            }, this)
+                                        }, void 0, false, {
+                                            fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/RoleManagement.tsx",
+                                            lineNumber: 275,
+                                            columnNumber: 15
+                                        }, this),
+                                        /*#__PURE__*/ _jsxDEV(DialogContent, {
+                                            className: "sm:max-w-[425px]",
+                                            children: /*#__PURE__*/ _jsxDEV("form", {
+                                                onSubmit: handleAddUserRole,
+                                                children: [
+                                                    /*#__PURE__*/ _jsxDEV(DialogHeader, {
+                                                        children: [
+                                                            /*#__PURE__*/ _jsxDEV(DialogTitle, {
+                                                                children: "Buat Akun Karyawan Baru"
+                                                            }, void 0, false, {
+                                                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/RoleManagement.tsx",
+                                                                lineNumber: 283,
+                                                                columnNumber: 21
+                                                            }, this),
+                                                            /*#__PURE__*/ _jsxDEV(DialogDescription, {
+                                                                children: "Daftarkan langsung karyawan/staf baru Anda dengan Username dan Password pilihan di bawah ini."
+                                                            }, void 0, false, {
+                                                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/RoleManagement.tsx",
+                                                                lineNumber: 284,
+                                                                columnNumber: 21
+                                                            }, this)
+                                                        ]
+                                                    }, void 0, true, {
+                                                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/RoleManagement.tsx",
+                                                        lineNumber: 282,
+                                                        columnNumber: 19
+                                                    }, this),
+                                                    /*#__PURE__*/ _jsxDEV("div", {
+                                                        className: "grid gap-4 py-4",
+                                                        children: [
+                                                            /*#__PURE__*/ _jsxDEV("div", {
+                                                                className: "grid gap-2",
+                                                                children: [
+                                                                    /*#__PURE__*/ _jsxDEV(Label, {
+                                                                        htmlFor: "username",
+                                                                        children: "Username"
+                                                                    }, void 0, false, {
+                                                                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/RoleManagement.tsx",
+                                                                        lineNumber: 290,
+                                                                        columnNumber: 23
+                                                                    }, this),
+                                                                    /*#__PURE__*/ _jsxDEV(Input, {
+                                                                        id: "username",
+                                                                        value: newUsername,
+                                                                        onChange: (e)=>setNewUsername(e.target.value),
+                                                                        placeholder: "Contoh: admin",
+                                                                        required: true,
+                                                                        autoComplete: "off"
+                                                                    }, void 0, false, {
+                                                                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/RoleManagement.tsx",
+                                                                        lineNumber: 291,
+                                                                        columnNumber: 23
+                                                                    }, this)
+                                                                ]
+                                                            }, void 0, true, {
+                                                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/RoleManagement.tsx",
+                                                                lineNumber: 289,
+                                                                columnNumber: 21
+                                                            }, this),
+                                                            /*#__PURE__*/ _jsxDEV("div", {
+                                                                className: "grid gap-2",
+                                                                children: [
+                                                                    /*#__PURE__*/ _jsxDEV(Label, {
+                                                                        htmlFor: "password",
+                                                                        children: "Password"
+                                                                    }, void 0, false, {
+                                                                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/RoleManagement.tsx",
+                                                                        lineNumber: 301,
+                                                                        columnNumber: 23
+                                                                    }, this),
+                                                                    /*#__PURE__*/ _jsxDEV(Input, {
+                                                                        id: "password",
+                                                                        type: "password",
+                                                                        value: newPassword,
+                                                                        onChange: (e)=>setNewPassword(e.target.value),
+                                                                        placeholder: "Contoh: admin123456",
+                                                                        required: true
+                                                                    }, void 0, false, {
+                                                                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/RoleManagement.tsx",
+                                                                        lineNumber: 302,
+                                                                        columnNumber: 23
+                                                                    }, this)
+                                                                ]
+                                                            }, void 0, true, {
+                                                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/RoleManagement.tsx",
+                                                                lineNumber: 300,
+                                                                columnNumber: 21
+                                                            }, this),
+                                                            /*#__PURE__*/ _jsxDEV("div", {
+                                                                className: "grid gap-2",
+                                                                children: [
+                                                                    /*#__PURE__*/ _jsxDEV(Label, {
+                                                                        htmlFor: "role",
+                                                                        children: "Tingkat Jabatan (Role)"
+                                                                    }, void 0, false, {
+                                                                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/RoleManagement.tsx",
+                                                                        lineNumber: 312,
+                                                                        columnNumber: 23
+                                                                    }, this),
+                                                                    /*#__PURE__*/ _jsxDEV(Select, {
+                                                                        value: newRole,
+                                                                        onValueChange: (value)=>setNewRole(value),
+                                                                        children: [
+                                                                            /*#__PURE__*/ _jsxDEV(SelectTrigger, {
+                                                                                id: "role",
+                                                                                children: /*#__PURE__*/ _jsxDEV(SelectValue, {
+                                                                                    placeholder: "Pilih Role"
+                                                                                }, void 0, false, {
+                                                                                    fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/RoleManagement.tsx",
+                                                                                    lineNumber: 315,
+                                                                                    columnNumber: 27
+                                                                                }, this)
+                                                                            }, void 0, false, {
+                                                                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/RoleManagement.tsx",
+                                                                                lineNumber: 314,
+                                                                                columnNumber: 25
+                                                                            }, this),
+                                                                            /*#__PURE__*/ _jsxDEV(SelectContent, {
+                                                                                children: [
+                                                                                    /*#__PURE__*/ _jsxDEV(SelectItem, {
+                                                                                        value: "admin",
+                                                                                        children: "Admin (Akses Penuh)"
+                                                                                    }, void 0, false, {
+                                                                                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/RoleManagement.tsx",
+                                                                                        lineNumber: 318,
+                                                                                        columnNumber: 27
+                                                                                    }, this),
+                                                                                    /*#__PURE__*/ _jsxDEV(SelectItem, {
+                                                                                        value: "staff",
+                                                                                        children: "Staff (Invoice & Nota)"
+                                                                                    }, void 0, false, {
+                                                                                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/RoleManagement.tsx",
+                                                                                        lineNumber: 319,
+                                                                                        columnNumber: 27
+                                                                                    }, this),
+                                                                                    /*#__PURE__*/ _jsxDEV(SelectItem, {
+                                                                                        value: "user",
+                                                                                        children: "User (Hanya Dashboard)"
+                                                                                    }, void 0, false, {
+                                                                                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/RoleManagement.tsx",
+                                                                                        lineNumber: 320,
+                                                                                        columnNumber: 27
+                                                                                    }, this)
+                                                                                ]
+                                                                            }, void 0, true, {
+                                                                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/RoleManagement.tsx",
+                                                                                lineNumber: 317,
+                                                                                columnNumber: 25
+                                                                            }, this)
+                                                                        ]
+                                                                    }, void 0, true, {
+                                                                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/RoleManagement.tsx",
+                                                                        lineNumber: 313,
+                                                                        columnNumber: 23
+                                                                    }, this)
+                                                                ]
+                                                            }, void 0, true, {
+                                                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/RoleManagement.tsx",
+                                                                lineNumber: 311,
+                                                                columnNumber: 21
+                                                            }, this)
+                                                        ]
+                                                    }, void 0, true, {
+                                                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/RoleManagement.tsx",
+                                                        lineNumber: 288,
+                                                        columnNumber: 19
+                                                    }, this),
+                                                    /*#__PURE__*/ _jsxDEV(DialogFooter, {
+                                                        children: [
+                                                            /*#__PURE__*/ _jsxDEV(Button, {
+                                                                type: "button",
+                                                                variant: "outline",
+                                                                onClick: ()=>setIsAddDialogOpen(false),
+                                                                children: "Batal"
+                                                            }, void 0, false, {
+                                                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/RoleManagement.tsx",
+                                                                lineNumber: 326,
+                                                                columnNumber: 21
+                                                            }, this),
+                                                            /*#__PURE__*/ _jsxDEV(Button, {
+                                                                type: "submit",
+                                                                disabled: isCreating,
+                                                                className: "bg-primary text-white",
+                                                                children: isCreating ? "Mendaftarkan..." : "Simpan Akses"
+                                                            }, void 0, false, {
+                                                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/RoleManagement.tsx",
+                                                                lineNumber: 329,
+                                                                columnNumber: 21
+                                                            }, this)
+                                                        ]
+                                                    }, void 0, true, {
+                                                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/RoleManagement.tsx",
+                                                        lineNumber: 325,
+                                                        columnNumber: 19
+                                                    }, this)
+                                                ]
+                                            }, void 0, true, {
+                                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/RoleManagement.tsx",
+                                                lineNumber: 281,
+                                                columnNumber: 17
+                                            }, this)
+                                        }, void 0, false, {
+                                            fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/RoleManagement.tsx",
+                                            lineNumber: 280,
+                                            columnNumber: 15
+                                        }, this)
+                                    ]
+                                }, void 0, true, {
+                                    fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/RoleManagement.tsx",
+                                    lineNumber: 274,
+                                    columnNumber: 13
+                                }, this),
+                                /*#__PURE__*/ _jsxDEV(Button, {
+                                    variant: "outline",
+                                    onClick: loadUsers,
+                                    disabled: loading,
+                                    children: [
+                                        /*#__PURE__*/ _jsxDEV(RefreshCw, {
+                                            className: loading ? "h-4 w-4 animate-spin" : "h-4 w-4"
+                                        }, void 0, false, {
+                                            fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/RoleManagement.tsx",
+                                            lineNumber: 338,
+                                            columnNumber: 15
+                                        }, this),
+                                        " Refresh"
+                                    ]
+                                }, void 0, true, {
+                                    fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/RoleManagement.tsx",
+                                    lineNumber: 337,
+                                    columnNumber: 13
+                                }, this)
+                            ]
+                        }, void 0, true, {
+                            fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/RoleManagement.tsx",
+                            lineNumber: 271,
+                            columnNumber: 11
+                        }, this)
+                    ]
+                }, void 0, true, {
+                    fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/RoleManagement.tsx",
+                    lineNumber: 266,
+                    columnNumber: 9
+                }, this),
+                /*#__PURE__*/ _jsxDEV(Dialog, {
+                    open: isPasswordDialogOpen,
+                    onOpenChange: setIsPasswordDialogOpen,
+                    children: /*#__PURE__*/ _jsxDEV(DialogContent, {
+                        className: "sm:max-w-[425px]",
+                        children: /*#__PURE__*/ _jsxDEV("form", {
+                            onSubmit: handleChangeUserPasswordSubmit,
+                            children: [
+                                /*#__PURE__*/ _jsxDEV(DialogHeader, {
+                                    children: [
+                                        /*#__PURE__*/ _jsxDEV(DialogTitle, {
+                                            children: "Ubah Password Pengguna"
+                                        }, void 0, false, {
+                                            fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/RoleManagement.tsx",
+                                            lineNumber: 348,
+                                            columnNumber: 17
+                                        }, this),
+                                        /*#__PURE__*/ _jsxDEV(DialogDescription, {
+                                            children: [
+                                                "Ganti sandi akun untuk karyawan ",
+                                                /*#__PURE__*/ _jsxDEV("strong", {
+                                                    children: selectedUser?.email
+                                                }, void 0, false, {
+                                                    fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/RoleManagement.tsx",
+                                                    lineNumber: 350,
+                                                    columnNumber: 51
+                                                }, this),
+                                                " secara langsung."
+                                            ]
+                                        }, void 0, true, {
+                                            fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/RoleManagement.tsx",
+                                            lineNumber: 349,
+                                            columnNumber: 17
+                                        }, this)
+                                    ]
+                                }, void 0, true, {
+                                    fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/RoleManagement.tsx",
+                                    lineNumber: 347,
+                                    columnNumber: 15
+                                }, this),
+                                /*#__PURE__*/ _jsxDEV("div", {
+                                    className: "grid gap-4 py-4",
+                                    children: /*#__PURE__*/ _jsxDEV("div", {
+                                        className: "grid gap-2",
+                                        children: [
+                                            /*#__PURE__*/ _jsxDEV(Label, {
+                                                htmlFor: "new_password_input",
+                                                children: "Password Baru"
+                                            }, void 0, false, {
+                                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/RoleManagement.tsx",
+                                                lineNumber: 355,
+                                                columnNumber: 19
+                                            }, this),
+                                            /*#__PURE__*/ _jsxDEV(Input, {
+                                                id: "new_password_input",
+                                                type: "password",
+                                                value: changedPassword,
+                                                onChange: (e)=>setChangedPassword(e.target.value),
+                                                placeholder: "Masukkan password baru (min 6 karakter)",
+                                                required: true
+                                            }, void 0, false, {
+                                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/RoleManagement.tsx",
+                                                lineNumber: 356,
+                                                columnNumber: 19
+                                            }, this)
+                                        ]
+                                    }, void 0, true, {
+                                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/RoleManagement.tsx",
+                                        lineNumber: 354,
+                                        columnNumber: 17
+                                    }, this)
+                                }, void 0, false, {
+                                    fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/RoleManagement.tsx",
+                                    lineNumber: 353,
+                                    columnNumber: 15
+                                }, this),
+                                /*#__PURE__*/ _jsxDEV(DialogFooter, {
+                                    children: [
+                                        /*#__PURE__*/ _jsxDEV(Button, {
+                                            type: "button",
+                                            variant: "outline",
+                                            onClick: ()=>setIsPasswordDialogOpen(false),
+                                            children: "Batal"
+                                        }, void 0, false, {
+                                            fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/RoleManagement.tsx",
+                                            lineNumber: 367,
+                                            columnNumber: 17
+                                        }, this),
+                                        /*#__PURE__*/ _jsxDEV(Button, {
+                                            type: "submit",
+                                            disabled: isChangingPassword,
+                                            className: "bg-primary text-white",
+                                            children: isChangingPassword ? "Mengubah..." : "Update Password"
+                                        }, void 0, false, {
+                                            fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/RoleManagement.tsx",
+                                            lineNumber: 370,
+                                            columnNumber: 17
+                                        }, this)
+                                    ]
+                                }, void 0, true, {
+                                    fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/RoleManagement.tsx",
+                                    lineNumber: 366,
+                                    columnNumber: 15
+                                }, this)
+                            ]
+                        }, void 0, true, {
+                            fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/RoleManagement.tsx",
+                            lineNumber: 346,
+                            columnNumber: 13
+                        }, this)
+                    }, void 0, false, {
+                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/RoleManagement.tsx",
+                        lineNumber: 345,
+                        columnNumber: 11
+                    }, this)
+                }, void 0, false, {
+                    fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/RoleManagement.tsx",
+                    lineNumber: 344,
+                    columnNumber: 9
+                }, this),
+                /*#__PURE__*/ _jsxDEV("div", {
+                    className: "glass-card rounded-lg p-5",
+                    children: [
+                        /*#__PURE__*/ _jsxDEV("div", {
+                            className: "mb-4 flex items-center gap-2",
+                            children: [
+                                /*#__PURE__*/ _jsxDEV(Search, {
+                                    className: "h-5 w-5 text-primary"
+                                }, void 0, false, {
+                                    fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/RoleManagement.tsx",
+                                    lineNumber: 381,
+                                    columnNumber: 13
+                                }, this),
+                                /*#__PURE__*/ _jsxDEV("h2", {
+                                    className: "font-heading text-lg font-semibold",
+                                    children: "Cari Anggota Tim"
+                                }, void 0, false, {
+                                    fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/RoleManagement.tsx",
+                                    lineNumber: 382,
+                                    columnNumber: 13
+                                }, this)
+                            ]
+                        }, void 0, true, {
+                            fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/RoleManagement.tsx",
+                            lineNumber: 380,
+                            columnNumber: 11
+                        }, this),
+                        /*#__PURE__*/ _jsxDEV("div", {
+                            className: "space-y-2",
+                            children: [
+                                /*#__PURE__*/ _jsxDEV(Label, {
+                                    children: "Email atau Role Karyawan"
+                                }, void 0, false, {
+                                    fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/RoleManagement.tsx",
+                                    lineNumber: 385,
+                                    columnNumber: 13
+                                }, this),
+                                /*#__PURE__*/ _jsxDEV(Input, {
+                                    value: search,
+                                    onChange: (event)=>setSearch(event.target.value),
+                                    placeholder: "Ketik kata kunci pencarian..."
+                                }, void 0, false, {
+                                    fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/RoleManagement.tsx",
+                                    lineNumber: 386,
+                                    columnNumber: 13
+                                }, this)
+                            ]
+                        }, void 0, true, {
+                            fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/RoleManagement.tsx",
+                            lineNumber: 384,
+                            columnNumber: 11
+                        }, this)
+                    ]
+                }, void 0, true, {
+                    fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/RoleManagement.tsx",
+                    lineNumber: 379,
+                    columnNumber: 9
+                }, this),
+                /*#__PURE__*/ _jsxDEV("div", {
+                    className: "glass-card overflow-hidden rounded-lg",
+                    children: [
+                        /*#__PURE__*/ _jsxDEV("div", {
+                            className: "flex items-center justify-between border-b border-border p-5",
+                            children: [
+                                /*#__PURE__*/ _jsxDEV("div", {
+                                    className: "flex items-center gap-2",
+                                    children: [
+                                        /*#__PURE__*/ _jsxDEV(UserCog, {
+                                            className: "h-5 w-5 text-primary"
+                                        }, void 0, false, {
+                                            fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/RoleManagement.tsx",
+                                            lineNumber: 398,
+                                            columnNumber: 15
+                                        }, this),
+                                        /*#__PURE__*/ _jsxDEV("h2", {
+                                            className: "font-heading text-lg font-semibold",
+                                            children: "Daftar Pengguna Sistem"
+                                        }, void 0, false, {
+                                            fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/RoleManagement.tsx",
+                                            lineNumber: 399,
+                                            columnNumber: 15
+                                        }, this)
+                                    ]
+                                }, void 0, true, {
+                                    fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/RoleManagement.tsx",
+                                    lineNumber: 397,
+                                    columnNumber: 13
+                                }, this),
+                                /*#__PURE__*/ _jsxDEV(Badge, {
+                                    variant: "outline",
+                                    className: "border-primary/20 bg-primary/10 text-primary px-3 py-1",
+                                    children: [
+                                        filteredUsers.length,
+                                        " Orang"
+                                    ]
+                                }, void 0, true, {
+                                    fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/RoleManagement.tsx",
+                                    lineNumber: 401,
+                                    columnNumber: 13
+                                }, this)
+                            ]
+                        }, void 0, true, {
+                            fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/RoleManagement.tsx",
+                            lineNumber: 396,
+                            columnNumber: 11
+                        }, this),
+                        /*#__PURE__*/ _jsxDEV("div", {
+                            className: "overflow-x-auto",
+                            children: /*#__PURE__*/ _jsxDEV(Table, {
+                                children: [
+                                    /*#__PURE__*/ _jsxDEV(TableHeader, {
+                                        children: /*#__PURE__*/ _jsxDEV(TableRow, {
+                                            children: [
+                                                /*#__PURE__*/ _jsxDEV(TableHead, {
+                                                    children: "Akun Pengguna"
+                                                }, void 0, false, {
+                                                    fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/RoleManagement.tsx",
+                                                    lineNumber: 410,
+                                                    columnNumber: 19
+                                                }, this),
+                                                /*#__PURE__*/ _jsxDEV(TableHead, {
+                                                    children: "Tanggal Terdaftar"
+                                                }, void 0, false, {
+                                                    fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/RoleManagement.tsx",
+                                                    lineNumber: 411,
+                                                    columnNumber: 19
+                                                }, this),
+                                                /*#__PURE__*/ _jsxDEV(TableHead, {
+                                                    children: "Status Hak Akses"
+                                                }, void 0, false, {
+                                                    fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/RoleManagement.tsx",
+                                                    lineNumber: 412,
+                                                    columnNumber: 19
+                                                }, this),
+                                                /*#__PURE__*/ _jsxDEV(TableHead, {
+                                                    className: "w-48",
+                                                    children: "Ubah Akses"
+                                                }, void 0, false, {
+                                                    fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/RoleManagement.tsx",
+                                                    lineNumber: 413,
+                                                    columnNumber: 19
+                                                }, this),
+                                                /*#__PURE__*/ _jsxDEV(TableHead, {
+                                                    className: "w-32 text-center",
+                                                    children: "Tindakan"
+                                                }, void 0, false, {
+                                                    fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/RoleManagement.tsx",
+                                                    lineNumber: 414,
+                                                    columnNumber: 19
+                                                }, this)
+                                            ]
+                                        }, void 0, true, {
+                                            fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/RoleManagement.tsx",
+                                            lineNumber: 409,
+                                            columnNumber: 17
+                                        }, this)
+                                    }, void 0, false, {
+                                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/RoleManagement.tsx",
+                                        lineNumber: 408,
+                                        columnNumber: 15
+                                    }, this),
+                                    /*#__PURE__*/ _jsxDEV(TableBody, {
+                                        children: loading ? /*#__PURE__*/ _jsxDEV(TableRow, {
+                                            children: /*#__PURE__*/ _jsxDEV(TableCell, {
+                                                colSpan: 5,
+                                                className: "h-24 text-center text-muted-foreground",
+                                                children: "Memuat data tim..."
+                                            }, void 0, false, {
+                                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/RoleManagement.tsx",
+                                                lineNumber: 420,
+                                                columnNumber: 21
+                                            }, this)
+                                        }, void 0, false, {
+                                            fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/RoleManagement.tsx",
+                                            lineNumber: 419,
+                                            columnNumber: 19
+                                        }, this) : filteredUsers.length === 0 ? /*#__PURE__*/ _jsxDEV(TableRow, {
+                                            children: /*#__PURE__*/ _jsxDEV(TableCell, {
+                                                colSpan: 5,
+                                                className: "h-24 text-center text-muted-foreground",
+                                                children: "Belum ada karyawan dengan hak akses khusus."
+                                            }, void 0, false, {
+                                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/RoleManagement.tsx",
+                                                lineNumber: 424,
+                                                columnNumber: 21
+                                            }, this)
+                                        }, void 0, false, {
+                                            fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/RoleManagement.tsx",
+                                            lineNumber: 423,
+                                            columnNumber: 19
+                                        }, this) : filteredUsers.map((user)=>{
+                                            const role = getPrimaryRole(user.roles);
+                                            const isSelf = currentUser?.id === user.user_id;
+                                            return /*#__PURE__*/ _jsxDEV(TableRow, {
+                                                className: "hover:bg-muted/30 transition-colors",
+                                                children: [
+                                                    /*#__PURE__*/ _jsxDEV(TableCell, {
+                                                        className: "font-medium",
+                                                        children: [
+                                                            user.email,
+                                                            " ",
+                                                            isSelf && /*#__PURE__*/ _jsxDEV("span", {
+                                                                className: "text-xs text-primary font-bold",
+                                                                children: "(Anda)"
+                                                            }, void 0, false, {
+                                                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/RoleManagement.tsx",
+                                                                lineNumber: 434,
+                                                                columnNumber: 51
+                                                            }, this)
+                                                        ]
+                                                    }, void 0, true, {
+                                                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/RoleManagement.tsx",
+                                                        lineNumber: 433,
+                                                        columnNumber: 25
+                                                    }, this),
+                                                    /*#__PURE__*/ _jsxDEV(TableCell, {
+                                                        children: formatDate(user.created_at)
+                                                    }, void 0, false, {
+                                                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/RoleManagement.tsx",
+                                                        lineNumber: 436,
+                                                        columnNumber: 25
+                                                    }, this),
+                                                    /*#__PURE__*/ _jsxDEV(TableCell, {
+                                                        children: /*#__PURE__*/ _jsxDEV(Badge, {
+                                                            variant: "outline",
+                                                            className: "border-primary/20 bg-primary/10 text-primary font-medium",
+                                                            children: [
+                                                                /*#__PURE__*/ _jsxDEV(ShieldCheck, {
+                                                                    className: "mr-1 h-3 w-3 inline"
+                                                                }, void 0, false, {
+                                                                    fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/RoleManagement.tsx",
+                                                                    lineNumber: 439,
+                                                                    columnNumber: 29
+                                                                }, this),
+                                                                " ",
+                                                                roleLabels[role]
+                                                            ]
+                                                        }, void 0, true, {
+                                                            fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/RoleManagement.tsx",
+                                                            lineNumber: 438,
+                                                            columnNumber: 27
+                                                        }, this)
+                                                    }, void 0, false, {
+                                                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/RoleManagement.tsx",
+                                                        lineNumber: 437,
+                                                        columnNumber: 25
+                                                    }, this),
+                                                    /*#__PURE__*/ _jsxDEV(TableCell, {
+                                                        children: /*#__PURE__*/ _jsxDEV(Select, {
+                                                            value: role,
+                                                            onValueChange: (value)=>updateRole(user, value),
+                                                            disabled: savingUserId === user.user_id || isSelf,
+                                                            children: [
+                                                                /*#__PURE__*/ _jsxDEV(SelectTrigger, {
+                                                                    className: "h-9",
+                                                                    children: /*#__PURE__*/ _jsxDEV(SelectValue, {}, void 0, false, {
+                                                                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/RoleManagement.tsx",
+                                                                        lineNumber: 449,
+                                                                        columnNumber: 31
+                                                                    }, this)
+                                                                }, void 0, false, {
+                                                                    fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/RoleManagement.tsx",
+                                                                    lineNumber: 448,
+                                                                    columnNumber: 29
+                                                                }, this),
+                                                                /*#__PURE__*/ _jsxDEV(SelectContent, {
+                                                                    children: [
+                                                                        /*#__PURE__*/ _jsxDEV(SelectItem, {
+                                                                            value: "admin",
+                                                                            children: "Admin"
+                                                                        }, void 0, false, {
+                                                                            fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/RoleManagement.tsx",
+                                                                            lineNumber: 452,
+                                                                            columnNumber: 31
+                                                                        }, this),
+                                                                        /*#__PURE__*/ _jsxDEV(SelectItem, {
+                                                                            value: "staff",
+                                                                            children: "Staff"
+                                                                        }, void 0, false, {
+                                                                            fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/RoleManagement.tsx",
+                                                                            lineNumber: 453,
+                                                                            columnNumber: 31
+                                                                        }, this),
+                                                                        /*#__PURE__*/ _jsxDEV(SelectItem, {
+                                                                            value: "user",
+                                                                            children: "User"
+                                                                        }, void 0, false, {
+                                                                            fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/RoleManagement.tsx",
+                                                                            lineNumber: 454,
+                                                                            columnNumber: 31
+                                                                        }, this)
+                                                                    ]
+                                                                }, void 0, true, {
+                                                                    fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/RoleManagement.tsx",
+                                                                    lineNumber: 451,
+                                                                    columnNumber: 29
+                                                                }, this)
+                                                            ]
+                                                        }, void 0, true, {
+                                                            fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/RoleManagement.tsx",
+                                                            lineNumber: 443,
+                                                            columnNumber: 27
+                                                        }, this)
+                                                    }, void 0, false, {
+                                                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/RoleManagement.tsx",
+                                                        lineNumber: 442,
+                                                        columnNumber: 25
+                                                    }, this),
+                                                    /*#__PURE__*/ _jsxDEV(TableCell, {
+                                                        className: "text-center flex justify-center gap-1 items-center h-14",
+                                                        children: [
+                                                            /*#__PURE__*/ _jsxDEV(Button, {
+                                                                variant: "ghost",
+                                                                size: "icon",
+                                                                className: "text-muted-foreground hover:text-primary hover:bg-primary/10 h-8 w-8 rounded-md transition-colors",
+                                                                onClick: ()=>{
+                                                                    setSelectedUser(user);
+                                                                    setIsPasswordDialogOpen(true);
+                                                                },
+                                                                children: /*#__PURE__*/ _jsxDEV(KeyRound, {
+                                                                    className: "h-4 w-4"
+                                                                }, void 0, false, {
+                                                                    fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/RoleManagement.tsx",
+                                                                    lineNumber: 468,
+                                                                    columnNumber: 29
+                                                                }, this)
+                                                            }, void 0, false, {
+                                                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/RoleManagement.tsx",
+                                                                lineNumber: 459,
+                                                                columnNumber: 27
+                                                            }, this),
+                                                            /*#__PURE__*/ _jsxDEV(AlertDialog, {
+                                                                children: [
+                                                                    /*#__PURE__*/ _jsxDEV(AlertDialogTrigger, {
+                                                                        asChild: true,
+                                                                        children: /*#__PURE__*/ _jsxDEV(Button, {
+                                                                            variant: "ghost",
+                                                                            size: "icon",
+                                                                            className: "text-muted-foreground hover:text-destructive hover:bg-destructive/10 h-8 w-8 rounded-md transition-colors",
+                                                                            disabled: isSelf,
+                                                                            children: /*#__PURE__*/ _jsxDEV(Trash2, {
+                                                                                className: "h-4 w-4"
+                                                                            }, void 0, false, {
+                                                                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/RoleManagement.tsx",
+                                                                                lineNumber: 479,
+                                                                                columnNumber: 33
+                                                                            }, this)
+                                                                        }, void 0, false, {
+                                                                            fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/RoleManagement.tsx",
+                                                                            lineNumber: 473,
+                                                                            columnNumber: 31
+                                                                        }, this)
+                                                                    }, void 0, false, {
+                                                                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/RoleManagement.tsx",
+                                                                        lineNumber: 472,
+                                                                        columnNumber: 29
+                                                                    }, this),
+                                                                    /*#__PURE__*/ _jsxDEV(AlertDialogContent, {
+                                                                        children: [
+                                                                            /*#__PURE__*/ _jsxDEV(AlertDialogHeader, {
+                                                                                children: [
+                                                                                    /*#__PURE__*/ _jsxDEV(AlertDialogTitle, {
+                                                                                        children: "Cabut Hak Akses?"
+                                                                                    }, void 0, false, {
+                                                                                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/RoleManagement.tsx",
+                                                                                        lineNumber: 484,
+                                                                                        columnNumber: 33
+                                                                                    }, this),
+                                                                                    /*#__PURE__*/ _jsxDEV(AlertDialogDescription, {
+                                                                                        children: [
+                                                                                            "Apakah Anda yakin ingin menghapus hak akses khusus untuk ",
+                                                                                            /*#__PURE__*/ _jsxDEV("strong", {
+                                                                                                children: user.email
+                                                                                            }, void 0, false, {
+                                                                                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/RoleManagement.tsx",
+                                                                                                lineNumber: 486,
+                                                                                                columnNumber: 92
+                                                                                            }, this),
+                                                                                            "? Pengguna ini akan kehilangan semua privilese di dalam aplikasi."
+                                                                                        ]
+                                                                                    }, void 0, true, {
+                                                                                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/RoleManagement.tsx",
+                                                                                        lineNumber: 485,
+                                                                                        columnNumber: 33
+                                                                                    }, this)
+                                                                                ]
+                                                                            }, void 0, true, {
+                                                                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/RoleManagement.tsx",
+                                                                                lineNumber: 483,
+                                                                                columnNumber: 31
+                                                                            }, this),
+                                                                            /*#__PURE__*/ _jsxDEV(AlertDialogFooter, {
+                                                                                children: [
+                                                                                    /*#__PURE__*/ _jsxDEV(AlertDialogCancel, {
+                                                                                        children: "Batal"
+                                                                                    }, void 0, false, {
+                                                                                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/RoleManagement.tsx",
+                                                                                        lineNumber: 490,
+                                                                                        columnNumber: 33
+                                                                                    }, this),
+                                                                                    /*#__PURE__*/ _jsxDEV(AlertDialogAction, {
+                                                                                        onClick: ()=>handleDeleteUserRole(user.user_id, user.email),
+                                                                                        className: "bg-destructive text-white hover:bg-destructive/90",
+                                                                                        children: "Ya, Cabut Akses"
+                                                                                    }, void 0, false, {
+                                                                                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/RoleManagement.tsx",
+                                                                                        lineNumber: 491,
+                                                                                        columnNumber: 33
+                                                                                    }, this)
+                                                                                ]
+                                                                            }, void 0, true, {
+                                                                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/RoleManagement.tsx",
+                                                                                lineNumber: 489,
+                                                                                columnNumber: 31
+                                                                            }, this)
+                                                                        ]
+                                                                    }, void 0, true, {
+                                                                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/RoleManagement.tsx",
+                                                                        lineNumber: 482,
+                                                                        columnNumber: 29
+                                                                    }, this)
+                                                                ]
+                                                            }, void 0, true, {
+                                                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/RoleManagement.tsx",
+                                                                lineNumber: 471,
+                                                                columnNumber: 27
+                                                            }, this)
+                                                        ]
+                                                    }, void 0, true, {
+                                                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/RoleManagement.tsx",
+                                                        lineNumber: 458,
+                                                        columnNumber: 25
+                                                    }, this)
+                                                ]
+                                            }, user.user_id, true, {
+                                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/RoleManagement.tsx",
+                                                lineNumber: 432,
+                                                columnNumber: 23
+                                            }, this);
+                                        })
+                                    }, void 0, false, {
+                                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/RoleManagement.tsx",
+                                        lineNumber: 417,
+                                        columnNumber: 15
+                                    }, this)
+                                ]
+                            }, void 0, true, {
+                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/RoleManagement.tsx",
+                                lineNumber: 407,
+                                columnNumber: 13
+                            }, this)
+                        }, void 0, false, {
+                            fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/RoleManagement.tsx",
+                            lineNumber: 406,
+                            columnNumber: 11
+                        }, this)
+                    ]
+                }, void 0, true, {
+                    fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/RoleManagement.tsx",
+                    lineNumber: 395,
+                    columnNumber: 9
+                }, this)
+            ]
+        }, void 0, true, {
+            fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/RoleManagement.tsx",
+            lineNumber: 263,
+            columnNumber: 7
+        }, this)
+    }, void 0, false, {
+        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/RoleManagement.tsx",
+        lineNumber: 262,
+        columnNumber: 5
+    }, this);
+}
+_s(RoleManagement, "ATufMMAaHwiHnURXwx1mHRn8O+Q=", false, function() {
+    return [
+        useToast,
+        useAuth
+    ];
+});
+_c = RoleManagement;
+var _c;
+$RefreshReg$(_c, "RoleManagement");
+
+
+if (import.meta.hot && !inWebWorker) {
+  window.$RefreshReg$ = prevRefreshReg;
+  window.$RefreshSig$ = prevRefreshSig;
+}
+
+
+if (import.meta.hot && !inWebWorker) {
+  RefreshRuntime.__hmr_import(import.meta.url).then((currentExports) => {
+    RefreshRuntime.registerExportsForReactRefresh("C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/RoleManagement.tsx", currentExports);
+    import.meta.hot.accept((nextExports) => {
+      if (!nextExports) return;
+      const invalidateMessage = RefreshRuntime.validateRefreshBoundaryAndEnqueueUpdate("C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/RoleManagement.tsx", currentExports, nextExports);
+      if (invalidateMessage) import.meta.hot.invalidate(invalidateMessage);
+    });
+  });
+}
+
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIlJvbGVNYW5hZ2VtZW50LnRzeCJdLCJzb3VyY2VzQ29udGVudCI6WyJpbXBvcnQgeyB1c2VFZmZlY3QsIHVzZU1lbW8sIHVzZVN0YXRlIH0gZnJvbSBcInJlYWN0XCI7XG5pbXBvcnQgeyBEYXNoYm9hcmRMYXlvdXQgfSBmcm9tIFwiQC9jb21wb25lbnRzL0Rhc2hib2FyZExheW91dFwiO1xuaW1wb3J0IHsgc3VwYWJhc2UgfSBmcm9tIFwiQC9pbnRlZ3JhdGlvbnMvc3VwYWJhc2UvY2xpZW50XCI7XG5pbXBvcnQgeyBBcHBSb2xlLCB1c2VBdXRoIH0gZnJvbSBcIkAvY29udGV4dHMvQXV0aENvbnRleHRcIjtcbmltcG9ydCB7IEJ1dHRvbiB9IGZyb20gXCJAL2NvbXBvbmVudHMvdWkvYnV0dG9uXCI7XG5pbXBvcnQgeyBJbnB1dCB9IGZyb20gXCJAL2NvbXBvbmVudHMvdWkvaW5wdXRcIjtcbmltcG9ydCB7IExhYmVsIH0gZnJvbSBcIkAvY29tcG9uZW50cy91aS9sYWJlbFwiO1xuaW1wb3J0IHsgU2VsZWN0LCBTZWxlY3RDb250ZW50LCBTZWxlY3RJdGVtLCBTZWxlY3RUcmlnZ2VyLCBTZWxlY3RWYWx1ZSB9IGZyb20gXCJAL2NvbXBvbmVudHMvdWkvc2VsZWN0XCI7XG5pbXBvcnQgeyBCYWRnZSB9IGZyb20gXCJAL2NvbXBvbmVudHMvdWkvYmFkZ2VcIjtcbmltcG9ydCB7IFRhYmxlLCBUYWJsZUJvZHksIFRhYmxlQ2VsbCwgVGFibGVIZWFkLCBUYWJsZUhlYWRlciwgVGFibGVSb3cgfSBmcm9tIFwiQC9jb21wb25lbnRzL3VpL3RhYmxlXCI7XG5pbXBvcnQgeyB1c2VUb2FzdCB9IGZyb20gXCJAL2hvb2tzL3VzZS10b2FzdFwiO1xuaW1wb3J0IHsgY3JlYXRlQ2xpZW50IH0gZnJvbSBcIkBzdXBhYmFzZS9zdXBhYmFzZS1qc1wiO1xuaW1wb3J0IHsgXG4gIERpYWxvZywgXG4gIERpYWxvZ0NvbnRlbnQsIFxuICBEaWFsb2dEZXNjcmlwdGlvbiwgXG4gIERpYWxvZ0Zvb3RlciwgXG4gIERpYWxvZ0hlYWRlciwgXG4gIERpYWxvZ1RpdGxlLCBcbiAgRGlhbG9nVHJpZ2dlciBcbn0gZnJvbSBcIkAvY29tcG9uZW50cy91aS9kaWFsb2dcIjtcbmltcG9ydCB7XG4gIEFsZXJ0RGlhbG9nLFxuICBBbGVydERpYWxvZ0FjdGlvbixcbiAgQWxlcnREaWFsb2dDYW5jZWwsXG4gIEFsZXJ0RGlhbG9nQ29udGVudCxcbiAgQWxlcnREaWFsb2dEZXNjcmlwdGlvbixcbiAgQWxlcnREaWFsb2dGb290ZXIsXG4gIEFsZXJ0RGlhbG9nSGVhZGVyLFxuICBBbGVydERpYWxvZ1RpdGxlLFxuICBBbGVydERpYWxvZ1RyaWdnZXIsXG59IGZyb20gXCJAL2NvbXBvbmVudHMvdWkvYWxlcnQtZGlhbG9nXCI7XG5pbXBvcnQgeyBSZWZyZXNoQ3csIFNlYXJjaCwgU2hpZWxkQ2hlY2ssIFVzZXJDb2csIFVzZXJQbHVzLCBUcmFzaDIsIEtleVJvdW5kIH0gZnJvbSBcImx1Y2lkZS1yZWFjdFwiO1xuXG50eXBlIE1hbmFnZWRVc2VyID0ge1xuICB1c2VyX2lkOiBzdHJpbmc7XG4gIGVtYWlsOiBzdHJpbmc7XG4gIGNyZWF0ZWRfYXQ6IHN0cmluZztcbiAgcm9sZXM6IEFwcFJvbGVbXTtcbn07XG5cbmNvbnN0IHJvbGVMYWJlbHM6IFJlY29yZDxBcHBSb2xlLCBzdHJpbmc+ID0ge1xuICBhZG1pbjogXCJBZG1pblwiLFxuICBzdGFmZjogXCJTdGFmZlwiLFxuICB1c2VyOiBcIlVzZXJcIixcbn07XG5cbmNvbnN0IGZvcm1hdERhdGUgPSAoZGF0ZT86IHN0cmluZykgPT4ge1xuICBpZiAoIWRhdGUpIHJldHVybiBcIi1cIjtcbiAgcmV0dXJuIG5ldyBEYXRlKGRhdGUpLnRvTG9jYWxlRGF0ZVN0cmluZyhcImlkLUlEXCIsIHtcbiAgICBkYXk6IFwiMi1kaWdpdFwiLFxuICAgIG1vbnRoOiBcImxvbmdcIixcbiAgICB5ZWFyOiBcIm51bWVyaWNcIixcbiAgfSk7XG59O1xuXG5jb25zdCBnZXRQcmltYXJ5Um9sZSA9IChyb2xlczogQXBwUm9sZVtdID0gW10pOiBBcHBSb2xlID0+IHtcbiAgaWYgKHJvbGVzLmluY2x1ZGVzKFwiYWRtaW5cIikpIHJldHVybiBcImFkbWluXCI7XG4gIGlmIChyb2xlcy5pbmNsdWRlcyhcInN0YWZmXCIpKSByZXR1cm4gXCJzdGFmZlwiO1xuICByZXR1cm4gXCJ1c2VyXCI7XG59O1xuXG5leHBvcnQgZGVmYXVsdCBmdW5jdGlvbiBSb2xlTWFuYWdlbWVudCgpIHtcbiAgY29uc3QgeyB0b2FzdCB9ID0gdXNlVG9hc3QoKTtcbiAgY29uc3QgeyByZWZyZXNoUm9sZSwgdXNlcjogY3VycmVudFVzZXIgfSA9IHVzZUF1dGgoKTtcbiAgY29uc3QgW3VzZXJzLCBzZXRVc2Vyc10gPSB1c2VTdGF0ZTxNYW5hZ2VkVXNlcltdPihbXSk7XG4gIGNvbnN0IFtzZWFyY2gsIHNldFNlYXJjaF0gPSB1c2VTdGF0ZShcIlwiKTtcbiAgY29uc3QgW2xvYWRpbmcsIHNldExvYWRpbmddID0gdXNlU3RhdGUodHJ1ZSk7XG4gIGNvbnN0IFtzYXZpbmdVc2VySWQsIHNldFNhdmluZ1VzZXJJZF0gPSB1c2VTdGF0ZTxzdHJpbmcgfCBudWxsPihudWxsKTtcblxuICAvLyBTdGF0ZSBGb3JtIFRhbWJhaCBVc2VyXG4gIGNvbnN0IFtpc0FkZERpYWxvZ09wZW4sIHNldElzQWRkRGlhbG9nT3Blbl0gPSB1c2VTdGF0ZShmYWxzZSk7XG4gIGNvbnN0IFtuZXdVc2VybmFtZSwgc2V0TmV3VXNlcm5hbWVdID0gdXNlU3RhdGUoXCJcIik7XG4gIGNvbnN0IFtuZXdQYXNzd29yZCwgc2V0TmV3UGFzc3dvcmRdID0gdXNlU3RhdGUoXCJcIik7XG4gIGNvbnN0IFtuZXdSb2xlLCBzZXROZXdSb2xlXSA9IHVzZVN0YXRlPEFwcFJvbGU+KFwic3RhZmZcIik7XG4gIGNvbnN0IFtpc0NyZWF0aW5nLCBzZXRJc0NyZWF0aW5nXSA9IHVzZVN0YXRlKGZhbHNlKTtcblxuICAvLyBTdGF0ZSBGb3JtIFViYWggUGFzc3dvcmRcbiAgY29uc3QgW2lzUGFzc3dvcmREaWFsb2dPcGVuLCBzZXRJc1Bhc3N3b3JkRGlhbG9nT3Blbl0gPSB1c2VTdGF0ZShmYWxzZSk7XG4gIGNvbnN0IFtzZWxlY3RlZFVzZXIsIHNldFNlbGVjdGVkVXNlcl0gPSB1c2VTdGF0ZTxNYW5hZ2VkVXNlciB8IG51bGw+KG51bGwpO1xuICBjb25zdCBbY2hhbmdlZFBhc3N3b3JkLCBzZXRDaGFuZ2VkUGFzc3dvcmRdID0gdXNlU3RhdGUoXCJcIik7XG4gIGNvbnN0IFtpc0NoYW5naW5nUGFzc3dvcmQsIHNldElzQ2hhbmdpbmdQYXNzd29yZF0gPSB1c2VTdGF0ZShmYWxzZSk7XG5cbiAgdXNlRWZmZWN0KCgpID0+IHtcbiAgICBsb2FkVXNlcnMoKTtcbiAgfSwgW10pO1xuXG4gIGNvbnN0IGxvYWRVc2VycyA9IGFzeW5jICgpID0+IHtcbiAgICBzZXRMb2FkaW5nKHRydWUpO1xuICAgIHRyeSB7XG4gICAgICB0cnkge1xuICAgICAgICBhd2FpdCAoc3VwYWJhc2UgYXMgYW55KS5ycGMoXCJjbGFpbV9hbGxvd2VkX2FkbWluX3JvbGVcIik7XG4gICAgICB9IGNhdGNoIChlKSB7XG4gICAgICAgIGNvbnNvbGUud2FybihcIlJQQyBjbGFpbV9hbGxvd2VkX2FkbWluX3JvbGUgZGlsZXdhdGkuXCIpO1xuICAgICAgfVxuICAgICAgYXdhaXQgcmVmcmVzaFJvbGUoKTtcblxuICAgICAgY29uc3QgeyBkYXRhLCBlcnJvciB9ID0gYXdhaXQgKHN1cGFiYXNlIGFzIGFueSkucnBjKFwiYWRtaW5fbGlzdF91c2Vyc193aXRoX3JvbGVzXCIpO1xuICAgICAgaWYgKGVycm9yKSB0aHJvdyBlcnJvcjtcbiAgICAgIHNldFVzZXJzKChkYXRhIHx8IFtdKSBhcyBNYW5hZ2VkVXNlcltdKTtcbiAgICB9IGNhdGNoIChlcnJvcjogYW55KSB7XG4gICAgICB0b2FzdCh7XG4gICAgICAgIHRpdGxlOiBcIkdhZ2FsIG1lbXVhdCB1c2VyXCIsXG4gICAgICAgIGRlc2NyaXB0aW9uOiBlcnJvci5tZXNzYWdlIHx8IFwiVGVyamFkaSBrZXNhbGFoYW4gaGFrIGFrc2VzIGRhdGFiYXNlLlwiLFxuICAgICAgICB2YXJpYW50OiBcImRlc3RydWN0aXZlXCIsXG4gICAgICB9KTtcbiAgICB9IGZpbmFsbHkge1xuICAgICAgc2V0TG9hZGluZyhmYWxzZSk7XG4gICAgfVxuICB9O1xuXG4gIGNvbnN0IGhhbmRsZUFkZFVzZXJSb2xlID0gYXN5bmMgKGU6IFJlYWN0LkZvcm1FdmVudCkgPT4ge1xuICAgIGUucHJldmVudERlZmF1bHQoKTtcbiAgICBjb25zdCB1c2VybmFtZUNsZWFuID0gbmV3VXNlcm5hbWUudHJpbSgpO1xuICAgIGNvbnN0IHBhc3N3b3JkQ2xlYW4gPSBuZXdQYXNzd29yZC50cmltKCk7XG5cbiAgICBpZiAoIXVzZXJuYW1lQ2xlYW4gfHwgIXBhc3N3b3JkQ2xlYW4pIHtcbiAgICAgIHRvYXN0KHsgdGl0bGU6IFwiVXNlcm5hbWUgJiBQYXNzd29yZCB3YWppYiBkaWlzaSFcIiwgdmFyaWFudDogXCJkZXN0cnVjdGl2ZVwiIH0pO1xuICAgICAgcmV0dXJuO1xuICAgIH1cblxuICAgIHNldElzQ3JlYXRpbmcodHJ1ZSk7XG4gICAgdHJ5IHtcbiAgICAgIGNvbnN0IHRhcmdldEVtYWlsID0gdXNlcm5hbWVDbGVhbi5pbmNsdWRlcyhcIkBcIikgPyB1c2VybmFtZUNsZWFuLnRvTG93ZXJDYXNlKCkgOiBgJHt1c2VybmFtZUNsZWFuLnRvTG93ZXJDYXNlKCl9QGZhem1hc3RvbmUuY29tYDtcblxuICAgICAgY29uc3Qgc3VwYWJhc2VVcmwgPSBpbXBvcnQubWV0YS5lbnYuVklURV9TVVBBQkFTRV9VUkw7XG4gICAgICBjb25zdCBzdXBhYmFzZUtleSA9IGltcG9ydC5tZXRhLmVudi5WSVRFX1NVUEFCQVNFX1BVQkxJU0hBQkxFX0tFWTtcbiAgICAgIFxuICAgICAgY29uc3QgaXNvbGF0ZWRDbGllbnQgPSBjcmVhdGVDbGllbnQoc3VwYWJhc2VVcmwsIHN1cGFiYXNlS2V5LCB7XG4gICAgICAgIGF1dGg6IHsgcGVyc2lzdFNlc3Npb246IGZhbHNlLCBhdXRvUmVmcmVzaFRva2VuOiBmYWxzZSB9XG4gICAgICB9KTtcblxuICAgICAgY29uc3QgeyBkYXRhOiBhdXRoRGF0YSwgZXJyb3I6IGF1dGhFcnJvciB9ID0gYXdhaXQgaXNvbGF0ZWRDbGllbnQuYXV0aC5zaWduVXAoe1xuICAgICAgICBlbWFpbDogdGFyZ2V0RW1haWwsXG4gICAgICAgIHBhc3N3b3JkOiBwYXNzd29yZENsZWFuLFxuICAgICAgfSk7XG5cbiAgICAgIGlmIChhdXRoRXJyb3IpIHRocm93IGF1dGhFcnJvcjtcbiAgICAgIGlmICghYXV0aERhdGEudXNlcj8uaWQpIHRocm93IG5ldyBFcnJvcihcIkdhZ2FsIG1lbmdlc2Foa2FuIHVzZXIgSUQuXCIpO1xuXG4gICAgICBhd2FpdCAoc3VwYWJhc2UgYXMgYW55KS5ycGMoXCJjb25maXJtX2FsbG93ZWRfYWRtaW5fZW1haWxcIiwgeyB0YXJnZXRfZW1haWw6IHRhcmdldEVtYWlsIH0pO1xuXG4gICAgICBjb25zdCB7IGVycm9yOiByb2xlRXJyb3IgfSA9IGF3YWl0IHN1cGFiYXNlXG4gICAgICAgIC5mcm9tKFwidXNlcl9yb2xlc1wiKVxuICAgICAgICAuaW5zZXJ0KHsgdXNlcl9pZDogYXV0aERhdGEudXNlci5pZCwgcm9sZTogbmV3Um9sZSB9KTtcblxuICAgICAgaWYgKHJvbGVFcnJvcikgdGhyb3cgcm9sZUVycm9yO1xuXG4gICAgICB0b2FzdCh7XG4gICAgICAgIHRpdGxlOiBcIkthcnlhd2FuIEJlcmhhc2lsIERpdGFtYmFoa2FuXCIsXG4gICAgICAgIGRlc2NyaXB0aW9uOiBgQWt1biBcIiR7dXNlcm5hbWVDbGVhbn1cIiBzdWtzZXMgdGVyZGFmdGFyIHNlYmFnYWkgJHtyb2xlTGFiZWxzW25ld1JvbGVdfS5gLFxuICAgICAgfSk7XG4gICAgICBcbiAgICAgIHNldElzQWRkRGlhbG9nT3BlbihmYWxzZSk7XG4gICAgICBzZXROZXdVc2VybmFtZShcIlwiKTtcbiAgICAgIHNldE5ld1Bhc3N3b3JkKFwiXCIpO1xuICAgICAgbG9hZFVzZXJzKCk7XG4gICAgfSBjYXRjaCAoZXJyb3I6IGFueSkge1xuICAgICAgdG9hc3Qoe1xuICAgICAgICB0aXRsZTogXCJHYWdhbCBtZW5kYWZ0YXJrYW4gdXNlciBiYXJ1XCIsXG4gICAgICAgIGRlc2NyaXB0aW9uOiBlcnJvci5tZXNzYWdlIHx8IFwiUGFzdGlrYW4gcGFzc3dvcmQgbWluaW1hbCA2IGthcmFrdGVyLlwiLFxuICAgICAgICB2YXJpYW50OiBcImRlc3RydWN0aXZlXCIsXG4gICAgICB9KTtcbiAgICB9IGZpbmFsbHkge1xuICAgICAgc2V0SXNDcmVhdGluZyhmYWxzZSk7XG4gICAgfVxuICB9O1xuXG4gIGNvbnN0IGhhbmRsZUNoYW5nZVVzZXJQYXNzd29yZFN1Ym1pdCA9IGFzeW5jIChlOiBSZWFjdC5Gb3JtRXZlbnQpID0+IHtcbiAgICBlLnByZXZlbnREZWZhdWx0KCk7XG4gICAgaWYgKCFzZWxlY3RlZFVzZXIgfHwgIWNoYW5nZWRQYXNzd29yZC50cmltKCkpIHJldHVybjtcblxuICAgIGlmIChjaGFuZ2VkUGFzc3dvcmQudHJpbSgpLmxlbmd0aCA8IDYpIHtcbiAgICAgIHRvYXN0KHsgdGl0bGU6IFwiUGFzc3dvcmQgYmFydSBtaW5pbWFsIDYga2FyYWt0ZXIhXCIsIHZhcmlhbnQ6IFwiZGVzdHJ1Y3RpdmVcIiB9KTtcbiAgICAgIHJldHVybjtcbiAgICB9XG5cbiAgICBzZXRJc0NoYW5naW5nUGFzc3dvcmQodHJ1ZSk7XG4gICAgdHJ5IHtcbiAgICAgIGNvbnN0IHsgZXJyb3IgfSA9IGF3YWl0IChzdXBhYmFzZSBhcyBhbnkpLnJwYyhcImFkbWluX2NoYW5nZV91c2VyX3Bhc3N3b3JkXCIsIHtcbiAgICAgICAgdGFyZ2V0X3VzZXJfaWQ6IHNlbGVjdGVkVXNlci51c2VyX2lkLFxuICAgICAgICBuZXdfcGFzc3dvcmQ6IGNoYW5nZWRQYXNzd29yZC50cmltKClcbiAgICAgIH0pO1xuXG4gICAgICBpZiAoZXJyb3IpIHRocm93IGVycm9yO1xuXG4gICAgICB0b2FzdCh7XG4gICAgICAgIHRpdGxlOiBcIlBhc3N3b3JkIERpcGVyYmFydWlcIixcbiAgICAgICAgZGVzY3JpcHRpb246IGBQYXNzd29yZCB1bnR1ayB1c2VyICR7c2VsZWN0ZWRVc2VyLmVtYWlsfSBiZXJoYXNpbCBkaXViYWguYCxcbiAgICAgIH0pO1xuXG4gICAgICBzZXRJc1Bhc3N3b3JkRGlhbG9nT3BlbihmYWxzZSk7XG4gICAgICBzZXRDaGFuZ2VkUGFzc3dvcmQoXCJcIik7XG4gICAgICBzZXRTZWxlY3RlZFVzZXIobnVsbCk7XG4gICAgfSBjYXRjaCAoZXJyb3I6IGFueSkge1xuICAgICAgdG9hc3Qoe1xuICAgICAgICB0aXRsZTogXCJHYWdhbCBtZW5ndWJhaCBwYXNzd29yZFwiLFxuICAgICAgICBkZXNjcmlwdGlvbjogZXJyb3IubWVzc2FnZSxcbiAgICAgICAgdmFyaWFudDogXCJkZXN0cnVjdGl2ZVwiLFxuICAgICAgfSk7XG4gICAgfSBmaW5hbGx5IHtcbiAgICAgIHNldElzQ2hhbmdpbmdQYXNzd29yZChmYWxzZSk7XG4gICAgfVxuICB9O1xuXG4gIGNvbnN0IHVwZGF0ZVJvbGUgPSBhc3luYyAodXNlcjogTWFuYWdlZFVzZXIsIHJvbGU6IEFwcFJvbGUpID0+IHtcbiAgICBzZXRTYXZpbmdVc2VySWQodXNlci51c2VyX2lkKTtcbiAgICB0cnkge1xuICAgICAgY29uc3QgeyBlcnJvciB9ID0gYXdhaXQgKHN1cGFiYXNlIGFzIGFueSkucnBjKFwiYWRtaW5fc2V0X3VzZXJfcm9sZVwiLCB7XG4gICAgICAgIHRhcmdldF91c2VyX2lkOiB1c2VyLnVzZXJfaWQsXG4gICAgICAgIHRhcmdldF9yb2xlOiByb2xlLFxuICAgICAgfSk7XG4gICAgICBpZiAoZXJyb3IpIHRocm93IGVycm9yO1xuXG4gICAgICBzZXRVc2VycygoaXRlbXMpID0+XG4gICAgICAgIGl0ZW1zLm1hcCgoaXRlbSkgPT4gKGl0ZW0udXNlcl9pZCA9PT0gdXNlci51c2VyX2lkID8geyAuLi5pdGVtLCByb2xlczogW3JvbGVdIH0gOiBpdGVtKSksXG4gICAgICApO1xuICAgICAgdG9hc3QoeyB0aXRsZTogXCJSb2xlIGRpcGVyYmFydWlcIiwgZGVzY3JpcHRpb246IGAke3VzZXIuZW1haWx9IHNla2FyYW5nIG1lbmphZGkgJHtyb2xlTGFiZWxzW3JvbGVdfS5gIH0pO1xuICAgICAgXG4gICAgICBhd2FpdCByZWZyZXNoUm9sZSgpO1xuICAgIH0gY2F0Y2ggKGVycm9yOiBhbnkpIHtcbiAgICAgIHRvYXN0KHsgdGl0bGU6IFwiR2FnYWwgbWVuZ3ViYWggcm9sZVwiLCBkZXNjcmlwdGlvbjogZXJyb3IubWVzc2FnZSwgdmFyaWFudDogXCJkZXN0cnVjdGl2ZVwiIH0pO1xuICAgIH0gZmluYWxseSB7XG4gICAgICBzZXRTYXZpbmdVc2VySWQobnVsbCk7XG4gICAgfVxuICB9O1xuXG4gIGNvbnN0IGhhbmRsZURlbGV0ZVVzZXJSb2xlID0gYXN5bmMgKHVzZXJJZDogc3RyaW5nLCBlbWFpbDogc3RyaW5nKSA9PiB7XG4gICAgdHJ5IHtcbiAgICAgIGNvbnN0IHsgZXJyb3IgfSA9IGF3YWl0IChzdXBhYmFzZSBhcyBhbnkpLnJwYyhcImFkbWluX2RlbGV0ZV91c2VyX3JvbGVcIiwge1xuICAgICAgICB0YXJnZXRfdXNlcl9pZDogdXNlcklkLFxuICAgICAgfSk7XG5cbiAgICAgIGlmIChlcnJvcikgdGhyb3cgZXJyb3I7XG5cbiAgICAgIHRvYXN0KHtcbiAgICAgICAgdGl0bGU6IFwiQWtzZXMgRGljYWJ1dFwiLFxuICAgICAgICBkZXNjcmlwdGlvbjogYFNlbHVydWggaGFrIGFrc2VzIGtodXN1cyB1bnR1ayAke2VtYWlsfSBiZXJoYXNpbCBkaWhhcHVzLmAsXG4gICAgICB9KTtcbiAgICAgIGxvYWRVc2VycygpO1xuICAgIH0gY2F0Y2ggKGVycm9yOiBhbnkpIHtcbiAgICAgIHRvYXN0KHtcbiAgICAgICAgdGl0bGU6IFwiR2FnYWwgbWVuY2FidXQgYWtzZXNcIixcbiAgICAgICAgZGVzY3JpcHRpb246IGVycm9yLm1lc3NhZ2UgfHwgXCJUZXJqYWRpIGtlc2FsYWhhbiBzZXJ2ZXIuXCIsXG4gICAgICAgIHZhcmlhbnQ6IFwiZGVzdHJ1Y3RpdmVcIixcbiAgICAgIH0pO1xuICAgIH1cbiAgfTtcblxuICBjb25zdCBmaWx0ZXJlZFVzZXJzID0gdXNlTWVtbygoKSA9PiB7XG4gICAgY29uc3QgYWN0aXZlVGVhbU1lbWJlcnMgPSB1c2Vycy5maWx0ZXIoKHVzZXIpID0+IHVzZXIucm9sZXMgJiYgdXNlci5yb2xlcy5sZW5ndGggPiAwKTtcblxuICAgIGNvbnN0IHF1ZXJ5ID0gc2VhcmNoLnRvTG93ZXJDYXNlKCkudHJpbSgpO1xuICAgIGlmICghcXVlcnkpIHJldHVybiBhY3RpdmVUZWFtTWVtYmVycztcbiAgICByZXR1cm4gYWN0aXZlVGVhbU1lbWJlcnMuZmlsdGVyKCh1c2VyKSA9PiB7XG4gICAgICBjb25zdCByb2xlID0gZ2V0UHJpbWFyeVJvbGUodXNlci5yb2xlcyk7XG4gICAgICByZXR1cm4gYCR7dXNlci5lbWFpbH0gJHtyb2xlfWAudG9Mb3dlckNhc2UoKS5pbmNsdWRlcyhxdWVyeSk7XG4gICAgfSk7XG4gIH0sIFt1c2Vycywgc2VhcmNoXSk7XG5cbiAgcmV0dXJuIChcbiAgICA8RGFzaGJvYXJkTGF5b3V0PlxuICAgICAgPGRpdiBjbGFzc05hbWU9XCJteC1hdXRvIG1heC13LTZ4bCBzcGFjZS15LTZcIj5cbiAgICAgICAgXG4gICAgICAgIHsvKiBIZWFkZXIgU2VjdGlvbiAqL31cbiAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJmbGV4IGZsZXgtY29sIGp1c3RpZnktYmV0d2VlbiBnYXAtNCBzbTpmbGV4LXJvdyBzbTppdGVtcy1jZW50ZXJcIj5cbiAgICAgICAgICA8ZGl2PlxuICAgICAgICAgICAgPGgxIGNsYXNzTmFtZT1cImZvbnQtaGVhZGluZyB0ZXh0LTJ4bCBmb250LWJvbGQgdGV4dC1mb3JlZ3JvdW5kXCI+Um9sZSBNYW5hZ2VtZW50PC9oMT5cbiAgICAgICAgICAgIDxwIGNsYXNzTmFtZT1cInRleHQtc20gdGV4dC1tdXRlZC1mb3JlZ3JvdW5kXCI+S2Vsb2xhIGFrdW4gZGFuIHRpbmdrYXQgamFiYXRhbiBBZG1pbiwgU3RhZmYsIGF0YXUgVXNlciBsYXBhbmdhbi48L3A+XG4gICAgICAgICAgPC9kaXY+XG4gICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJmbGV4IGdhcC0yXCI+XG4gICAgICAgICAgICBcbiAgICAgICAgICAgIHsvKiBEaWFsb2cgRm9ybSBUYW1iYWggS2FyeWF3YW4gQmFydSAqL31cbiAgICAgICAgICAgIDxEaWFsb2cgb3Blbj17aXNBZGREaWFsb2dPcGVufSBvbk9wZW5DaGFuZ2U9e3NldElzQWRkRGlhbG9nT3Blbn0+XG4gICAgICAgICAgICAgIDxEaWFsb2dUcmlnZ2VyIGFzQ2hpbGQ+XG4gICAgICAgICAgICAgICAgPEJ1dHRvbiBjbGFzc05hbWU9XCJiZy1wcmltYXJ5IGhvdmVyOmJnLXByaW1hcnkvOTAgdGV4dC13aGl0ZSBmbGV4IGl0ZW1zLWNlbnRlciBnYXAtMlwiPlxuICAgICAgICAgICAgICAgICAgPFVzZXJQbHVzIGNsYXNzTmFtZT1cImgtNCB3LTRcIiAvPiBUYW1iYWggQWtzZXNcbiAgICAgICAgICAgICAgICA8L0J1dHRvbj5cbiAgICAgICAgICAgICAgPC9EaWFsb2dUcmlnZ2VyPlxuICAgICAgICAgICAgICA8RGlhbG9nQ29udGVudCBjbGFzc05hbWU9XCJzbTptYXgtdy1bNDI1cHhdXCI+XG4gICAgICAgICAgICAgICAgPGZvcm0gb25TdWJtaXQ9e2hhbmRsZUFkZFVzZXJSb2xlfT5cbiAgICAgICAgICAgICAgICAgIDxEaWFsb2dIZWFkZXI+XG4gICAgICAgICAgICAgICAgICAgIDxEaWFsb2dUaXRsZT5CdWF0IEFrdW4gS2FyeWF3YW4gQmFydTwvRGlhbG9nVGl0bGU+XG4gICAgICAgICAgICAgICAgICAgIDxEaWFsb2dEZXNjcmlwdGlvbj5cbiAgICAgICAgICAgICAgICAgICAgICBEYWZ0YXJrYW4gbGFuZ3N1bmcga2FyeWF3YW4vc3RhZiBiYXJ1IEFuZGEgZGVuZ2FuIFVzZXJuYW1lIGRhbiBQYXNzd29yZCBwaWxpaGFuIGRpIGJhd2FoIGluaS5cbiAgICAgICAgICAgICAgICAgICAgPC9EaWFsb2dEZXNjcmlwdGlvbj5cbiAgICAgICAgICAgICAgICAgIDwvRGlhbG9nSGVhZGVyPlxuICAgICAgICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJncmlkIGdhcC00IHB5LTRcIj5cbiAgICAgICAgICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJncmlkIGdhcC0yXCI+XG4gICAgICAgICAgICAgICAgICAgICAgPExhYmVsIGh0bWxGb3I9XCJ1c2VybmFtZVwiPlVzZXJuYW1lPC9MYWJlbD5cbiAgICAgICAgICAgICAgICAgICAgICA8SW5wdXRcbiAgICAgICAgICAgICAgICAgICAgICAgIGlkPVwidXNlcm5hbWVcIlxuICAgICAgICAgICAgICAgICAgICAgICAgdmFsdWU9e25ld1VzZXJuYW1lfVxuICAgICAgICAgICAgICAgICAgICAgICAgb25DaGFuZ2U9eyhlKSA9PiBzZXROZXdVc2VybmFtZShlLnRhcmdldC52YWx1ZSl9XG4gICAgICAgICAgICAgICAgICAgICAgICBwbGFjZWhvbGRlcj1cIkNvbnRvaDogYWRtaW5cIlxuICAgICAgICAgICAgICAgICAgICAgICAgcmVxdWlyZWRcbiAgICAgICAgICAgICAgICAgICAgICAgIGF1dG9Db21wbGV0ZT1cIm9mZlwiXG4gICAgICAgICAgICAgICAgICAgICAgLz5cbiAgICAgICAgICAgICAgICAgICAgPC9kaXY+XG4gICAgICAgICAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwiZ3JpZCBnYXAtMlwiPlxuICAgICAgICAgICAgICAgICAgICAgIDxMYWJlbCBodG1sRm9yPVwicGFzc3dvcmRcIj5QYXNzd29yZDwvTGFiZWw+XG4gICAgICAgICAgICAgICAgICAgICAgPElucHV0XG4gICAgICAgICAgICAgICAgICAgICAgICBpZD1cInBhc3N3b3JkXCJcbiAgICAgICAgICAgICAgICAgICAgICAgIHR5cGU9XCJwYXNzd29yZFwiXG4gICAgICAgICAgICAgICAgICAgICAgICB2YWx1ZT17bmV3UGFzc3dvcmR9XG4gICAgICAgICAgICAgICAgICAgICAgICBvbkNoYW5nZT17KGUpID0+IHNldE5ld1Bhc3N3b3JkKGUudGFyZ2V0LnZhbHVlKX1cbiAgICAgICAgICAgICAgICAgICAgICAgIHBsYWNlaG9sZGVyPVwiQ29udG9oOiBhZG1pbjEyMzQ1NlwiXG4gICAgICAgICAgICAgICAgICAgICAgICByZXF1aXJlZFxuICAgICAgICAgICAgICAgICAgICAgIC8+XG4gICAgICAgICAgICAgICAgICAgIDwvZGl2PlxuICAgICAgICAgICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cImdyaWQgZ2FwLTJcIj5cbiAgICAgICAgICAgICAgICAgICAgICA8TGFiZWwgaHRtbEZvcj1cInJvbGVcIj5UaW5na2F0IEphYmF0YW4gKFJvbGUpPC9MYWJlbD5cbiAgICAgICAgICAgICAgICAgICAgICA8U2VsZWN0IHZhbHVlPXtuZXdSb2xlfSBvblZhbHVlQ2hhbmdlPXsodmFsdWUpID0+IHNldE5ld1JvbGUodmFsdWUgYXMgQXBwUm9sZSl9PlxuICAgICAgICAgICAgICAgICAgICAgICAgPFNlbGVjdFRyaWdnZXIgaWQ9XCJyb2xlXCI+XG4gICAgICAgICAgICAgICAgICAgICAgICAgIDxTZWxlY3RWYWx1ZSBwbGFjZWhvbGRlcj1cIlBpbGloIFJvbGVcIiAvPlxuICAgICAgICAgICAgICAgICAgICAgICAgPC9TZWxlY3RUcmlnZ2VyPlxuICAgICAgICAgICAgICAgICAgICAgICAgPFNlbGVjdENvbnRlbnQ+XG4gICAgICAgICAgICAgICAgICAgICAgICAgIDxTZWxlY3RJdGVtIHZhbHVlPVwiYWRtaW5cIj5BZG1pbiAoQWtzZXMgUGVudWgpPC9TZWxlY3RJdGVtPlxuICAgICAgICAgICAgICAgICAgICAgICAgICA8U2VsZWN0SXRlbSB2YWx1ZT1cInN0YWZmXCI+U3RhZmYgKEludm9pY2UgJiBOb3RhKTwvU2VsZWN0SXRlbT5cbiAgICAgICAgICAgICAgICAgICAgICAgICAgPFNlbGVjdEl0ZW0gdmFsdWU9XCJ1c2VyXCI+VXNlciAoSGFueWEgRGFzaGJvYXJkKTwvU2VsZWN0SXRlbT5cbiAgICAgICAgICAgICAgICAgICAgICAgIDwvU2VsZWN0Q29udGVudD5cbiAgICAgICAgICAgICAgICAgICAgICA8L1NlbGVjdD5cbiAgICAgICAgICAgICAgICAgICAgPC9kaXY+XG4gICAgICAgICAgICAgICAgICA8L2Rpdj5cbiAgICAgICAgICAgICAgICAgIDxEaWFsb2dGb290ZXI+XG4gICAgICAgICAgICAgICAgICAgIDxCdXR0b24gdHlwZT1cImJ1dHRvblwiIHZhcmlhbnQ9XCJvdXRsaW5lXCIgb25DbGljaz17KCkgPT4gc2V0SXNBZGREaWFsb2dPcGVuKGZhbHNlKX0+XG4gICAgICAgICAgICAgICAgICAgICAgQmF0YWxcbiAgICAgICAgICAgICAgICAgICAgPC9CdXR0b24+XG4gICAgICAgICAgICAgICAgICAgIDxCdXR0b24gdHlwZT1cInN1Ym1pdFwiIGRpc2FibGVkPXtpc0NyZWF0aW5nfSBjbGFzc05hbWU9XCJiZy1wcmltYXJ5IHRleHQtd2hpdGVcIj5cbiAgICAgICAgICAgICAgICAgICAgICB7aXNDcmVhdGluZyA/IFwiTWVuZGFmdGFya2FuLi4uXCIgOiBcIlNpbXBhbiBBa3Nlc1wifVxuICAgICAgICAgICAgICAgICAgICA8L0J1dHRvbj5cbiAgICAgICAgICAgICAgICAgIDwvRGlhbG9nRm9vdGVyPlxuICAgICAgICAgICAgICAgIDwvZm9ybT5cbiAgICAgICAgICAgICAgPC9EaWFsb2dDb250ZW50PlxuICAgICAgICAgICAgPC9EaWFsb2c+XG5cbiAgICAgICAgICAgIDxCdXR0b24gdmFyaWFudD1cIm91dGxpbmVcIiBvbkNsaWNrPXtsb2FkVXNlcnN9IGRpc2FibGVkPXtsb2FkaW5nfT5cbiAgICAgICAgICAgICAgPFJlZnJlc2hDdyBjbGFzc05hbWU9e2xvYWRpbmcgPyBcImgtNCB3LTQgYW5pbWF0ZS1zcGluXCIgOiBcImgtNCB3LTRcIn0gLz4gUmVmcmVzaFxuICAgICAgICAgICAgPC9CdXR0b24+XG4gICAgICAgICAgPC9kaXY+XG4gICAgICAgIDwvZGl2PlxuXG4gICAgICAgIHsvKiBEaWFsb2cgRm9ybSBVYmFoIFBhc3N3b3JkIFVzZXIgKi99XG4gICAgICAgIDxEaWFsb2cgb3Blbj17aXNQYXNzd29yZERpYWxvZ09wZW59IG9uT3BlbkNoYW5nZT17c2V0SXNQYXNzd29yZERpYWxvZ09wZW59PlxuICAgICAgICAgIDxEaWFsb2dDb250ZW50IGNsYXNzTmFtZT1cInNtOm1heC13LVs0MjVweF1cIj5cbiAgICAgICAgICAgIDxmb3JtIG9uU3VibWl0PXtoYW5kbGVDaGFuZ2VVc2VyUGFzc3dvcmRTdWJtaXR9PlxuICAgICAgICAgICAgICA8RGlhbG9nSGVhZGVyPlxuICAgICAgICAgICAgICAgIDxEaWFsb2dUaXRsZT5VYmFoIFBhc3N3b3JkIFBlbmdndW5hPC9EaWFsb2dUaXRsZT5cbiAgICAgICAgICAgICAgICA8RGlhbG9nRGVzY3JpcHRpb24+XG4gICAgICAgICAgICAgICAgICBHYW50aSBzYW5kaSBha3VuIHVudHVrIGthcnlhd2FuIDxzdHJvbmc+e3NlbGVjdGVkVXNlcj8uZW1haWx9PC9zdHJvbmc+IHNlY2FyYSBsYW5nc3VuZy5cbiAgICAgICAgICAgICAgICA8L0RpYWxvZ0Rlc2NyaXB0aW9uPlxuICAgICAgICAgICAgICA8L0RpYWxvZ0hlYWRlcj5cbiAgICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJncmlkIGdhcC00IHB5LTRcIj5cbiAgICAgICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cImdyaWQgZ2FwLTJcIj5cbiAgICAgICAgICAgICAgICAgIDxMYWJlbCBodG1sRm9yPVwibmV3X3Bhc3N3b3JkX2lucHV0XCI+UGFzc3dvcmQgQmFydTwvTGFiZWw+XG4gICAgICAgICAgICAgICAgICA8SW5wdXRcbiAgICAgICAgICAgICAgICAgICAgaWQ9XCJuZXdfcGFzc3dvcmRfaW5wdXRcIlxuICAgICAgICAgICAgICAgICAgICB0eXBlPVwicGFzc3dvcmRcIlxuICAgICAgICAgICAgICAgICAgICB2YWx1ZT17Y2hhbmdlZFBhc3N3b3JkfVxuICAgICAgICAgICAgICAgICAgICBvbkNoYW5nZT17KGUpID0+IHNldENoYW5nZWRQYXNzd29yZChlLnRhcmdldC52YWx1ZSl9XG4gICAgICAgICAgICAgICAgICAgIHBsYWNlaG9sZGVyPVwiTWFzdWtrYW4gcGFzc3dvcmQgYmFydSAobWluIDYga2FyYWt0ZXIpXCJcbiAgICAgICAgICAgICAgICAgICAgcmVxdWlyZWRcbiAgICAgICAgICAgICAgICAgIC8+XG4gICAgICAgICAgICAgICAgPC9kaXY+XG4gICAgICAgICAgICAgIDwvZGl2PlxuICAgICAgICAgICAgICA8RGlhbG9nRm9vdGVyPlxuICAgICAgICAgICAgICAgIDxCdXR0b24gdHlwZT1cImJ1dHRvblwiIHZhcmlhbnQ9XCJvdXRsaW5lXCIgb25DbGljaz17KCkgPT4gc2V0SXNQYXNzd29yZERpYWxvZ09wZW4oZmFsc2UpfT5cbiAgICAgICAgICAgICAgICAgIEJhdGFsXG4gICAgICAgICAgICAgICAgPC9CdXR0b24+XG4gICAgICAgICAgICAgICAgPEJ1dHRvbiB0eXBlPVwic3VibWl0XCIgZGlzYWJsZWQ9e2lzQ2hhbmdpbmdQYXNzd29yZH0gY2xhc3NOYW1lPVwiYmctcHJpbWFyeSB0ZXh0LXdoaXRlXCI+XG4gICAgICAgICAgICAgICAgICB7aXNDaGFuZ2luZ1Bhc3N3b3JkID8gXCJNZW5ndWJhaC4uLlwiIDogXCJVcGRhdGUgUGFzc3dvcmRcIn1cbiAgICAgICAgICAgICAgICA8L0J1dHRvbj5cbiAgICAgICAgICAgICAgPC9EaWFsb2dGb290ZXI+XG4gICAgICAgICAgICA8L2Zvcm0+XG4gICAgICAgICAgPC9EaWFsb2dDb250ZW50PlxuICAgICAgICA8L0RpYWxvZz5cblxuICAgICAgICB7LyogU2VhcmNoIElucHV0ICovfVxuICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cImdsYXNzLWNhcmQgcm91bmRlZC1sZyBwLTVcIj5cbiAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cIm1iLTQgZmxleCBpdGVtcy1jZW50ZXIgZ2FwLTJcIj5cbiAgICAgICAgICAgIDxTZWFyY2ggY2xhc3NOYW1lPVwiaC01IHctNSB0ZXh0LXByaW1hcnlcIiAvPlxuICAgICAgICAgICAgPGgyIGNsYXNzTmFtZT1cImZvbnQtaGVhZGluZyB0ZXh0LWxnIGZvbnQtc2VtaWJvbGRcIj5DYXJpIEFuZ2dvdGEgVGltPC9oMj5cbiAgICAgICAgICA8L2Rpdj5cbiAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cInNwYWNlLXktMlwiPlxuICAgICAgICAgICAgPExhYmVsPkVtYWlsIGF0YXUgUm9sZSBLYXJ5YXdhbjwvTGFiZWw+XG4gICAgICAgICAgICA8SW5wdXQgXG4gICAgICAgICAgICAgIHZhbHVlPXtzZWFyY2h9IFxuICAgICAgICAgICAgICBvbkNoYW5nZT17KGV2ZW50KSA9PiBzZXRTZWFyY2goZXZlbnQudGFyZ2V0LnZhbHVlKX0gXG4gICAgICAgICAgICAgIHBsYWNlaG9sZGVyPVwiS2V0aWsga2F0YSBrdW5jaSBwZW5jYXJpYW4uLi5cIiBcbiAgICAgICAgICAgIC8+XG4gICAgICAgICAgPC9kaXY+XG4gICAgICAgIDwvZGl2PlxuXG4gICAgICAgIHsvKiBEYWZ0YXIgVXNlciBUYWJsZSAqL31cbiAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJnbGFzcy1jYXJkIG92ZXJmbG93LWhpZGRlbiByb3VuZGVkLWxnXCI+XG4gICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJmbGV4IGl0ZW1zLWNlbnRlciBqdXN0aWZ5LWJldHdlZW4gYm9yZGVyLWIgYm9yZGVyLWJvcmRlciBwLTVcIj5cbiAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwiZmxleCBpdGVtcy1jZW50ZXIgZ2FwLTJcIj5cbiAgICAgICAgICAgICAgPFVzZXJDb2cgY2xhc3NOYW1lPVwiaC01IHctNSB0ZXh0LXByaW1hcnlcIiAvPlxuICAgICAgICAgICAgICA8aDIgY2xhc3NOYW1lPVwiZm9udC1oZWFkaW5nIHRleHQtbGcgZm9udC1zZW1pYm9sZFwiPkRhZnRhciBQZW5nZ3VuYSBTaXN0ZW08L2gyPlxuICAgICAgICAgICAgPC9kaXY+XG4gICAgICAgICAgICA8QmFkZ2UgdmFyaWFudD1cIm91dGxpbmVcIiBjbGFzc05hbWU9XCJib3JkZXItcHJpbWFyeS8yMCBiZy1wcmltYXJ5LzEwIHRleHQtcHJpbWFyeSBweC0zIHB5LTFcIj5cbiAgICAgICAgICAgICAge2ZpbHRlcmVkVXNlcnMubGVuZ3RofSBPcmFuZ1xuICAgICAgICAgICAgPC9CYWRnZT5cbiAgICAgICAgICA8L2Rpdj5cblxuICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwib3ZlcmZsb3cteC1hdXRvXCI+XG4gICAgICAgICAgICA8VGFibGU+XG4gICAgICAgICAgICAgIDxUYWJsZUhlYWRlcj5cbiAgICAgICAgICAgICAgICA8VGFibGVSb3c+XG4gICAgICAgICAgICAgICAgICA8VGFibGVIZWFkPkFrdW4gUGVuZ2d1bmE8L1RhYmxlSGVhZD5cbiAgICAgICAgICAgICAgICAgIDxUYWJsZUhlYWQ+VGFuZ2dhbCBUZXJkYWZ0YXI8L1RhYmxlSGVhZD5cbiAgICAgICAgICAgICAgICAgIDxUYWJsZUhlYWQ+U3RhdHVzIEhhayBBa3NlczwvVGFibGVIZWFkPlxuICAgICAgICAgICAgICAgICAgPFRhYmxlSGVhZCBjbGFzc05hbWU9XCJ3LTQ4XCI+VWJhaCBBa3NlczwvVGFibGVIZWFkPlxuICAgICAgICAgICAgICAgICAgPFRhYmxlSGVhZCBjbGFzc05hbWU9XCJ3LTMyIHRleHQtY2VudGVyXCI+VGluZGFrYW48L1RhYmxlSGVhZD5cbiAgICAgICAgICAgICAgICA8L1RhYmxlUm93PlxuICAgICAgICAgICAgICA8L1RhYmxlSGVhZGVyPlxuICAgICAgICAgICAgICA8VGFibGVCb2R5PlxuICAgICAgICAgICAgICAgIHtsb2FkaW5nID8gKFxuICAgICAgICAgICAgICAgICAgPFRhYmxlUm93PlxuICAgICAgICAgICAgICAgICAgICA8VGFibGVDZWxsIGNvbFNwYW49ezV9IGNsYXNzTmFtZT1cImgtMjQgdGV4dC1jZW50ZXIgdGV4dC1tdXRlZC1mb3JlZ3JvdW5kXCI+TWVtdWF0IGRhdGEgdGltLi4uPC9UYWJsZUNlbGw+XG4gICAgICAgICAgICAgICAgICA8L1RhYmxlUm93PlxuICAgICAgICAgICAgICAgICkgOiBmaWx0ZXJlZFVzZXJzLmxlbmd0aCA9PT0gMCA/IChcbiAgICAgICAgICAgICAgICAgIDxUYWJsZVJvdz5cbiAgICAgICAgICAgICAgICAgICAgPFRhYmxlQ2VsbCBjb2xTcGFuPXs1fSBjbGFzc05hbWU9XCJoLTI0IHRleHQtY2VudGVyIHRleHQtbXV0ZWQtZm9yZWdyb3VuZFwiPkJlbHVtIGFkYSBrYXJ5YXdhbiBkZW5nYW4gaGFrIGFrc2VzIGtodXN1cy48L1RhYmxlQ2VsbD5cbiAgICAgICAgICAgICAgICAgIDwvVGFibGVSb3c+XG4gICAgICAgICAgICAgICAgKSA6IChcbiAgICAgICAgICAgICAgICAgIGZpbHRlcmVkVXNlcnMubWFwKCh1c2VyKSA9PiB7XG4gICAgICAgICAgICAgICAgICAgIGNvbnN0IHJvbGUgPSBnZXRQcmltYXJ5Um9sZSh1c2VyLnJvbGVzKTtcbiAgICAgICAgICAgICAgICAgICAgY29uc3QgaXNTZWxmID0gY3VycmVudFVzZXI/LmlkID09PSB1c2VyLnVzZXJfaWQ7XG5cbiAgICAgICAgICAgICAgICAgICAgcmV0dXJuIChcbiAgICAgICAgICAgICAgICAgICAgICA8VGFibGVSb3cga2V5PXt1c2VyLnVzZXJfaWR9IGNsYXNzTmFtZT1cImhvdmVyOmJnLW11dGVkLzMwIHRyYW5zaXRpb24tY29sb3JzXCI+XG4gICAgICAgICAgICAgICAgICAgICAgICA8VGFibGVDZWxsIGNsYXNzTmFtZT1cImZvbnQtbWVkaXVtXCI+XG4gICAgICAgICAgICAgICAgICAgICAgICAgIHt1c2VyLmVtYWlsfSB7aXNTZWxmICYmIDxzcGFuIGNsYXNzTmFtZT1cInRleHQteHMgdGV4dC1wcmltYXJ5IGZvbnQtYm9sZFwiPihBbmRhKTwvc3Bhbj59XG4gICAgICAgICAgICAgICAgICAgICAgICA8L1RhYmxlQ2VsbD5cbiAgICAgICAgICAgICAgICAgICAgICAgIDxUYWJsZUNlbGw+e2Zvcm1hdERhdGUodXNlci5jcmVhdGVkX2F0KX08L1RhYmxlQ2VsbD5cbiAgICAgICAgICAgICAgICAgICAgICAgIDxUYWJsZUNlbGw+XG4gICAgICAgICAgICAgICAgICAgICAgICAgIDxCYWRnZSB2YXJpYW50PVwib3V0bGluZVwiIGNsYXNzTmFtZT1cImJvcmRlci1wcmltYXJ5LzIwIGJnLXByaW1hcnkvMTAgdGV4dC1wcmltYXJ5IGZvbnQtbWVkaXVtXCI+XG4gICAgICAgICAgICAgICAgICAgICAgICAgICAgPFNoaWVsZENoZWNrIGNsYXNzTmFtZT1cIm1yLTEgaC0zIHctMyBpbmxpbmVcIiAvPiB7cm9sZUxhYmVsc1tyb2xlXX1cbiAgICAgICAgICAgICAgICAgICAgICAgICAgPC9CYWRnZT5cbiAgICAgICAgICAgICAgICAgICAgICAgIDwvVGFibGVDZWxsPlxuICAgICAgICAgICAgICAgICAgICAgICAgPFRhYmxlQ2VsbD5cbiAgICAgICAgICAgICAgICAgICAgICAgICAgPFNlbGVjdCBcbiAgICAgICAgICAgICAgICAgICAgICAgICAgICB2YWx1ZT17cm9sZX0gXG4gICAgICAgICAgICAgICAgICAgICAgICAgICAgb25WYWx1ZUNoYW5nZT17KHZhbHVlKSA9PiB1cGRhdGVSb2xlKHVzZXIsIHZhbHVlIGFzIEFwcFJvbGUpfSBcbiAgICAgICAgICAgICAgICAgICAgICAgICAgICBkaXNhYmxlZD17c2F2aW5nVXNlcklkID09PSB1c2VyLnVzZXJfaWQgfHwgaXNTZWxmfVxuICAgICAgICAgICAgICAgICAgICAgICAgICA+XG4gICAgICAgICAgICAgICAgICAgICAgICAgICAgPFNlbGVjdFRyaWdnZXIgY2xhc3NOYW1lPVwiaC05XCI+XG4gICAgICAgICAgICAgICAgICAgICAgICAgICAgICA8U2VsZWN0VmFsdWUgLz5cbiAgICAgICAgICAgICAgICAgICAgICAgICAgICA8L1NlbGVjdFRyaWdnZXI+XG4gICAgICAgICAgICAgICAgICAgICAgICAgICAgPFNlbGVjdENvbnRlbnQ+XG4gICAgICAgICAgICAgICAgICAgICAgICAgICAgICA8U2VsZWN0SXRlbSB2YWx1ZT1cImFkbWluXCI+QWRtaW48L1NlbGVjdEl0ZW0+XG4gICAgICAgICAgICAgICAgICAgICAgICAgICAgICA8U2VsZWN0SXRlbSB2YWx1ZT1cInN0YWZmXCI+U3RhZmY8L1NlbGVjdEl0ZW0+XG4gICAgICAgICAgICAgICAgICAgICAgICAgICAgICA8U2VsZWN0SXRlbSB2YWx1ZT1cInVzZXJcIj5Vc2VyPC9TZWxlY3RJdGVtPlxuICAgICAgICAgICAgICAgICAgICAgICAgICAgIDwvU2VsZWN0Q29udGVudD5cbiAgICAgICAgICAgICAgICAgICAgICAgICAgPC9TZWxlY3Q+XG4gICAgICAgICAgICAgICAgICAgICAgICA8L1RhYmxlQ2VsbD5cbiAgICAgICAgICAgICAgICAgICAgICAgIDxUYWJsZUNlbGwgY2xhc3NOYW1lPVwidGV4dC1jZW50ZXIgZmxleCBqdXN0aWZ5LWNlbnRlciBnYXAtMSBpdGVtcy1jZW50ZXIgaC0xNFwiPlxuICAgICAgICAgICAgICAgICAgICAgICAgICA8QnV0dG9uXG4gICAgICAgICAgICAgICAgICAgICAgICAgICAgdmFyaWFudD1cImdob3N0XCJcbiAgICAgICAgICAgICAgICAgICAgICAgICAgICBzaXplPVwiaWNvblwiXG4gICAgICAgICAgICAgICAgICAgICAgICAgICAgY2xhc3NOYW1lPVwidGV4dC1tdXRlZC1mb3JlZ3JvdW5kIGhvdmVyOnRleHQtcHJpbWFyeSBob3ZlcjpiZy1wcmltYXJ5LzEwIGgtOCB3LTggcm91bmRlZC1tZCB0cmFuc2l0aW9uLWNvbG9yc1wiXG4gICAgICAgICAgICAgICAgICAgICAgICAgICAgb25DbGljaz17KCkgPT4ge1xuICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgc2V0U2VsZWN0ZWRVc2VyKHVzZXIpO1xuICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgc2V0SXNQYXNzd29yZERpYWxvZ09wZW4odHJ1ZSk7XG4gICAgICAgICAgICAgICAgICAgICAgICAgICAgfX1cbiAgICAgICAgICAgICAgICAgICAgICAgICAgPlxuICAgICAgICAgICAgICAgICAgICAgICAgICAgIDxLZXlSb3VuZCBjbGFzc05hbWU9XCJoLTQgdy00XCIgLz5cbiAgICAgICAgICAgICAgICAgICAgICAgICAgPC9CdXR0b24+XG5cbiAgICAgICAgICAgICAgICAgICAgICAgICAgPEFsZXJ0RGlhbG9nPlxuICAgICAgICAgICAgICAgICAgICAgICAgICAgIDxBbGVydERpYWxvZ1RyaWdnZXIgYXNDaGlsZD5cbiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIDxCdXR0b24gXG4gICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIHZhcmlhbnQ9XCJnaG9zdFwiIFxuICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICBzaXplPVwiaWNvblwiIFxuICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICBjbGFzc05hbWU9XCJ0ZXh0LW11dGVkLWZvcmVncm91bmQgaG92ZXI6dGV4dC1kZXN0cnVjdGl2ZSBob3ZlcjpiZy1kZXN0cnVjdGl2ZS8xMCBoLTggdy04IHJvdW5kZWQtbWQgdHJhbnNpdGlvbi1jb2xvcnNcIlxuICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICBkaXNhYmxlZD17aXNTZWxmfVxuICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgPlxuICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICA8VHJhc2gyIGNsYXNzTmFtZT1cImgtNCB3LTRcIiAvPlxuICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgPC9CdXR0b24+XG4gICAgICAgICAgICAgICAgICAgICAgICAgICAgPC9BbGVydERpYWxvZ1RyaWdnZXI+XG4gICAgICAgICAgICAgICAgICAgICAgICAgICAgPEFsZXJ0RGlhbG9nQ29udGVudD5cbiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIDxBbGVydERpYWxvZ0hlYWRlcj5cbiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgPEFsZXJ0RGlhbG9nVGl0bGU+Q2FidXQgSGFrIEFrc2VzPzwvQWxlcnREaWFsb2dUaXRsZT5cbiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgPEFsZXJ0RGlhbG9nRGVzY3JpcHRpb24+XG4gICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgQXBha2FoIEFuZGEgeWFraW4gaW5naW4gbWVuZ2hhcHVzIGhhayBha3NlcyBraHVzdXMgdW50dWsgPHN0cm9uZz57dXNlci5lbWFpbH08L3N0cm9uZz4/IFBlbmdndW5hIGluaSBha2FuIGtlaGlsYW5nYW4gc2VtdWEgcHJpdmlsZXNlIGRpIGRhbGFtIGFwbGlrYXNpLlxuICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICA8L0FsZXJ0RGlhbG9nRGVzY3JpcHRpb24+XG4gICAgICAgICAgICAgICAgICAgICAgICAgICAgICA8L0FsZXJ0RGlhbG9nSGVhZGVyPlxuICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgPEFsZXJ0RGlhbG9nRm9vdGVyPlxuICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICA8QWxlcnREaWFsb2dDYW5jZWw+QmF0YWw8L0FsZXJ0RGlhbG9nQ2FuY2VsPlxuICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICA8QWxlcnREaWFsb2dBY3Rpb24gXG4gICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgb25DbGljaz17KCkgPT4gaGFuZGxlRGVsZXRlVXNlclJvbGUodXNlci51c2VyX2lkLCB1c2VyLmVtYWlsKX1cbiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICBjbGFzc05hbWU9XCJiZy1kZXN0cnVjdGl2ZSB0ZXh0LXdoaXRlIGhvdmVyOmJnLWRlc3RydWN0aXZlLzkwXCJcbiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgPlxuICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIFlhLCBDYWJ1dCBBa3Nlc1xuICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICA8L0FsZXJ0RGlhbG9nQWN0aW9uPlxuICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgPC9BbGVydERpYWxvZ0Zvb3Rlcj5cbiAgICAgICAgICAgICAgICAgICAgICAgICAgICA8L0FsZXJ0RGlhbG9nQ29udGVudD5cbiAgICAgICAgICAgICAgICAgICAgICAgICAgPC9BbGVydERpYWxvZz5cbiAgICAgICAgICAgICAgICAgICAgICAgIDwvVGFibGVDZWxsPlxuICAgICAgICAgICAgICAgICAgICAgIDwvVGFibGVSb3c+XG4gICAgICAgICAgICAgICAgICAgICk7XG4gICAgICAgICAgICAgICAgICB9KVxuICAgICAgICAgICAgICAgICl9XG4gICAgICAgICAgICAgIDwvVGFibGVCb2R5PlxuICAgICAgICAgICAgPC9UYWJsZT5cbiAgICAgICAgICA8L2Rpdj5cbiAgICAgICAgPC9kaXY+XG4gICAgICA8L2Rpdj5cbiAgICA8L0Rhc2hib2FyZExheW91dD5cbiAgKTtcbn0iXSwibmFtZXMiOlsidXNlRWZmZWN0IiwidXNlTWVtbyIsInVzZVN0YXRlIiwiRGFzaGJvYXJkTGF5b3V0Iiwic3VwYWJhc2UiLCJ1c2VBdXRoIiwiQnV0dG9uIiwiSW5wdXQiLCJMYWJlbCIsIlNlbGVjdCIsIlNlbGVjdENvbnRlbnQiLCJTZWxlY3RJdGVtIiwiU2VsZWN0VHJpZ2dlciIsIlNlbGVjdFZhbHVlIiwiQmFkZ2UiLCJUYWJsZSIsIlRhYmxlQm9keSIsIlRhYmxlQ2VsbCIsIlRhYmxlSGVhZCIsIlRhYmxlSGVhZGVyIiwiVGFibGVSb3ciLCJ1c2VUb2FzdCIsImNyZWF0ZUNsaWVudCIsIkRpYWxvZyIsIkRpYWxvZ0NvbnRlbnQiLCJEaWFsb2dEZXNjcmlwdGlvbiIsIkRpYWxvZ0Zvb3RlciIsIkRpYWxvZ0hlYWRlciIsIkRpYWxvZ1RpdGxlIiwiRGlhbG9nVHJpZ2dlciIsIkFsZXJ0RGlhbG9nIiwiQWxlcnREaWFsb2dBY3Rpb24iLCJBbGVydERpYWxvZ0NhbmNlbCIsIkFsZXJ0RGlhbG9nQ29udGVudCIsIkFsZXJ0RGlhbG9nRGVzY3JpcHRpb24iLCJBbGVydERpYWxvZ0Zvb3RlciIsIkFsZXJ0RGlhbG9nSGVhZGVyIiwiQWxlcnREaWFsb2dUaXRsZSIsIkFsZXJ0RGlhbG9nVHJpZ2dlciIsIlJlZnJlc2hDdyIsIlNlYXJjaCIsIlNoaWVsZENoZWNrIiwiVXNlckNvZyIsIlVzZXJQbHVzIiwiVHJhc2gyIiwiS2V5Um91bmQiLCJyb2xlTGFiZWxzIiwiYWRtaW4iLCJzdGFmZiIsInVzZXIiLCJmb3JtYXREYXRlIiwiZGF0ZSIsIkRhdGUiLCJ0b0xvY2FsZURhdGVTdHJpbmciLCJkYXkiLCJtb250aCIsInllYXIiLCJnZXRQcmltYXJ5Um9sZSIsInJvbGVzIiwiaW5jbHVkZXMiLCJSb2xlTWFuYWdlbWVudCIsInRvYXN0IiwicmVmcmVzaFJvbGUiLCJjdXJyZW50VXNlciIsInVzZXJzIiwic2V0VXNlcnMiLCJzZWFyY2giLCJzZXRTZWFyY2giLCJsb2FkaW5nIiwic2V0TG9hZGluZyIsInNhdmluZ1VzZXJJZCIsInNldFNhdmluZ1VzZXJJZCIsImlzQWRkRGlhbG9nT3BlbiIsInNldElzQWRkRGlhbG9nT3BlbiIsIm5ld1VzZXJuYW1lIiwic2V0TmV3VXNlcm5hbWUiLCJuZXdQYXNzd29yZCIsInNldE5ld1Bhc3N3b3JkIiwibmV3Um9sZSIsInNldE5ld1JvbGUiLCJpc0NyZWF0aW5nIiwic2V0SXNDcmVhdGluZyIsImlzUGFzc3dvcmREaWFsb2dPcGVuIiwic2V0SXNQYXNzd29yZERpYWxvZ09wZW4iLCJzZWxlY3RlZFVzZXIiLCJzZXRTZWxlY3RlZFVzZXIiLCJjaGFuZ2VkUGFzc3dvcmQiLCJzZXRDaGFuZ2VkUGFzc3dvcmQiLCJpc0NoYW5naW5nUGFzc3dvcmQiLCJzZXRJc0NoYW5naW5nUGFzc3dvcmQiLCJsb2FkVXNlcnMiLCJycGMiLCJlIiwiY29uc29sZSIsIndhcm4iLCJkYXRhIiwiZXJyb3IiLCJ0aXRsZSIsImRlc2NyaXB0aW9uIiwibWVzc2FnZSIsInZhcmlhbnQiLCJoYW5kbGVBZGRVc2VyUm9sZSIsInByZXZlbnREZWZhdWx0IiwidXNlcm5hbWVDbGVhbiIsInRyaW0iLCJwYXNzd29yZENsZWFuIiwidGFyZ2V0RW1haWwiLCJ0b0xvd2VyQ2FzZSIsInN1cGFiYXNlVXJsIiwiZW52IiwiVklURV9TVVBBQkFTRV9VUkwiLCJzdXBhYmFzZUtleSIsIlZJVEVfU1VQQUJBU0VfUFVCTElTSEFCTEVfS0VZIiwiaXNvbGF0ZWRDbGllbnQiLCJhdXRoIiwicGVyc2lzdFNlc3Npb24iLCJhdXRvUmVmcmVzaFRva2VuIiwiYXV0aERhdGEiLCJhdXRoRXJyb3IiLCJzaWduVXAiLCJlbWFpbCIsInBhc3N3b3JkIiwiaWQiLCJFcnJvciIsInRhcmdldF9lbWFpbCIsInJvbGVFcnJvciIsImZyb20iLCJpbnNlcnQiLCJ1c2VyX2lkIiwicm9sZSIsImhhbmRsZUNoYW5nZVVzZXJQYXNzd29yZFN1Ym1pdCIsImxlbmd0aCIsInRhcmdldF91c2VyX2lkIiwibmV3X3Bhc3N3b3JkIiwidXBkYXRlUm9sZSIsInRhcmdldF9yb2xlIiwiaXRlbXMiLCJtYXAiLCJpdGVtIiwiaGFuZGxlRGVsZXRlVXNlclJvbGUiLCJ1c2VySWQiLCJmaWx0ZXJlZFVzZXJzIiwiYWN0aXZlVGVhbU1lbWJlcnMiLCJmaWx0ZXIiLCJxdWVyeSIsImRpdiIsImNsYXNzTmFtZSIsImgxIiwicCIsIm9wZW4iLCJvbk9wZW5DaGFuZ2UiLCJhc0NoaWxkIiwiZm9ybSIsIm9uU3VibWl0IiwiaHRtbEZvciIsInZhbHVlIiwib25DaGFuZ2UiLCJ0YXJnZXQiLCJwbGFjZWhvbGRlciIsInJlcXVpcmVkIiwiYXV0b0NvbXBsZXRlIiwidHlwZSIsIm9uVmFsdWVDaGFuZ2UiLCJvbkNsaWNrIiwiZGlzYWJsZWQiLCJzdHJvbmciLCJoMiIsImV2ZW50IiwiY29sU3BhbiIsImlzU2VsZiIsInNwYW4iLCJjcmVhdGVkX2F0Iiwic2l6ZSJdLCJtYXBwaW5ncyI6Ijs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7O0FBQUEsU0FBU0EsU0FBUyxFQUFFQyxPQUFPLEVBQUVDLFFBQVEsUUFBUSxRQUFRO0FBQ3JELFNBQVNDLGVBQWUsUUFBUSwrQkFBK0I7QUFDL0QsU0FBU0MsUUFBUSxRQUFRLGlDQUFpQztBQUMxRCxTQUFrQkMsT0FBTyxRQUFRLHlCQUF5QjtBQUMxRCxTQUFTQyxNQUFNLFFBQVEseUJBQXlCO0FBQ2hELFNBQVNDLEtBQUssUUFBUSx3QkFBd0I7QUFDOUMsU0FBU0MsS0FBSyxRQUFRLHdCQUF3QjtBQUM5QyxTQUFTQyxNQUFNLEVBQUVDLGFBQWEsRUFBRUMsVUFBVSxFQUFFQyxhQUFhLEVBQUVDLFdBQVcsUUFBUSx5QkFBeUI7QUFDdkcsU0FBU0MsS0FBSyxRQUFRLHdCQUF3QjtBQUM5QyxTQUFTQyxLQUFLLEVBQUVDLFNBQVMsRUFBRUMsU0FBUyxFQUFFQyxTQUFTLEVBQUVDLFdBQVcsRUFBRUMsUUFBUSxRQUFRLHdCQUF3QjtBQUN0RyxTQUFTQyxRQUFRLFFBQVEsb0JBQW9CO0FBQzdDLFNBQVNDLFlBQVksUUFBUSx3QkFBd0I7QUFDckQsU0FDRUMsTUFBTSxFQUNOQyxhQUFhLEVBQ2JDLGlCQUFpQixFQUNqQkMsWUFBWSxFQUNaQyxZQUFZLEVBQ1pDLFdBQVcsRUFDWEMsYUFBYSxRQUNSLHlCQUF5QjtBQUNoQyxTQUNFQyxXQUFXLEVBQ1hDLGlCQUFpQixFQUNqQkMsaUJBQWlCLEVBQ2pCQyxrQkFBa0IsRUFDbEJDLHNCQUFzQixFQUN0QkMsaUJBQWlCLEVBQ2pCQyxpQkFBaUIsRUFDakJDLGdCQUFnQixFQUNoQkMsa0JBQWtCLFFBQ2IsK0JBQStCO0FBQ3RDLFNBQVNDLFNBQVMsRUFBRUMsTUFBTSxFQUFFQyxXQUFXLEVBQUVDLE9BQU8sRUFBRUMsUUFBUSxFQUFFQyxNQUFNLEVBQUVDLFFBQVEsUUFBUSxlQUFlO0FBU25HLE1BQU1DLGFBQXNDO0lBQzFDQyxPQUFPO0lBQ1BDLE9BQU87SUFDUEMsTUFBTTtBQUNSO0FBRUEsTUFBTUMsYUFBYSxDQUFDQztJQUNsQixJQUFJLENBQUNBLE1BQU0sT0FBTztJQUNsQixPQUFPLElBQUlDLEtBQUtELE1BQU1FLGtCQUFrQixDQUFDLFNBQVM7UUFDaERDLEtBQUs7UUFDTEMsT0FBTztRQUNQQyxNQUFNO0lBQ1I7QUFDRjtBQUVBLE1BQU1DLGlCQUFpQixDQUFDQyxRQUFtQixFQUFFO0lBQzNDLElBQUlBLE1BQU1DLFFBQVEsQ0FBQyxVQUFVLE9BQU87SUFDcEMsSUFBSUQsTUFBTUMsUUFBUSxDQUFDLFVBQVUsT0FBTztJQUNwQyxPQUFPO0FBQ1Q7QUFFQSxlQUFlLFNBQVNDOztJQUN0QixNQUFNLEVBQUVDLEtBQUssRUFBRSxHQUFHeEM7SUFDbEIsTUFBTSxFQUFFeUMsV0FBVyxFQUFFYixNQUFNYyxXQUFXLEVBQUUsR0FBRzFEO0lBQzNDLE1BQU0sQ0FBQzJELE9BQU9DLFNBQVMsR0FBRy9ELFNBQXdCLEVBQUU7SUFDcEQsTUFBTSxDQUFDZ0UsUUFBUUMsVUFBVSxHQUFHakUsU0FBUztJQUNyQyxNQUFNLENBQUNrRSxTQUFTQyxXQUFXLEdBQUduRSxTQUFTO0lBQ3ZDLE1BQU0sQ0FBQ29FLGNBQWNDLGdCQUFnQixHQUFHckUsU0FBd0I7SUFFaEUseUJBQXlCO0lBQ3pCLE1BQU0sQ0FBQ3NFLGlCQUFpQkMsbUJBQW1CLEdBQUd2RSxTQUFTO0lBQ3ZELE1BQU0sQ0FBQ3dFLGFBQWFDLGVBQWUsR0FBR3pFLFNBQVM7SUFDL0MsTUFBTSxDQUFDMEUsYUFBYUMsZUFBZSxHQUFHM0UsU0FBUztJQUMvQyxNQUFNLENBQUM0RSxTQUFTQyxXQUFXLEdBQUc3RSxTQUFrQjtJQUNoRCxNQUFNLENBQUM4RSxZQUFZQyxjQUFjLEdBQUcvRSxTQUFTO0lBRTdDLDJCQUEyQjtJQUMzQixNQUFNLENBQUNnRixzQkFBc0JDLHdCQUF3QixHQUFHakYsU0FBUztJQUNqRSxNQUFNLENBQUNrRixjQUFjQyxnQkFBZ0IsR0FBR25GLFNBQTZCO0lBQ3JFLE1BQU0sQ0FBQ29GLGlCQUFpQkMsbUJBQW1CLEdBQUdyRixTQUFTO0lBQ3ZELE1BQU0sQ0FBQ3NGLG9CQUFvQkMsc0JBQXNCLEdBQUd2RixTQUFTO0lBRTdERixVQUFVO1FBQ1IwRjtJQUNGLEdBQUcsRUFBRTtJQUVMLE1BQU1BLFlBQVk7UUFDaEJyQixXQUFXO1FBQ1gsSUFBSTtZQUNGLElBQUk7Z0JBQ0YsTUFBTSxBQUFDakUsU0FBaUJ1RixHQUFHLENBQUM7WUFDOUIsRUFBRSxPQUFPQyxHQUFHO2dCQUNWQyxRQUFRQyxJQUFJLENBQUM7WUFDZjtZQUNBLE1BQU1oQztZQUVOLE1BQU0sRUFBRWlDLElBQUksRUFBRUMsS0FBSyxFQUFFLEdBQUcsTUFBTSxBQUFDNUYsU0FBaUJ1RixHQUFHLENBQUM7WUFDcEQsSUFBSUssT0FBTyxNQUFNQTtZQUNqQi9CLFNBQVU4QixRQUFRLEVBQUU7UUFDdEIsRUFBRSxPQUFPQyxPQUFZO1lBQ25CbkMsTUFBTTtnQkFDSm9DLE9BQU87Z0JBQ1BDLGFBQWFGLE1BQU1HLE9BQU8sSUFBSTtnQkFDOUJDLFNBQVM7WUFDWDtRQUNGLFNBQVU7WUFDUi9CLFdBQVc7UUFDYjtJQUNGO0lBRUEsTUFBTWdDLG9CQUFvQixPQUFPVDtRQUMvQkEsRUFBRVUsY0FBYztRQUNoQixNQUFNQyxnQkFBZ0I3QixZQUFZOEIsSUFBSTtRQUN0QyxNQUFNQyxnQkFBZ0I3QixZQUFZNEIsSUFBSTtRQUV0QyxJQUFJLENBQUNELGlCQUFpQixDQUFDRSxlQUFlO1lBQ3BDNUMsTUFBTTtnQkFBRW9DLE9BQU87Z0JBQW9DRyxTQUFTO1lBQWM7WUFDMUU7UUFDRjtRQUVBbkIsY0FBYztRQUNkLElBQUk7WUFDRixNQUFNeUIsY0FBY0gsY0FBYzVDLFFBQVEsQ0FBQyxPQUFPNEMsY0FBY0ksV0FBVyxLQUFLLEdBQUdKLGNBQWNJLFdBQVcsR0FBRyxlQUFlLENBQUM7WUFFL0gsTUFBTUMsY0FBYyxZQUFZQyxHQUFHLENBQUNDLGlCQUFpQjtZQUNyRCxNQUFNQyxjQUFjLFlBQVlGLEdBQUcsQ0FBQ0csNkJBQTZCO1lBRWpFLE1BQU1DLGlCQUFpQjNGLGFBQWFzRixhQUFhRyxhQUFhO2dCQUM1REcsTUFBTTtvQkFBRUMsZ0JBQWdCO29CQUFPQyxrQkFBa0I7Z0JBQU07WUFDekQ7WUFFQSxNQUFNLEVBQUVyQixNQUFNc0IsUUFBUSxFQUFFckIsT0FBT3NCLFNBQVMsRUFBRSxHQUFHLE1BQU1MLGVBQWVDLElBQUksQ0FBQ0ssTUFBTSxDQUFDO2dCQUM1RUMsT0FBT2Q7Z0JBQ1BlLFVBQVVoQjtZQUNaO1lBRUEsSUFBSWEsV0FBVyxNQUFNQTtZQUNyQixJQUFJLENBQUNELFNBQVNwRSxJQUFJLEVBQUV5RSxJQUFJLE1BQU0sSUFBSUMsTUFBTTtZQUV4QyxNQUFNLEFBQUN2SCxTQUFpQnVGLEdBQUcsQ0FBQywrQkFBK0I7Z0JBQUVpQyxjQUFjbEI7WUFBWTtZQUV2RixNQUFNLEVBQUVWLE9BQU82QixTQUFTLEVBQUUsR0FBRyxNQUFNekgsU0FDaEMwSCxJQUFJLENBQUMsY0FDTEMsTUFBTSxDQUFDO2dCQUFFQyxTQUFTWCxTQUFTcEUsSUFBSSxDQUFDeUUsRUFBRTtnQkFBRU8sTUFBTW5EO1lBQVE7WUFFckQsSUFBSStDLFdBQVcsTUFBTUE7WUFFckJoRSxNQUFNO2dCQUNKb0MsT0FBTztnQkFDUEMsYUFBYSxDQUFDLE1BQU0sRUFBRUssY0FBYywyQkFBMkIsRUFBRXpELFVBQVUsQ0FBQ2dDLFFBQVEsQ0FBQyxDQUFDLENBQUM7WUFDekY7WUFFQUwsbUJBQW1CO1lBQ25CRSxlQUFlO1lBQ2ZFLGVBQWU7WUFDZmE7UUFDRixFQUFFLE9BQU9NLE9BQVk7WUFDbkJuQyxNQUFNO2dCQUNKb0MsT0FBTztnQkFDUEMsYUFBYUYsTUFBTUcsT0FBTyxJQUFJO2dCQUM5QkMsU0FBUztZQUNYO1FBQ0YsU0FBVTtZQUNSbkIsY0FBYztRQUNoQjtJQUNGO0lBRUEsTUFBTWlELGlDQUFpQyxPQUFPdEM7UUFDNUNBLEVBQUVVLGNBQWM7UUFDaEIsSUFBSSxDQUFDbEIsZ0JBQWdCLENBQUNFLGdCQUFnQmtCLElBQUksSUFBSTtRQUU5QyxJQUFJbEIsZ0JBQWdCa0IsSUFBSSxHQUFHMkIsTUFBTSxHQUFHLEdBQUc7WUFDckN0RSxNQUFNO2dCQUFFb0MsT0FBTztnQkFBcUNHLFNBQVM7WUFBYztZQUMzRTtRQUNGO1FBRUFYLHNCQUFzQjtRQUN0QixJQUFJO1lBQ0YsTUFBTSxFQUFFTyxLQUFLLEVBQUUsR0FBRyxNQUFNLEFBQUM1RixTQUFpQnVGLEdBQUcsQ0FBQyw4QkFBOEI7Z0JBQzFFeUMsZ0JBQWdCaEQsYUFBYTRDLE9BQU87Z0JBQ3BDSyxjQUFjL0MsZ0JBQWdCa0IsSUFBSTtZQUNwQztZQUVBLElBQUlSLE9BQU8sTUFBTUE7WUFFakJuQyxNQUFNO2dCQUNKb0MsT0FBTztnQkFDUEMsYUFBYSxDQUFDLG9CQUFvQixFQUFFZCxhQUFhb0MsS0FBSyxDQUFDLGlCQUFpQixDQUFDO1lBQzNFO1lBRUFyQyx3QkFBd0I7WUFDeEJJLG1CQUFtQjtZQUNuQkYsZ0JBQWdCO1FBQ2xCLEVBQUUsT0FBT1csT0FBWTtZQUNuQm5DLE1BQU07Z0JBQ0pvQyxPQUFPO2dCQUNQQyxhQUFhRixNQUFNRyxPQUFPO2dCQUMxQkMsU0FBUztZQUNYO1FBQ0YsU0FBVTtZQUNSWCxzQkFBc0I7UUFDeEI7SUFDRjtJQUVBLE1BQU02QyxhQUFhLE9BQU9yRixNQUFtQmdGO1FBQzNDMUQsZ0JBQWdCdEIsS0FBSytFLE9BQU87UUFDNUIsSUFBSTtZQUNGLE1BQU0sRUFBRWhDLEtBQUssRUFBRSxHQUFHLE1BQU0sQUFBQzVGLFNBQWlCdUYsR0FBRyxDQUFDLHVCQUF1QjtnQkFDbkV5QyxnQkFBZ0JuRixLQUFLK0UsT0FBTztnQkFDNUJPLGFBQWFOO1lBQ2Y7WUFDQSxJQUFJakMsT0FBTyxNQUFNQTtZQUVqQi9CLFNBQVMsQ0FBQ3VFLFFBQ1JBLE1BQU1DLEdBQUcsQ0FBQyxDQUFDQyxPQUFVQSxLQUFLVixPQUFPLEtBQUsvRSxLQUFLK0UsT0FBTyxHQUFHO3dCQUFFLEdBQUdVLElBQUk7d0JBQUVoRixPQUFPOzRCQUFDdUU7eUJBQUs7b0JBQUMsSUFBSVM7WUFFcEY3RSxNQUFNO2dCQUFFb0MsT0FBTztnQkFBbUJDLGFBQWEsR0FBR2pELEtBQUt1RSxLQUFLLENBQUMsa0JBQWtCLEVBQUUxRSxVQUFVLENBQUNtRixLQUFLLENBQUMsQ0FBQyxDQUFDO1lBQUM7WUFFckcsTUFBTW5FO1FBQ1IsRUFBRSxPQUFPa0MsT0FBWTtZQUNuQm5DLE1BQU07Z0JBQUVvQyxPQUFPO2dCQUF1QkMsYUFBYUYsTUFBTUcsT0FBTztnQkFBRUMsU0FBUztZQUFjO1FBQzNGLFNBQVU7WUFDUjdCLGdCQUFnQjtRQUNsQjtJQUNGO0lBRUEsTUFBTW9FLHVCQUF1QixPQUFPQyxRQUFnQnBCO1FBQ2xELElBQUk7WUFDRixNQUFNLEVBQUV4QixLQUFLLEVBQUUsR0FBRyxNQUFNLEFBQUM1RixTQUFpQnVGLEdBQUcsQ0FBQywwQkFBMEI7Z0JBQ3RFeUMsZ0JBQWdCUTtZQUNsQjtZQUVBLElBQUk1QyxPQUFPLE1BQU1BO1lBRWpCbkMsTUFBTTtnQkFDSm9DLE9BQU87Z0JBQ1BDLGFBQWEsQ0FBQywrQkFBK0IsRUFBRXNCLE1BQU0sa0JBQWtCLENBQUM7WUFDMUU7WUFDQTlCO1FBQ0YsRUFBRSxPQUFPTSxPQUFZO1lBQ25CbkMsTUFBTTtnQkFDSm9DLE9BQU87Z0JBQ1BDLGFBQWFGLE1BQU1HLE9BQU8sSUFBSTtnQkFDOUJDLFNBQVM7WUFDWDtRQUNGO0lBQ0Y7SUFFQSxNQUFNeUMsZ0JBQWdCNUksUUFBUTtRQUM1QixNQUFNNkksb0JBQW9COUUsTUFBTStFLE1BQU0sQ0FBQyxDQUFDOUYsT0FBU0EsS0FBS1MsS0FBSyxJQUFJVCxLQUFLUyxLQUFLLENBQUN5RSxNQUFNLEdBQUc7UUFFbkYsTUFBTWEsUUFBUTlFLE9BQU95QyxXQUFXLEdBQUdILElBQUk7UUFDdkMsSUFBSSxDQUFDd0MsT0FBTyxPQUFPRjtRQUNuQixPQUFPQSxrQkFBa0JDLE1BQU0sQ0FBQyxDQUFDOUY7WUFDL0IsTUFBTWdGLE9BQU94RSxlQUFlUixLQUFLUyxLQUFLO1lBQ3RDLE9BQU8sR0FBR1QsS0FBS3VFLEtBQUssQ0FBQyxDQUFDLEVBQUVTLE1BQU0sQ0FBQ3RCLFdBQVcsR0FBR2hELFFBQVEsQ0FBQ3FGO1FBQ3hEO0lBQ0YsR0FBRztRQUFDaEY7UUFBT0U7S0FBTztJQUVsQixxQkFDRSxRQUFDL0Q7a0JBQ0MsY0FBQSxRQUFDOEk7WUFBSUMsV0FBVTs7OEJBR2IsUUFBQ0Q7b0JBQUlDLFdBQVU7O3NDQUNiLFFBQUNEOzs4Q0FDQyxRQUFDRTtvQ0FBR0QsV0FBVTs4Q0FBa0Q7Ozs7Ozs4Q0FDaEUsUUFBQ0U7b0NBQUVGLFdBQVU7OENBQWdDOzs7Ozs7Ozs7Ozs7c0NBRS9DLFFBQUNEOzRCQUFJQyxXQUFVOzs4Q0FHYixRQUFDM0g7b0NBQU84SCxNQUFNN0U7b0NBQWlCOEUsY0FBYzdFOztzREFDM0MsUUFBQzVDOzRDQUFjMEgsT0FBTztzREFDcEIsY0FBQSxRQUFDako7Z0RBQU80SSxXQUFVOztrRUFDaEIsUUFBQ3ZHO3dEQUFTdUcsV0FBVTs7Ozs7O29EQUFZOzs7Ozs7Ozs7Ozs7c0RBR3BDLFFBQUMxSDs0Q0FBYzBILFdBQVU7c0RBQ3ZCLGNBQUEsUUFBQ007Z0RBQUtDLFVBQVVwRDs7a0VBQ2QsUUFBQzFFOzswRUFDQyxRQUFDQzswRUFBWTs7Ozs7OzBFQUNiLFFBQUNIOzBFQUFrQjs7Ozs7Ozs7Ozs7O2tFQUlyQixRQUFDd0g7d0RBQUlDLFdBQVU7OzBFQUNiLFFBQUNEO2dFQUFJQyxXQUFVOztrRkFDYixRQUFDMUk7d0VBQU1rSixTQUFRO2tGQUFXOzs7Ozs7a0ZBQzFCLFFBQUNuSjt3RUFDQ21ILElBQUc7d0VBQ0hpQyxPQUFPakY7d0VBQ1BrRixVQUFVLENBQUNoRSxJQUFNakIsZUFBZWlCLEVBQUVpRSxNQUFNLENBQUNGLEtBQUs7d0VBQzlDRyxhQUFZO3dFQUNaQyxRQUFRO3dFQUNSQyxjQUFhOzs7Ozs7Ozs7Ozs7MEVBR2pCLFFBQUNmO2dFQUFJQyxXQUFVOztrRkFDYixRQUFDMUk7d0VBQU1rSixTQUFRO2tGQUFXOzs7Ozs7a0ZBQzFCLFFBQUNuSjt3RUFDQ21ILElBQUc7d0VBQ0h1QyxNQUFLO3dFQUNMTixPQUFPL0U7d0VBQ1BnRixVQUFVLENBQUNoRSxJQUFNZixlQUFlZSxFQUFFaUUsTUFBTSxDQUFDRixLQUFLO3dFQUM5Q0csYUFBWTt3RUFDWkMsUUFBUTs7Ozs7Ozs7Ozs7OzBFQUdaLFFBQUNkO2dFQUFJQyxXQUFVOztrRkFDYixRQUFDMUk7d0VBQU1rSixTQUFRO2tGQUFPOzs7Ozs7a0ZBQ3RCLFFBQUNqSjt3RUFBT2tKLE9BQU83RTt3RUFBU29GLGVBQWUsQ0FBQ1AsUUFBVTVFLFdBQVc0RTs7MEZBQzNELFFBQUMvSTtnRkFBYzhHLElBQUc7MEZBQ2hCLGNBQUEsUUFBQzdHO29GQUFZaUosYUFBWTs7Ozs7Ozs7Ozs7MEZBRTNCLFFBQUNwSjs7a0dBQ0MsUUFBQ0M7d0ZBQVdnSixPQUFNO2tHQUFROzs7Ozs7a0dBQzFCLFFBQUNoSjt3RkFBV2dKLE9BQU07a0dBQVE7Ozs7OztrR0FDMUIsUUFBQ2hKO3dGQUFXZ0osT0FBTTtrR0FBTzs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7O2tFQUtqQyxRQUFDakk7OzBFQUNDLFFBQUNwQjtnRUFBTzJKLE1BQUs7Z0VBQVM3RCxTQUFRO2dFQUFVK0QsU0FBUyxJQUFNMUYsbUJBQW1COzBFQUFROzs7Ozs7MEVBR2xGLFFBQUNuRTtnRUFBTzJKLE1BQUs7Z0VBQVNHLFVBQVVwRjtnRUFBWWtFLFdBQVU7MEVBQ25EbEUsYUFBYSxvQkFBb0I7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7OzhDQU81QyxRQUFDMUU7b0NBQU84RixTQUFRO29DQUFVK0QsU0FBU3pFO29DQUFXMEUsVUFBVWhHOztzREFDdEQsUUFBQzdCOzRDQUFVMkcsV0FBVzlFLFVBQVUseUJBQXlCOzs7Ozs7d0NBQWE7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7OEJBTTVFLFFBQUM3QztvQkFBTzhILE1BQU1uRTtvQkFBc0JvRSxjQUFjbkU7OEJBQ2hELGNBQUEsUUFBQzNEO3dCQUFjMEgsV0FBVTtrQ0FDdkIsY0FBQSxRQUFDTTs0QkFBS0MsVUFBVXZCOzs4Q0FDZCxRQUFDdkc7O3NEQUNDLFFBQUNDO3NEQUFZOzs7Ozs7c0RBQ2IsUUFBQ0g7O2dEQUFrQjs4REFDZSxRQUFDNEk7OERBQVFqRixjQUFjb0M7Ozs7OztnREFBZTs7Ozs7Ozs7Ozs7Ozs4Q0FHMUUsUUFBQ3lCO29DQUFJQyxXQUFVOzhDQUNiLGNBQUEsUUFBQ0Q7d0NBQUlDLFdBQVU7OzBEQUNiLFFBQUMxSTtnREFBTWtKLFNBQVE7MERBQXFCOzs7Ozs7MERBQ3BDLFFBQUNuSjtnREFDQ21ILElBQUc7Z0RBQ0h1QyxNQUFLO2dEQUNMTixPQUFPckU7Z0RBQ1BzRSxVQUFVLENBQUNoRSxJQUFNTCxtQkFBbUJLLEVBQUVpRSxNQUFNLENBQUNGLEtBQUs7Z0RBQ2xERyxhQUFZO2dEQUNaQyxRQUFROzs7Ozs7Ozs7Ozs7Ozs7Ozs4Q0FJZCxRQUFDckk7O3NEQUNDLFFBQUNwQjs0Q0FBTzJKLE1BQUs7NENBQVM3RCxTQUFROzRDQUFVK0QsU0FBUyxJQUFNaEYsd0JBQXdCO3NEQUFROzs7Ozs7c0RBR3ZGLFFBQUM3RTs0Q0FBTzJKLE1BQUs7NENBQVNHLFVBQVU1RTs0Q0FBb0IwRCxXQUFVO3NEQUMzRDFELHFCQUFxQixnQkFBZ0I7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7OEJBUWhELFFBQUN5RDtvQkFBSUMsV0FBVTs7c0NBQ2IsUUFBQ0Q7NEJBQUlDLFdBQVU7OzhDQUNiLFFBQUMxRztvQ0FBTzBHLFdBQVU7Ozs7Ozs4Q0FDbEIsUUFBQ29CO29DQUFHcEIsV0FBVTs4Q0FBcUM7Ozs7Ozs7Ozs7OztzQ0FFckQsUUFBQ0Q7NEJBQUlDLFdBQVU7OzhDQUNiLFFBQUMxSTs4Q0FBTTs7Ozs7OzhDQUNQLFFBQUNEO29DQUNDb0osT0FBT3pGO29DQUNQMEYsVUFBVSxDQUFDVyxRQUFVcEcsVUFBVW9HLE1BQU1WLE1BQU0sQ0FBQ0YsS0FBSztvQ0FDakRHLGFBQVk7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs4QkFNbEIsUUFBQ2I7b0JBQUlDLFdBQVU7O3NDQUNiLFFBQUNEOzRCQUFJQyxXQUFVOzs4Q0FDYixRQUFDRDtvQ0FBSUMsV0FBVTs7c0RBQ2IsUUFBQ3hHOzRDQUFRd0csV0FBVTs7Ozs7O3NEQUNuQixRQUFDb0I7NENBQUdwQixXQUFVO3NEQUFxQzs7Ozs7Ozs7Ozs7OzhDQUVyRCxRQUFDcEk7b0NBQU1zRixTQUFRO29DQUFVOEMsV0FBVTs7d0NBQ2hDTCxjQUFjVixNQUFNO3dDQUFDOzs7Ozs7Ozs7Ozs7O3NDQUkxQixRQUFDYzs0QkFBSUMsV0FBVTtzQ0FDYixjQUFBLFFBQUNuSTs7a0RBQ0MsUUFBQ0k7a0RBQ0MsY0FBQSxRQUFDQzs7OERBQ0MsUUFBQ0Y7OERBQVU7Ozs7Ozs4REFDWCxRQUFDQTs4REFBVTs7Ozs7OzhEQUNYLFFBQUNBOzhEQUFVOzs7Ozs7OERBQ1gsUUFBQ0E7b0RBQVVnSSxXQUFVOzhEQUFPOzs7Ozs7OERBQzVCLFFBQUNoSTtvREFBVWdJLFdBQVU7OERBQW1COzs7Ozs7Ozs7Ozs7Ozs7OztrREFHNUMsUUFBQ2xJO2tEQUNFb0Qsd0JBQ0MsUUFBQ2hEO3NEQUNDLGNBQUEsUUFBQ0g7Z0RBQVV1SixTQUFTO2dEQUFHdEIsV0FBVTswREFBeUM7Ozs7Ozs7Ozs7bURBRTFFTCxjQUFjVixNQUFNLEtBQUssa0JBQzNCLFFBQUMvRztzREFDQyxjQUFBLFFBQUNIO2dEQUFVdUosU0FBUztnREFBR3RCLFdBQVU7MERBQXlDOzs7Ozs7Ozs7O21EQUc1RUwsY0FBY0osR0FBRyxDQUFDLENBQUN4Rjs0Q0FDakIsTUFBTWdGLE9BQU94RSxlQUFlUixLQUFLUyxLQUFLOzRDQUN0QyxNQUFNK0csU0FBUzFHLGFBQWEyRCxPQUFPekUsS0FBSytFLE9BQU87NENBRS9DLHFCQUNFLFFBQUM1RztnREFBNEI4SCxXQUFVOztrRUFDckMsUUFBQ2pJO3dEQUFVaUksV0FBVTs7NERBQ2xCakcsS0FBS3VFLEtBQUs7NERBQUM7NERBQUVpRCx3QkFBVSxRQUFDQztnRUFBS3hCLFdBQVU7MEVBQWlDOzs7Ozs7Ozs7Ozs7a0VBRTNFLFFBQUNqSTtrRUFBV2lDLFdBQVdELEtBQUswSCxVQUFVOzs7Ozs7a0VBQ3RDLFFBQUMxSjtrRUFDQyxjQUFBLFFBQUNIOzREQUFNc0YsU0FBUTs0REFBVThDLFdBQVU7OzhFQUNqQyxRQUFDekc7b0VBQVl5RyxXQUFVOzs7Ozs7Z0VBQXdCO2dFQUFFcEcsVUFBVSxDQUFDbUYsS0FBSzs7Ozs7Ozs7Ozs7O2tFQUdyRSxRQUFDaEg7a0VBQ0MsY0FBQSxRQUFDUjs0REFDQ2tKLE9BQU8xQjs0REFDUGlDLGVBQWUsQ0FBQ1AsUUFBVXJCLFdBQVdyRixNQUFNMEc7NERBQzNDUyxVQUFVOUYsaUJBQWlCckIsS0FBSytFLE9BQU8sSUFBSXlDOzs4RUFFM0MsUUFBQzdKO29FQUFjc0ksV0FBVTs4RUFDdkIsY0FBQSxRQUFDckk7Ozs7Ozs7Ozs7OEVBRUgsUUFBQ0g7O3NGQUNDLFFBQUNDOzRFQUFXZ0osT0FBTTtzRkFBUTs7Ozs7O3NGQUMxQixRQUFDaEo7NEVBQVdnSixPQUFNO3NGQUFROzs7Ozs7c0ZBQzFCLFFBQUNoSjs0RUFBV2dKLE9BQU07c0ZBQU87Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7O2tFQUkvQixRQUFDMUk7d0RBQVVpSSxXQUFVOzswRUFDbkIsUUFBQzVJO2dFQUNDOEYsU0FBUTtnRUFDUndFLE1BQUs7Z0VBQ0wxQixXQUFVO2dFQUNWaUIsU0FBUztvRUFDUDlFLGdCQUFnQnBDO29FQUNoQmtDLHdCQUF3QjtnRUFDMUI7MEVBRUEsY0FBQSxRQUFDdEM7b0VBQVNxRyxXQUFVOzs7Ozs7Ozs7OzswRUFHdEIsUUFBQ3BIOztrRkFDQyxRQUFDUTt3RUFBbUJpSCxPQUFPO2tGQUN6QixjQUFBLFFBQUNqSjs0RUFDQzhGLFNBQVE7NEVBQ1J3RSxNQUFLOzRFQUNMMUIsV0FBVTs0RUFDVmtCLFVBQVVLO3NGQUVWLGNBQUEsUUFBQzdIO2dGQUFPc0csV0FBVTs7Ozs7Ozs7Ozs7Ozs7OztrRkFHdEIsUUFBQ2pIOzswRkFDQyxRQUFDRzs7a0dBQ0MsUUFBQ0M7a0dBQWlCOzs7Ozs7a0dBQ2xCLFFBQUNIOzs0RkFBdUI7MEdBQ21DLFFBQUNtSTswR0FBUXBILEtBQUt1RSxLQUFLOzs7Ozs7NEZBQVU7Ozs7Ozs7Ozs7Ozs7MEZBRzFGLFFBQUNyRjs7a0dBQ0MsUUFBQ0g7a0dBQWtCOzs7Ozs7a0dBQ25CLFFBQUNEO3dGQUNDb0ksU0FBUyxJQUFNeEIscUJBQXFCMUYsS0FBSytFLE9BQU8sRUFBRS9FLEtBQUt1RSxLQUFLO3dGQUM1RDBCLFdBQVU7a0dBQ1g7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7K0NBOURJakcsS0FBSytFLE9BQU87Ozs7O3dDQXVFL0I7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7QUFTbEI7R0FqY3dCcEU7O1FBQ0p2QztRQUN5QmhCOzs7S0FGckJ1RCJ9

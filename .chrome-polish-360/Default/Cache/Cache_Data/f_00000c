@@ -1,0 +1,403 @@
+import { createHotContext as __vite__createHotContext } from "/@vite/client";import.meta.hot = __vite__createHotContext("/src/pages/Dashboard.tsx");import * as RefreshRuntime from "/@react-refresh";
+const inWebWorker = typeof WorkerGlobalScope !== 'undefined' && self instanceof WorkerGlobalScope;
+
+let prevRefreshReg;
+let prevRefreshSig;
+
+if (import.meta.hot && !inWebWorker) {
+  if (!window.$RefreshReg$) {
+    throw new Error(
+      "@vitejs/plugin-react-swc can't detect preamble. Something is wrong."
+    );
+  }
+
+  prevRefreshReg = window.$RefreshReg$;
+  prevRefreshSig = window.$RefreshSig$;
+  window.$RefreshReg$ = RefreshRuntime.getRefreshReg("C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dashboard.tsx");
+  window.$RefreshSig$ = RefreshRuntime.createSignatureFunctionForTransform;
+}
+
+import __vite__cjsImport2_react_jsxDevRuntime from "/node_modules/.vite/deps/react_jsx-dev-runtime.js?v=df8fa318"; const _jsxDEV = __vite__cjsImport2_react_jsxDevRuntime["jsxDEV"];
+var _s = $RefreshSig$();
+import __vite__cjsImport3_react from "/node_modules/.vite/deps/react.js?v=df8fa318"; const useEffect = __vite__cjsImport3_react["useEffect"]; const useState = __vite__cjsImport3_react["useState"];
+import { DashboardLayout } from "/src/components/DashboardLayout.tsx";
+import { StatCard } from "/src/components/StatCard.tsx";
+import { supabase } from "/src/integrations/supabase/client.ts";
+import { Package, ShoppingCart, DollarSign, AlertTriangle } from "/node_modules/.vite/deps/lucide-react.js?v=df8fa318";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "/node_modules/.vite/deps/recharts.js?v=df8fa318";
+const mockChartData = [
+    {
+        name: "Sen",
+        penjualan: 12
+    },
+    {
+        name: "Sel",
+        penjualan: 19
+    },
+    {
+        name: "Rab",
+        penjualan: 8
+    },
+    {
+        name: "Kam",
+        penjualan: 15
+    },
+    {
+        name: "Jum",
+        penjualan: 22
+    },
+    {
+        name: "Sab",
+        penjualan: 30
+    },
+    {
+        name: "Min",
+        penjualan: 18
+    }
+];
+export default function Dashboard() {
+    _s();
+    const [stats, setStats] = useState({
+        totalBarang: 0,
+        totalTransaksi: 0,
+        totalPendapatan: 0,
+        stokRendah: 0
+    });
+    const [recentTransaksi, setRecentTransaksi] = useState([]);
+    useEffect(()=>{
+        loadStats();
+        loadRecentTransaksi();
+    }, []);
+    const loadStats = async ()=>{
+        const { count: totalBarang } = await supabase.from("barang").select("*", {
+            count: "exact",
+            head: true
+        });
+        const { count: totalTransaksi } = await supabase.from("transaksi").select("*", {
+            count: "exact",
+            head: true
+        });
+        const { data: pendapatan } = await supabase.from("transaksi").select("total").eq("status", "lunas");
+        const { count: stokRendah } = await supabase.from("barang").select("*", {
+            count: "exact",
+            head: true
+        }).lt("stok", 10);
+        const totalPendapatan = pendapatan?.reduce((sum, t)=>sum + (t.total || 0), 0) || 0;
+        setStats({
+            totalBarang: totalBarang || 0,
+            totalTransaksi: totalTransaksi || 0,
+            totalPendapatan,
+            stokRendah: stokRendah || 0
+        });
+    };
+    const loadRecentTransaksi = async ()=>{
+        const { data } = await supabase.from("transaksi").select("*").order("created_at", {
+            ascending: false
+        }).limit(5);
+        setRecentTransaksi(data || []);
+    };
+    const formatCurrency = (n)=>new Intl.NumberFormat("id-ID", {
+            style: "currency",
+            currency: "IDR",
+            minimumFractionDigits: 0
+        }).format(n);
+    return /*#__PURE__*/ _jsxDEV(DashboardLayout, {
+        children: /*#__PURE__*/ _jsxDEV("div", {
+            className: "space-y-6",
+            children: [
+                /*#__PURE__*/ _jsxDEV("div", {
+                    children: [
+                        /*#__PURE__*/ _jsxDEV("h1", {
+                            className: "text-2xl font-heading font-bold",
+                            children: "Dashboard"
+                        }, void 0, false, {
+                            fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dashboard.tsx",
+                            lineNumber: 64,
+                            columnNumber: 11
+                        }, this),
+                        /*#__PURE__*/ _jsxDEV("p", {
+                            className: "text-muted-foreground",
+                            children: "Ringkasan bisnis Anda hari ini"
+                        }, void 0, false, {
+                            fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dashboard.tsx",
+                            lineNumber: 65,
+                            columnNumber: 11
+                        }, this)
+                    ]
+                }, void 0, true, {
+                    fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dashboard.tsx",
+                    lineNumber: 63,
+                    columnNumber: 9
+                }, this),
+                /*#__PURE__*/ _jsxDEV("div", {
+                    className: "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4",
+                    children: [
+                        /*#__PURE__*/ _jsxDEV(StatCard, {
+                            title: "Total Barang",
+                            value: stats.totalBarang,
+                            icon: Package,
+                            change: "+5 minggu ini",
+                            changeType: "positive"
+                        }, void 0, false, {
+                            fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dashboard.tsx",
+                            lineNumber: 70,
+                            columnNumber: 11
+                        }, this),
+                        /*#__PURE__*/ _jsxDEV(StatCard, {
+                            title: "Transaksi",
+                            value: stats.totalTransaksi,
+                            icon: ShoppingCart,
+                            change: "+12 hari ini",
+                            changeType: "positive"
+                        }, void 0, false, {
+                            fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dashboard.tsx",
+                            lineNumber: 71,
+                            columnNumber: 11
+                        }, this),
+                        /*#__PURE__*/ _jsxDEV(StatCard, {
+                            title: "Pendapatan",
+                            value: formatCurrency(stats.totalPendapatan),
+                            icon: DollarSign,
+                            change: "+8.2%",
+                            changeType: "positive"
+                        }, void 0, false, {
+                            fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dashboard.tsx",
+                            lineNumber: 72,
+                            columnNumber: 11
+                        }, this),
+                        /*#__PURE__*/ _jsxDEV(StatCard, {
+                            title: "Stok Rendah",
+                            value: stats.stokRendah,
+                            icon: AlertTriangle,
+                            change: "Perlu restock",
+                            changeType: "negative"
+                        }, void 0, false, {
+                            fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dashboard.tsx",
+                            lineNumber: 73,
+                            columnNumber: 11
+                        }, this)
+                    ]
+                }, void 0, true, {
+                    fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dashboard.tsx",
+                    lineNumber: 69,
+                    columnNumber: 9
+                }, this),
+                /*#__PURE__*/ _jsxDEV("div", {
+                    className: "grid grid-cols-1 lg:grid-cols-3 gap-4",
+                    children: [
+                        /*#__PURE__*/ _jsxDEV("div", {
+                            className: "lg:col-span-2 glass-card rounded-lg p-5 animate-fade-in",
+                            children: [
+                                /*#__PURE__*/ _jsxDEV("h3", {
+                                    className: "font-heading font-semibold mb-4",
+                                    children: "Penjualan Mingguan"
+                                }, void 0, false, {
+                                    fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dashboard.tsx",
+                                    lineNumber: 80,
+                                    columnNumber: 13
+                                }, this),
+                                /*#__PURE__*/ _jsxDEV(ResponsiveContainer, {
+                                    width: "100%",
+                                    height: 260,
+                                    children: /*#__PURE__*/ _jsxDEV(BarChart, {
+                                        data: mockChartData,
+                                        children: [
+                                            /*#__PURE__*/ _jsxDEV(CartesianGrid, {
+                                                strokeDasharray: "3 3",
+                                                stroke: "hsl(235 20% 18%)"
+                                            }, void 0, false, {
+                                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dashboard.tsx",
+                                                lineNumber: 83,
+                                                columnNumber: 17
+                                            }, this),
+                                            /*#__PURE__*/ _jsxDEV(XAxis, {
+                                                dataKey: "name",
+                                                stroke: "hsl(230 15% 55%)",
+                                                fontSize: 12
+                                            }, void 0, false, {
+                                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dashboard.tsx",
+                                                lineNumber: 84,
+                                                columnNumber: 17
+                                            }, this),
+                                            /*#__PURE__*/ _jsxDEV(YAxis, {
+                                                stroke: "hsl(230 15% 55%)",
+                                                fontSize: 12
+                                            }, void 0, false, {
+                                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dashboard.tsx",
+                                                lineNumber: 85,
+                                                columnNumber: 17
+                                            }, this),
+                                            /*#__PURE__*/ _jsxDEV(Tooltip, {
+                                                contentStyle: {
+                                                    background: "hsl(235 28% 10%)",
+                                                    border: "1px solid hsl(235 20% 18%)",
+                                                    borderRadius: "8px",
+                                                    color: "hsl(230 20% 92%)"
+                                                }
+                                            }, void 0, false, {
+                                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dashboard.tsx",
+                                                lineNumber: 86,
+                                                columnNumber: 17
+                                            }, this),
+                                            /*#__PURE__*/ _jsxDEV(Bar, {
+                                                dataKey: "penjualan",
+                                                fill: "hsl(239 84% 67%)",
+                                                radius: [
+                                                    4,
+                                                    4,
+                                                    0,
+                                                    0
+                                                ]
+                                            }, void 0, false, {
+                                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dashboard.tsx",
+                                                lineNumber: 94,
+                                                columnNumber: 17
+                                            }, this)
+                                        ]
+                                    }, void 0, true, {
+                                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dashboard.tsx",
+                                        lineNumber: 82,
+                                        columnNumber: 15
+                                    }, this)
+                                }, void 0, false, {
+                                    fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dashboard.tsx",
+                                    lineNumber: 81,
+                                    columnNumber: 13
+                                }, this)
+                            ]
+                        }, void 0, true, {
+                            fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dashboard.tsx",
+                            lineNumber: 79,
+                            columnNumber: 11
+                        }, this),
+                        /*#__PURE__*/ _jsxDEV("div", {
+                            className: "glass-card rounded-lg p-5 animate-fade-in",
+                            children: [
+                                /*#__PURE__*/ _jsxDEV("h3", {
+                                    className: "font-heading font-semibold mb-4",
+                                    children: "Transaksi Terbaru"
+                                }, void 0, false, {
+                                    fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dashboard.tsx",
+                                    lineNumber: 101,
+                                    columnNumber: 13
+                                }, this),
+                                /*#__PURE__*/ _jsxDEV("div", {
+                                    className: "space-y-3",
+                                    children: recentTransaksi.length === 0 ? /*#__PURE__*/ _jsxDEV("p", {
+                                        className: "text-muted-foreground text-sm",
+                                        children: "Belum ada transaksi"
+                                    }, void 0, false, {
+                                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dashboard.tsx",
+                                        lineNumber: 104,
+                                        columnNumber: 17
+                                    }, this) : recentTransaksi.map((t)=>/*#__PURE__*/ _jsxDEV("div", {
+                                            className: "flex items-center justify-between py-2 border-b border-border/50 last:border-0",
+                                            children: [
+                                                /*#__PURE__*/ _jsxDEV("div", {
+                                                    children: [
+                                                        /*#__PURE__*/ _jsxDEV("p", {
+                                                            className: "text-sm font-medium",
+                                                            children: t.nomor_invoice || "INV-000"
+                                                        }, void 0, false, {
+                                                            fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dashboard.tsx",
+                                                            lineNumber: 109,
+                                                            columnNumber: 23
+                                                        }, this),
+                                                        /*#__PURE__*/ _jsxDEV("p", {
+                                                            className: "text-xs text-muted-foreground",
+                                                            children: new Date(t.created_at).toLocaleDateString("id-ID")
+                                                        }, void 0, false, {
+                                                            fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dashboard.tsx",
+                                                            lineNumber: 110,
+                                                            columnNumber: 23
+                                                        }, this)
+                                                    ]
+                                                }, void 0, true, {
+                                                    fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dashboard.tsx",
+                                                    lineNumber: 108,
+                                                    columnNumber: 21
+                                                }, this),
+                                                /*#__PURE__*/ _jsxDEV("div", {
+                                                    className: "text-right",
+                                                    children: [
+                                                        /*#__PURE__*/ _jsxDEV("p", {
+                                                            className: "text-sm font-medium",
+                                                            children: formatCurrency(t.total || 0)
+                                                        }, void 0, false, {
+                                                            fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dashboard.tsx",
+                                                            lineNumber: 115,
+                                                            columnNumber: 23
+                                                        }, this),
+                                                        /*#__PURE__*/ _jsxDEV("span", {
+                                                            className: `text-xs px-2 py-0.5 rounded-full ${t.status === "lunas" ? "bg-success/10 text-success" : "bg-warning/10 text-warning"}`,
+                                                            children: t.status
+                                                        }, void 0, false, {
+                                                            fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dashboard.tsx",
+                                                            lineNumber: 116,
+                                                            columnNumber: 23
+                                                        }, this)
+                                                    ]
+                                                }, void 0, true, {
+                                                    fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dashboard.tsx",
+                                                    lineNumber: 114,
+                                                    columnNumber: 21
+                                                }, this)
+                                            ]
+                                        }, t.id, true, {
+                                            fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dashboard.tsx",
+                                            lineNumber: 107,
+                                            columnNumber: 19
+                                        }, this))
+                                }, void 0, false, {
+                                    fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dashboard.tsx",
+                                    lineNumber: 102,
+                                    columnNumber: 13
+                                }, this)
+                            ]
+                        }, void 0, true, {
+                            fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dashboard.tsx",
+                            lineNumber: 100,
+                            columnNumber: 11
+                        }, this)
+                    ]
+                }, void 0, true, {
+                    fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dashboard.tsx",
+                    lineNumber: 77,
+                    columnNumber: 9
+                }, this)
+            ]
+        }, void 0, true, {
+            fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dashboard.tsx",
+            lineNumber: 62,
+            columnNumber: 7
+        }, this)
+    }, void 0, false, {
+        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dashboard.tsx",
+        lineNumber: 61,
+        columnNumber: 5
+    }, this);
+}
+_s(Dashboard, "2KDnKP9JxJKC3D9izLiiaMHFZrs=");
+_c = Dashboard;
+var _c;
+$RefreshReg$(_c, "Dashboard");
+
+
+if (import.meta.hot && !inWebWorker) {
+  window.$RefreshReg$ = prevRefreshReg;
+  window.$RefreshSig$ = prevRefreshSig;
+}
+
+
+if (import.meta.hot && !inWebWorker) {
+  RefreshRuntime.__hmr_import(import.meta.url).then((currentExports) => {
+    RefreshRuntime.registerExportsForReactRefresh("C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dashboard.tsx", currentExports);
+    import.meta.hot.accept((nextExports) => {
+      if (!nextExports) return;
+      const invalidateMessage = RefreshRuntime.validateRefreshBoundaryAndEnqueueUpdate("C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dashboard.tsx", currentExports, nextExports);
+      if (invalidateMessage) import.meta.hot.invalidate(invalidateMessage);
+    });
+  });
+}
+
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIkRhc2hib2FyZC50c3giXSwic291cmNlc0NvbnRlbnQiOlsiaW1wb3J0IHsgdXNlRWZmZWN0LCB1c2VTdGF0ZSB9IGZyb20gXCJyZWFjdFwiO1xyXG5pbXBvcnQgeyBEYXNoYm9hcmRMYXlvdXQgfSBmcm9tIFwiQC9jb21wb25lbnRzL0Rhc2hib2FyZExheW91dFwiO1xyXG5pbXBvcnQgeyBTdGF0Q2FyZCB9IGZyb20gXCJAL2NvbXBvbmVudHMvU3RhdENhcmRcIjtcclxuaW1wb3J0IHsgc3VwYWJhc2UgfSBmcm9tIFwiQC9pbnRlZ3JhdGlvbnMvc3VwYWJhc2UvY2xpZW50XCI7XHJcbmltcG9ydCB7IFBhY2thZ2UsIFNob3BwaW5nQ2FydCwgRG9sbGFyU2lnbiwgQWxlcnRUcmlhbmdsZSB9IGZyb20gXCJsdWNpZGUtcmVhY3RcIjtcclxuaW1wb3J0IHsgQmFyQ2hhcnQsIEJhciwgWEF4aXMsIFlBeGlzLCBDYXJ0ZXNpYW5HcmlkLCBUb29sdGlwLCBSZXNwb25zaXZlQ29udGFpbmVyIH0gZnJvbSBcInJlY2hhcnRzXCI7XHJcblxyXG5jb25zdCBtb2NrQ2hhcnREYXRhID0gW1xyXG4gIHsgbmFtZTogXCJTZW5cIiwgcGVuanVhbGFuOiAxMiB9LFxyXG4gIHsgbmFtZTogXCJTZWxcIiwgcGVuanVhbGFuOiAxOSB9LFxyXG4gIHsgbmFtZTogXCJSYWJcIiwgcGVuanVhbGFuOiA4IH0sXHJcbiAgeyBuYW1lOiBcIkthbVwiLCBwZW5qdWFsYW46IDE1IH0sXHJcbiAgeyBuYW1lOiBcIkp1bVwiLCBwZW5qdWFsYW46IDIyIH0sXHJcbiAgeyBuYW1lOiBcIlNhYlwiLCBwZW5qdWFsYW46IDMwIH0sXHJcbiAgeyBuYW1lOiBcIk1pblwiLCBwZW5qdWFsYW46IDE4IH0sXHJcbl07XHJcblxyXG5leHBvcnQgZGVmYXVsdCBmdW5jdGlvbiBEYXNoYm9hcmQoKSB7XHJcbiAgY29uc3QgW3N0YXRzLCBzZXRTdGF0c10gPSB1c2VTdGF0ZSh7XHJcbiAgICB0b3RhbEJhcmFuZzogMCxcclxuICAgIHRvdGFsVHJhbnNha3NpOiAwLFxyXG4gICAgdG90YWxQZW5kYXBhdGFuOiAwLFxyXG4gICAgc3Rva1JlbmRhaDogMCxcclxuICB9KTtcclxuICBjb25zdCBbcmVjZW50VHJhbnNha3NpLCBzZXRSZWNlbnRUcmFuc2Frc2ldID0gdXNlU3RhdGU8YW55W10+KFtdKTtcclxuXHJcbiAgdXNlRWZmZWN0KCgpID0+IHtcclxuICAgIGxvYWRTdGF0cygpO1xyXG4gICAgbG9hZFJlY2VudFRyYW5zYWtzaSgpO1xyXG4gIH0sIFtdKTtcclxuXHJcbiAgY29uc3QgbG9hZFN0YXRzID0gYXN5bmMgKCkgPT4ge1xyXG4gICAgY29uc3QgeyBjb3VudDogdG90YWxCYXJhbmcgfSA9IGF3YWl0IHN1cGFiYXNlLmZyb20oXCJiYXJhbmdcIikuc2VsZWN0KFwiKlwiLCB7IGNvdW50OiBcImV4YWN0XCIsIGhlYWQ6IHRydWUgfSk7XHJcbiAgICBjb25zdCB7IGNvdW50OiB0b3RhbFRyYW5zYWtzaSB9ID0gYXdhaXQgc3VwYWJhc2UuZnJvbShcInRyYW5zYWtzaVwiKS5zZWxlY3QoXCIqXCIsIHsgY291bnQ6IFwiZXhhY3RcIiwgaGVhZDogdHJ1ZSB9KTtcclxuICAgIGNvbnN0IHsgZGF0YTogcGVuZGFwYXRhbiB9ID0gYXdhaXQgc3VwYWJhc2UuZnJvbShcInRyYW5zYWtzaVwiKS5zZWxlY3QoXCJ0b3RhbFwiKS5lcShcInN0YXR1c1wiLCBcImx1bmFzXCIpO1xyXG4gICAgY29uc3QgeyBjb3VudDogc3Rva1JlbmRhaCB9ID0gYXdhaXQgc3VwYWJhc2UuZnJvbShcImJhcmFuZ1wiKS5zZWxlY3QoXCIqXCIsIHsgY291bnQ6IFwiZXhhY3RcIiwgaGVhZDogdHJ1ZSB9KS5sdChcInN0b2tcIiwgMTApO1xyXG5cclxuICAgIGNvbnN0IHRvdGFsUGVuZGFwYXRhbiA9IHBlbmRhcGF0YW4/LnJlZHVjZSgoc3VtLCB0KSA9PiBzdW0gKyAodC50b3RhbCB8fCAwKSwgMCkgfHwgMDtcclxuXHJcbiAgICBzZXRTdGF0cyh7XHJcbiAgICAgIHRvdGFsQmFyYW5nOiB0b3RhbEJhcmFuZyB8fCAwLFxyXG4gICAgICB0b3RhbFRyYW5zYWtzaTogdG90YWxUcmFuc2Frc2kgfHwgMCxcclxuICAgICAgdG90YWxQZW5kYXBhdGFuLFxyXG4gICAgICBzdG9rUmVuZGFoOiBzdG9rUmVuZGFoIHx8IDAsXHJcbiAgICB9KTtcclxuICB9O1xyXG5cclxuICBjb25zdCBsb2FkUmVjZW50VHJhbnNha3NpID0gYXN5bmMgKCkgPT4ge1xyXG4gICAgY29uc3QgeyBkYXRhIH0gPSBhd2FpdCBzdXBhYmFzZVxyXG4gICAgICAuZnJvbShcInRyYW5zYWtzaVwiKVxyXG4gICAgICAuc2VsZWN0KFwiKlwiKVxyXG4gICAgICAub3JkZXIoXCJjcmVhdGVkX2F0XCIsIHsgYXNjZW5kaW5nOiBmYWxzZSB9KVxyXG4gICAgICAubGltaXQoNSk7XHJcbiAgICBzZXRSZWNlbnRUcmFuc2Frc2koZGF0YSB8fCBbXSk7XHJcbiAgfTtcclxuXHJcbiAgY29uc3QgZm9ybWF0Q3VycmVuY3kgPSAobjogbnVtYmVyKSA9PlxyXG4gICAgbmV3IEludGwuTnVtYmVyRm9ybWF0KFwiaWQtSURcIiwgeyBzdHlsZTogXCJjdXJyZW5jeVwiLCBjdXJyZW5jeTogXCJJRFJcIiwgbWluaW11bUZyYWN0aW9uRGlnaXRzOiAwIH0pLmZvcm1hdChuKTtcclxuXHJcbiAgcmV0dXJuIChcclxuICAgIDxEYXNoYm9hcmRMYXlvdXQ+XHJcbiAgICAgIDxkaXYgY2xhc3NOYW1lPVwic3BhY2UteS02XCI+XHJcbiAgICAgICAgPGRpdj5cclxuICAgICAgICAgIDxoMSBjbGFzc05hbWU9XCJ0ZXh0LTJ4bCBmb250LWhlYWRpbmcgZm9udC1ib2xkXCI+RGFzaGJvYXJkPC9oMT5cclxuICAgICAgICAgIDxwIGNsYXNzTmFtZT1cInRleHQtbXV0ZWQtZm9yZWdyb3VuZFwiPlJpbmdrYXNhbiBiaXNuaXMgQW5kYSBoYXJpIGluaTwvcD5cclxuICAgICAgICA8L2Rpdj5cclxuXHJcbiAgICAgICAgey8qIEJlbnRvIFN0YXRzICovfVxyXG4gICAgICAgIDxkaXYgY2xhc3NOYW1lPVwiZ3JpZCBncmlkLWNvbHMtMSBzbTpncmlkLWNvbHMtMiBsZzpncmlkLWNvbHMtNCBnYXAtNFwiPlxyXG4gICAgICAgICAgPFN0YXRDYXJkIHRpdGxlPVwiVG90YWwgQmFyYW5nXCIgdmFsdWU9e3N0YXRzLnRvdGFsQmFyYW5nfSBpY29uPXtQYWNrYWdlfSBjaGFuZ2U9XCIrNSBtaW5nZ3UgaW5pXCIgY2hhbmdlVHlwZT1cInBvc2l0aXZlXCIgLz5cclxuICAgICAgICAgIDxTdGF0Q2FyZCB0aXRsZT1cIlRyYW5zYWtzaVwiIHZhbHVlPXtzdGF0cy50b3RhbFRyYW5zYWtzaX0gaWNvbj17U2hvcHBpbmdDYXJ0fSBjaGFuZ2U9XCIrMTIgaGFyaSBpbmlcIiBjaGFuZ2VUeXBlPVwicG9zaXRpdmVcIiAvPlxyXG4gICAgICAgICAgPFN0YXRDYXJkIHRpdGxlPVwiUGVuZGFwYXRhblwiIHZhbHVlPXtmb3JtYXRDdXJyZW5jeShzdGF0cy50b3RhbFBlbmRhcGF0YW4pfSBpY29uPXtEb2xsYXJTaWdufSBjaGFuZ2U9XCIrOC4yJVwiIGNoYW5nZVR5cGU9XCJwb3NpdGl2ZVwiIC8+XHJcbiAgICAgICAgICA8U3RhdENhcmQgdGl0bGU9XCJTdG9rIFJlbmRhaFwiIHZhbHVlPXtzdGF0cy5zdG9rUmVuZGFofSBpY29uPXtBbGVydFRyaWFuZ2xlfSBjaGFuZ2U9XCJQZXJsdSByZXN0b2NrXCIgY2hhbmdlVHlwZT1cIm5lZ2F0aXZlXCIgLz5cclxuICAgICAgICA8L2Rpdj5cclxuXHJcbiAgICAgICAgey8qIEJlbnRvIEdyaWQgKi99XHJcbiAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJncmlkIGdyaWQtY29scy0xIGxnOmdyaWQtY29scy0zIGdhcC00XCI+XHJcbiAgICAgICAgICB7LyogQ2hhcnQgLSB0YWtlcyAyIGNvbHMgKi99XHJcbiAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cImxnOmNvbC1zcGFuLTIgZ2xhc3MtY2FyZCByb3VuZGVkLWxnIHAtNSBhbmltYXRlLWZhZGUtaW5cIj5cclxuICAgICAgICAgICAgPGgzIGNsYXNzTmFtZT1cImZvbnQtaGVhZGluZyBmb250LXNlbWlib2xkIG1iLTRcIj5QZW5qdWFsYW4gTWluZ2d1YW48L2gzPlxyXG4gICAgICAgICAgICA8UmVzcG9uc2l2ZUNvbnRhaW5lciB3aWR0aD1cIjEwMCVcIiBoZWlnaHQ9ezI2MH0+XHJcbiAgICAgICAgICAgICAgPEJhckNoYXJ0IGRhdGE9e21vY2tDaGFydERhdGF9PlxyXG4gICAgICAgICAgICAgICAgPENhcnRlc2lhbkdyaWQgc3Ryb2tlRGFzaGFycmF5PVwiMyAzXCIgc3Ryb2tlPVwiaHNsKDIzNSAyMCUgMTglKVwiIC8+XHJcbiAgICAgICAgICAgICAgICA8WEF4aXMgZGF0YUtleT1cIm5hbWVcIiBzdHJva2U9XCJoc2woMjMwIDE1JSA1NSUpXCIgZm9udFNpemU9ezEyfSAvPlxyXG4gICAgICAgICAgICAgICAgPFlBeGlzIHN0cm9rZT1cImhzbCgyMzAgMTUlIDU1JSlcIiBmb250U2l6ZT17MTJ9IC8+XHJcbiAgICAgICAgICAgICAgICA8VG9vbHRpcFxyXG4gICAgICAgICAgICAgICAgICBjb250ZW50U3R5bGU9e3tcclxuICAgICAgICAgICAgICAgICAgICBiYWNrZ3JvdW5kOiBcImhzbCgyMzUgMjglIDEwJSlcIixcclxuICAgICAgICAgICAgICAgICAgICBib3JkZXI6IFwiMXB4IHNvbGlkIGhzbCgyMzUgMjAlIDE4JSlcIixcclxuICAgICAgICAgICAgICAgICAgICBib3JkZXJSYWRpdXM6IFwiOHB4XCIsXHJcbiAgICAgICAgICAgICAgICAgICAgY29sb3I6IFwiaHNsKDIzMCAyMCUgOTIlKVwiLFxyXG4gICAgICAgICAgICAgICAgICB9fVxyXG4gICAgICAgICAgICAgICAgLz5cclxuICAgICAgICAgICAgICAgIDxCYXIgZGF0YUtleT1cInBlbmp1YWxhblwiIGZpbGw9XCJoc2woMjM5IDg0JSA2NyUpXCIgcmFkaXVzPXtbNCwgNCwgMCwgMF19IC8+XHJcbiAgICAgICAgICAgICAgPC9CYXJDaGFydD5cclxuICAgICAgICAgICAgPC9SZXNwb25zaXZlQ29udGFpbmVyPlxyXG4gICAgICAgICAgPC9kaXY+XHJcblxyXG4gICAgICAgICAgey8qIFJlY2VudCBBY3Rpdml0eSAqL31cclxuICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwiZ2xhc3MtY2FyZCByb3VuZGVkLWxnIHAtNSBhbmltYXRlLWZhZGUtaW5cIj5cclxuICAgICAgICAgICAgPGgzIGNsYXNzTmFtZT1cImZvbnQtaGVhZGluZyBmb250LXNlbWlib2xkIG1iLTRcIj5UcmFuc2Frc2kgVGVyYmFydTwvaDM+XHJcbiAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwic3BhY2UteS0zXCI+XHJcbiAgICAgICAgICAgICAge3JlY2VudFRyYW5zYWtzaS5sZW5ndGggPT09IDAgPyAoXHJcbiAgICAgICAgICAgICAgICA8cCBjbGFzc05hbWU9XCJ0ZXh0LW11dGVkLWZvcmVncm91bmQgdGV4dC1zbVwiPkJlbHVtIGFkYSB0cmFuc2Frc2k8L3A+XHJcbiAgICAgICAgICAgICAgKSA6IChcclxuICAgICAgICAgICAgICAgIHJlY2VudFRyYW5zYWtzaS5tYXAoKHQpID0+IChcclxuICAgICAgICAgICAgICAgICAgPGRpdiBrZXk9e3QuaWR9IGNsYXNzTmFtZT1cImZsZXggaXRlbXMtY2VudGVyIGp1c3RpZnktYmV0d2VlbiBweS0yIGJvcmRlci1iIGJvcmRlci1ib3JkZXIvNTAgbGFzdDpib3JkZXItMFwiPlxyXG4gICAgICAgICAgICAgICAgICAgIDxkaXY+XHJcbiAgICAgICAgICAgICAgICAgICAgICA8cCBjbGFzc05hbWU9XCJ0ZXh0LXNtIGZvbnQtbWVkaXVtXCI+e3Qubm9tb3JfaW52b2ljZSB8fCBcIklOVi0wMDBcIn08L3A+XHJcbiAgICAgICAgICAgICAgICAgICAgICA8cCBjbGFzc05hbWU9XCJ0ZXh0LXhzIHRleHQtbXV0ZWQtZm9yZWdyb3VuZFwiPlxyXG4gICAgICAgICAgICAgICAgICAgICAgICB7bmV3IERhdGUodC5jcmVhdGVkX2F0KS50b0xvY2FsZURhdGVTdHJpbmcoXCJpZC1JRFwiKX1cclxuICAgICAgICAgICAgICAgICAgICAgIDwvcD5cclxuICAgICAgICAgICAgICAgICAgICA8L2Rpdj5cclxuICAgICAgICAgICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cInRleHQtcmlnaHRcIj5cclxuICAgICAgICAgICAgICAgICAgICAgIDxwIGNsYXNzTmFtZT1cInRleHQtc20gZm9udC1tZWRpdW1cIj57Zm9ybWF0Q3VycmVuY3kodC50b3RhbCB8fCAwKX08L3A+XHJcbiAgICAgICAgICAgICAgICAgICAgICA8c3BhbiBjbGFzc05hbWU9e2B0ZXh0LXhzIHB4LTIgcHktMC41IHJvdW5kZWQtZnVsbCAke1xyXG4gICAgICAgICAgICAgICAgICAgICAgICB0LnN0YXR1cyA9PT0gXCJsdW5hc1wiID8gXCJiZy1zdWNjZXNzLzEwIHRleHQtc3VjY2Vzc1wiIDogXCJiZy13YXJuaW5nLzEwIHRleHQtd2FybmluZ1wiXHJcbiAgICAgICAgICAgICAgICAgICAgICB9YH0+XHJcbiAgICAgICAgICAgICAgICAgICAgICAgIHt0LnN0YXR1c31cclxuICAgICAgICAgICAgICAgICAgICAgIDwvc3Bhbj5cclxuICAgICAgICAgICAgICAgICAgICA8L2Rpdj5cclxuICAgICAgICAgICAgICAgICAgPC9kaXY+XHJcbiAgICAgICAgICAgICAgICApKVxyXG4gICAgICAgICAgICAgICl9XHJcbiAgICAgICAgICAgIDwvZGl2PlxyXG4gICAgICAgICAgPC9kaXY+XHJcbiAgICAgICAgPC9kaXY+XHJcbiAgICAgIDwvZGl2PlxyXG4gICAgPC9EYXNoYm9hcmRMYXlvdXQ+XHJcbiAgKTtcclxufVxyXG4iXSwibmFtZXMiOlsidXNlRWZmZWN0IiwidXNlU3RhdGUiLCJEYXNoYm9hcmRMYXlvdXQiLCJTdGF0Q2FyZCIsInN1cGFiYXNlIiwiUGFja2FnZSIsIlNob3BwaW5nQ2FydCIsIkRvbGxhclNpZ24iLCJBbGVydFRyaWFuZ2xlIiwiQmFyQ2hhcnQiLCJCYXIiLCJYQXhpcyIsIllBeGlzIiwiQ2FydGVzaWFuR3JpZCIsIlRvb2x0aXAiLCJSZXNwb25zaXZlQ29udGFpbmVyIiwibW9ja0NoYXJ0RGF0YSIsIm5hbWUiLCJwZW5qdWFsYW4iLCJEYXNoYm9hcmQiLCJzdGF0cyIsInNldFN0YXRzIiwidG90YWxCYXJhbmciLCJ0b3RhbFRyYW5zYWtzaSIsInRvdGFsUGVuZGFwYXRhbiIsInN0b2tSZW5kYWgiLCJyZWNlbnRUcmFuc2Frc2kiLCJzZXRSZWNlbnRUcmFuc2Frc2kiLCJsb2FkU3RhdHMiLCJsb2FkUmVjZW50VHJhbnNha3NpIiwiY291bnQiLCJmcm9tIiwic2VsZWN0IiwiaGVhZCIsImRhdGEiLCJwZW5kYXBhdGFuIiwiZXEiLCJsdCIsInJlZHVjZSIsInN1bSIsInQiLCJ0b3RhbCIsIm9yZGVyIiwiYXNjZW5kaW5nIiwibGltaXQiLCJmb3JtYXRDdXJyZW5jeSIsIm4iLCJJbnRsIiwiTnVtYmVyRm9ybWF0Iiwic3R5bGUiLCJjdXJyZW5jeSIsIm1pbmltdW1GcmFjdGlvbkRpZ2l0cyIsImZvcm1hdCIsImRpdiIsImNsYXNzTmFtZSIsImgxIiwicCIsInRpdGxlIiwidmFsdWUiLCJpY29uIiwiY2hhbmdlIiwiY2hhbmdlVHlwZSIsImgzIiwid2lkdGgiLCJoZWlnaHQiLCJzdHJva2VEYXNoYXJyYXkiLCJzdHJva2UiLCJkYXRhS2V5IiwiZm9udFNpemUiLCJjb250ZW50U3R5bGUiLCJiYWNrZ3JvdW5kIiwiYm9yZGVyIiwiYm9yZGVyUmFkaXVzIiwiY29sb3IiLCJmaWxsIiwicmFkaXVzIiwibGVuZ3RoIiwibWFwIiwibm9tb3JfaW52b2ljZSIsIkRhdGUiLCJjcmVhdGVkX2F0IiwidG9Mb2NhbGVEYXRlU3RyaW5nIiwic3BhbiIsInN0YXR1cyIsImlkIl0sIm1hcHBpbmdzIjoiOzs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7QUFBQSxTQUFTQSxTQUFTLEVBQUVDLFFBQVEsUUFB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

@@ -1,0 +1,1680 @@
+import { createHotContext as __vite__createHotContext } from "/@vite/client";import.meta.hot = __vite__createHotContext("/src/pages/Dokumentasi.tsx");import * as RefreshRuntime from "/@react-refresh";
+const inWebWorker = typeof WorkerGlobalScope !== 'undefined' && self instanceof WorkerGlobalScope;
+
+let prevRefreshReg;
+let prevRefreshSig;
+
+if (import.meta.hot && !inWebWorker) {
+  if (!window.$RefreshReg$) {
+    throw new Error(
+      "@vitejs/plugin-react-swc can't detect preamble. Something is wrong."
+    );
+  }
+
+  prevRefreshReg = window.$RefreshReg$;
+  prevRefreshSig = window.$RefreshSig$;
+  window.$RefreshReg$ = RefreshRuntime.getRefreshReg("C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx");
+  window.$RefreshSig$ = RefreshRuntime.createSignatureFunctionForTransform;
+}
+
+import __vite__cjsImport2_react_jsxDevRuntime from "/node_modules/.vite/deps/react_jsx-dev-runtime.js?v=df8fa318"; const _jsxDEV = __vite__cjsImport2_react_jsxDevRuntime["jsxDEV"];
+var _s = $RefreshSig$();
+import __vite__cjsImport3_react from "/node_modules/.vite/deps/react.js?v=df8fa318"; const useEffect = __vite__cjsImport3_react["useEffect"]; const useMemo = __vite__cjsImport3_react["useMemo"]; const useState = __vite__cjsImport3_react["useState"];
+import { DashboardLayout } from "/src/components/DashboardLayout.tsx";
+import { supabase } from "/src/integrations/supabase/client.ts";
+import { Button } from "/src/components/ui/button.tsx";
+import { Input } from "/src/components/ui/input.tsx";
+import { Label } from "/src/components/ui/label.tsx";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "/src/components/ui/tabs.tsx";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "/src/components/ui/table.tsx";
+import { Badge } from "/src/components/ui/badge.tsx";
+import { useToast } from "/src/hooks/use-toast.ts";
+import { Archive, CalendarDays, FileText, Printer, Search, Truck } from "/node_modules/.vite/deps/lucide-react.js?v=df8fa318";
+import LOGO_URL from "/src/assets/logo-fazma.png?import";
+const SIGNATURE_URL = encodeURI("/Signature.png");
+const DELIVERY_STORAGE_KEY = "fazma_delivery_notes";
+const CUSTOMER_STORAGE_KEY = "fazma_invoice_customers";
+const formatCurrency = (value = 0)=>new Intl.NumberFormat("id-ID", {
+        style: "currency",
+        currency: "IDR",
+        minimumFractionDigits: 0
+    }).format(value);
+const formatDate = (date)=>{
+    if (!date) return "-";
+    return new Date(date).toLocaleDateString("id-ID", {
+        day: "2-digit",
+        month: "long",
+        year: "numeric"
+    });
+};
+const generateDeliveryNumber = (invoiceNumber)=>`SJ-${(invoiceNumber || "INV").replace(/[^A-Za-z0-9]/g, "-")}`;
+const readDeliveryArchive = ()=>{
+    try {
+        return JSON.parse(localStorage.getItem(DELIVERY_STORAGE_KEY) || "[]");
+    } catch  {
+        return [];
+    }
+};
+const normalizeDate = (date)=>new Date(date).toISOString().slice(0, 10);
+const readCustomerCache = ()=>{
+    try {
+        return JSON.parse(localStorage.getItem(CUSTOMER_STORAGE_KEY) || "{}");
+    } catch  {
+        return {};
+    }
+};
+const getCachedCustomer = (transaction)=>{
+    if (transaction.nama_pelanggan?.trim()) return transaction.nama_pelanggan;
+    const cache = readCustomerCache();
+    return cache[transaction.id] || cache[transaction.nomor_invoice] || "";
+};
+export default function Dokumentasi() {
+    _s();
+    const { toast } = useToast();
+    const [transactions, setTransactions] = useState([]);
+    const [deliveryArchive, setDeliveryArchive] = useState([]);
+    const [search, setSearch] = useState("");
+    const [startDate, setStartDate] = useState("");
+    const [endDate, setEndDate] = useState("");
+    const [selectedInvoice, setSelectedInvoice] = useState(null);
+    const [selectedDelivery, setSelectedDelivery] = useState(null);
+    const [printMode, setPrintMode] = useState(null);
+    useEffect(()=>{
+        loadTransactions();
+        setDeliveryArchive(readDeliveryArchive());
+        const clearPrintState = ()=>setPrintMode(null);
+        window.addEventListener("afterprint", clearPrintState);
+        return ()=>window.removeEventListener("afterprint", clearPrintState);
+    }, []);
+    const loadTransactions = async ()=>{
+        const { data, error } = await supabase.from("transaksi").select("*").order("created_at", {
+            ascending: false
+        });
+        if (error) {
+            toast({
+                title: "Gagal memuat arsip",
+                description: error.message,
+                variant: "destructive"
+            });
+            return;
+        }
+        setTransactions((data || []).map((transaction)=>({
+                ...transaction,
+                nama_pelanggan: getCachedCustomer(transaction)
+            })));
+    };
+    const filteredInvoices = useMemo(()=>{
+        const query = search.toLowerCase().trim();
+        return transactions.filter((transaction)=>[
+                "lunas",
+                "selesai",
+                "sukses"
+            ].includes((transaction.status || "").toLowerCase())).filter((transaction)=>{
+            const target = `${transaction.nomor_invoice} ${transaction.nama_pelanggan || ""}`.toLowerCase();
+            return !query || target.includes(query);
+        }).filter((transaction)=>{
+            const date = normalizeDate(transaction.created_at);
+            if (startDate && date < startDate) return false;
+            if (endDate && date > endDate) return false;
+            return true;
+        });
+    }, [
+        transactions,
+        search,
+        startDate,
+        endDate
+    ]);
+    const filteredDelivery = useMemo(()=>{
+        const query = search.toLowerCase().trim();
+        return deliveryArchive.map((delivery)=>({
+                ...delivery,
+                transaction: transactions.find((transaction)=>transaction.id === delivery.transaksi_id)
+            })).filter((delivery)=>{
+            const target = `${delivery.nomor_invoice} ${delivery.transaction?.nama_pelanggan || ""} ${delivery.lokasi_proyek}`.toLowerCase();
+            return !query || target.includes(query);
+        }).filter((delivery)=>{
+            const date = normalizeDate(delivery.tanggal_pengiriman);
+            if (startDate && date < startDate) return false;
+            if (endDate && date > endDate) return false;
+            return true;
+        });
+    }, [
+        deliveryArchive,
+        transactions,
+        search,
+        startDate,
+        endDate
+    ]);
+    const getInvoiceDetail = async (transaction)=>{
+        const { data, error } = await supabase.from("detail_transaksi").select("*, barang:barang_id(id,nama_barang,kategori,harga_jual)").eq("transaksi_id", transaction.id);
+        if (error) {
+            toast({
+                title: "Gagal memuat detail",
+                description: error.message,
+                variant: "destructive"
+            });
+            return null;
+        }
+        const items = (data || []).map((detail)=>({
+                barang_id: detail.barang_id,
+                nama_barang: detail.barang?.nama_barang || "Barang",
+                kategori: detail.barang?.kategori || "-",
+                ukuran: detail.ukuran || detail.barang?.kategori || "-",
+                jumlah: detail.jumlah || 0,
+                harga: detail.harga || 0,
+                subtotal: (detail.jumlah || 0) * (detail.harga || 0)
+            }));
+        return {
+            ...transaction,
+            nama_pelanggan: getCachedCustomer(transaction),
+            items
+        };
+    };
+    const printInvoice = async (transaction)=>{
+        const detail = await getInvoiceDetail(transaction);
+        if (!detail) return;
+        setSelectedInvoice(detail);
+        setSelectedDelivery(null);
+        setPrintMode("invoice");
+        window.setTimeout(()=>window.print(), 150);
+    };
+    const printDelivery = async (delivery)=>{
+        const transaction = delivery.transaction || transactions.find((item)=>item.id === delivery.transaksi_id);
+        if (!transaction) {
+            toast({
+                title: "Invoice tidak ditemukan",
+                description: "Data transaksi asal surat jalan ini belum tersedia.",
+                variant: "destructive"
+            });
+            return;
+        }
+        const detail = await getInvoiceDetail(transaction);
+        if (!detail) return;
+        setSelectedInvoice(detail);
+        setSelectedDelivery(delivery);
+        setPrintMode("delivery");
+        window.setTimeout(()=>window.print(), 150);
+    };
+    const resetFilters = ()=>{
+        setSearch("");
+        setStartDate("");
+        setEndDate("");
+    };
+    return /*#__PURE__*/ _jsxDEV(DashboardLayout, {
+        children: [
+            /*#__PURE__*/ _jsxDEV("div", {
+                className: "no-print mx-auto max-w-7xl space-y-6",
+                children: [
+                    /*#__PURE__*/ _jsxDEV("div", {
+                        children: [
+                            /*#__PURE__*/ _jsxDEV("h1", {
+                                className: "font-heading text-2xl font-bold text-foreground",
+                                children: "Dokumentasi"
+                            }, void 0, false, {
+                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                                lineNumber: 233,
+                                columnNumber: 11
+                            }, this),
+                            /*#__PURE__*/ _jsxDEV("p", {
+                                className: "text-sm text-muted-foreground",
+                                children: "Arsip Nota/Invoice dan Surat Jalan Fazma Stone."
+                            }, void 0, false, {
+                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                                lineNumber: 234,
+                                columnNumber: 11
+                            }, this)
+                        ]
+                    }, void 0, true, {
+                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                        lineNumber: 232,
+                        columnNumber: 9
+                    }, this),
+                    /*#__PURE__*/ _jsxDEV("div", {
+                        className: "glass-card rounded-lg p-5",
+                        children: [
+                            /*#__PURE__*/ _jsxDEV("div", {
+                                className: "mb-4 flex items-center gap-2",
+                                children: [
+                                    /*#__PURE__*/ _jsxDEV(Search, {
+                                        className: "h-5 w-5 text-primary"
+                                    }, void 0, false, {
+                                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                                        lineNumber: 239,
+                                        columnNumber: 13
+                                    }, this),
+                                    /*#__PURE__*/ _jsxDEV("h2", {
+                                        className: "font-heading text-lg font-semibold",
+                                        children: "Pencarian & Filter"
+                                    }, void 0, false, {
+                                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                                        lineNumber: 240,
+                                        columnNumber: 13
+                                    }, this)
+                                ]
+                            }, void 0, true, {
+                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                                lineNumber: 238,
+                                columnNumber: 11
+                            }, this),
+                            /*#__PURE__*/ _jsxDEV("div", {
+                                className: "grid gap-4 md:grid-cols-4",
+                                children: [
+                                    /*#__PURE__*/ _jsxDEV("div", {
+                                        className: "space-y-2 md:col-span-2",
+                                        children: [
+                                            /*#__PURE__*/ _jsxDEV(Label, {
+                                                children: "Cari Nomor Invoice / Nama Pelanggan"
+                                            }, void 0, false, {
+                                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                                                lineNumber: 244,
+                                                columnNumber: 15
+                                            }, this),
+                                            /*#__PURE__*/ _jsxDEV(Input, {
+                                                value: search,
+                                                onChange: (e)=>setSearch(e.target.value),
+                                                placeholder: "Contoh: FZ/0526 atau nama pelanggan"
+                                            }, void 0, false, {
+                                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                                                lineNumber: 245,
+                                                columnNumber: 15
+                                            }, this)
+                                        ]
+                                    }, void 0, true, {
+                                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                                        lineNumber: 243,
+                                        columnNumber: 13
+                                    }, this),
+                                    /*#__PURE__*/ _jsxDEV("div", {
+                                        className: "space-y-2",
+                                        children: [
+                                            /*#__PURE__*/ _jsxDEV(Label, {
+                                                children: "Dari Tanggal"
+                                            }, void 0, false, {
+                                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                                                lineNumber: 248,
+                                                columnNumber: 15
+                                            }, this),
+                                            /*#__PURE__*/ _jsxDEV(Input, {
+                                                type: "date",
+                                                value: startDate,
+                                                onChange: (e)=>setStartDate(e.target.value)
+                                            }, void 0, false, {
+                                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                                                lineNumber: 249,
+                                                columnNumber: 15
+                                            }, this)
+                                        ]
+                                    }, void 0, true, {
+                                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                                        lineNumber: 247,
+                                        columnNumber: 13
+                                    }, this),
+                                    /*#__PURE__*/ _jsxDEV("div", {
+                                        className: "space-y-2",
+                                        children: [
+                                            /*#__PURE__*/ _jsxDEV(Label, {
+                                                children: "Sampai Tanggal"
+                                            }, void 0, false, {
+                                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                                                lineNumber: 252,
+                                                columnNumber: 15
+                                            }, this),
+                                            /*#__PURE__*/ _jsxDEV(Input, {
+                                                type: "date",
+                                                value: endDate,
+                                                onChange: (e)=>setEndDate(e.target.value)
+                                            }, void 0, false, {
+                                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                                                lineNumber: 253,
+                                                columnNumber: 15
+                                            }, this)
+                                        ]
+                                    }, void 0, true, {
+                                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                                        lineNumber: 251,
+                                        columnNumber: 13
+                                    }, this)
+                                ]
+                            }, void 0, true, {
+                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                                lineNumber: 242,
+                                columnNumber: 11
+                            }, this),
+                            /*#__PURE__*/ _jsxDEV("div", {
+                                className: "mt-4 flex justify-end",
+                                children: /*#__PURE__*/ _jsxDEV(Button, {
+                                    variant: "outline",
+                                    onClick: resetFilters,
+                                    children: "Reset Filter"
+                                }, void 0, false, {
+                                    fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                                    lineNumber: 257,
+                                    columnNumber: 13
+                                }, this)
+                            }, void 0, false, {
+                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                                lineNumber: 256,
+                                columnNumber: 11
+                            }, this)
+                        ]
+                    }, void 0, true, {
+                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                        lineNumber: 237,
+                        columnNumber: 9
+                    }, this),
+                    /*#__PURE__*/ _jsxDEV(Tabs, {
+                        defaultValue: "invoice",
+                        className: "space-y-4",
+                        children: [
+                            /*#__PURE__*/ _jsxDEV(TabsList, {
+                                className: "grid h-auto w-full max-w-md grid-cols-1 gap-1 sm:grid-cols-2",
+                                children: [
+                                    /*#__PURE__*/ _jsxDEV(TabsTrigger, {
+                                        value: "invoice",
+                                        className: "whitespace-normal",
+                                        children: [
+                                            /*#__PURE__*/ _jsxDEV(FileText, {
+                                                className: "mr-2 h-4 w-4"
+                                            }, void 0, false, {
+                                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                                                lineNumber: 264,
+                                                columnNumber: 15
+                                            }, this),
+                                            " Arsip Nota/Invoice"
+                                        ]
+                                    }, void 0, true, {
+                                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                                        lineNumber: 263,
+                                        columnNumber: 13
+                                    }, this),
+                                    /*#__PURE__*/ _jsxDEV(TabsTrigger, {
+                                        value: "surat-jalan",
+                                        className: "whitespace-normal",
+                                        children: [
+                                            /*#__PURE__*/ _jsxDEV(Truck, {
+                                                className: "mr-2 h-4 w-4"
+                                            }, void 0, false, {
+                                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                                                lineNumber: 267,
+                                                columnNumber: 15
+                                            }, this),
+                                            " Arsip Surat Jalan"
+                                        ]
+                                    }, void 0, true, {
+                                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                                        lineNumber: 266,
+                                        columnNumber: 13
+                                    }, this)
+                                ]
+                            }, void 0, true, {
+                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                                lineNumber: 262,
+                                columnNumber: 11
+                            }, this),
+                            /*#__PURE__*/ _jsxDEV(TabsContent, {
+                                value: "invoice",
+                                className: "glass-card overflow-hidden rounded-lg",
+                                children: [
+                                    /*#__PURE__*/ _jsxDEV("div", {
+                                        className: "flex flex-col gap-3 border-b border-border p-5 sm:flex-row sm:items-center sm:justify-between",
+                                        children: [
+                                            /*#__PURE__*/ _jsxDEV("div", {
+                                                className: "flex items-center gap-2",
+                                                children: [
+                                                    /*#__PURE__*/ _jsxDEV(Archive, {
+                                                        className: "h-5 w-5 text-primary"
+                                                    }, void 0, false, {
+                                                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                                                        lineNumber: 274,
+                                                        columnNumber: 17
+                                                    }, this),
+                                                    /*#__PURE__*/ _jsxDEV("h2", {
+                                                        className: "font-heading text-lg font-semibold",
+                                                        children: "Arsip Nota/Invoice"
+                                                    }, void 0, false, {
+                                                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                                                        lineNumber: 275,
+                                                        columnNumber: 17
+                                                    }, this)
+                                                ]
+                                            }, void 0, true, {
+                                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                                                lineNumber: 273,
+                                                columnNumber: 15
+                                            }, this),
+                                            /*#__PURE__*/ _jsxDEV(Badge, {
+                                                variant: "outline",
+                                                className: "border-primary/20 bg-primary/10 text-primary",
+                                                children: [
+                                                    filteredInvoices.length,
+                                                    " dokumen"
+                                                ]
+                                            }, void 0, true, {
+                                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                                                lineNumber: 277,
+                                                columnNumber: 15
+                                            }, this)
+                                        ]
+                                    }, void 0, true, {
+                                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                                        lineNumber: 272,
+                                        columnNumber: 13
+                                    }, this),
+                                    /*#__PURE__*/ _jsxDEV("div", {
+                                        className: "overflow-x-auto",
+                                        children: /*#__PURE__*/ _jsxDEV(Table, {
+                                            className: "min-w-[760px]",
+                                            children: [
+                                                /*#__PURE__*/ _jsxDEV(TableHeader, {
+                                                    children: /*#__PURE__*/ _jsxDEV(TableRow, {
+                                                        children: [
+                                                            /*#__PURE__*/ _jsxDEV(TableHead, {
+                                                                children: "No. Invoice"
+                                                            }, void 0, false, {
+                                                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                                                                lineNumber: 283,
+                                                                columnNumber: 21
+                                                            }, this),
+                                                            /*#__PURE__*/ _jsxDEV(TableHead, {
+                                                                children: "Nama Pelanggan"
+                                                            }, void 0, false, {
+                                                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                                                                lineNumber: 284,
+                                                                columnNumber: 21
+                                                            }, this),
+                                                            /*#__PURE__*/ _jsxDEV(TableHead, {
+                                                                children: "Tanggal Cetak"
+                                                            }, void 0, false, {
+                                                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                                                                lineNumber: 285,
+                                                                columnNumber: 21
+                                                            }, this),
+                                                            /*#__PURE__*/ _jsxDEV(TableHead, {
+                                                                className: "text-right",
+                                                                children: "Total Bayar"
+                                                            }, void 0, false, {
+                                                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                                                                lineNumber: 286,
+                                                                columnNumber: 21
+                                                            }, this),
+                                                            /*#__PURE__*/ _jsxDEV(TableHead, {
+                                                                className: "text-center",
+                                                                children: "Status"
+                                                            }, void 0, false, {
+                                                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                                                                lineNumber: 287,
+                                                                columnNumber: 21
+                                                            }, this),
+                                                            /*#__PURE__*/ _jsxDEV(TableHead, {
+                                                                className: "text-right",
+                                                                children: "Aksi"
+                                                            }, void 0, false, {
+                                                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                                                                lineNumber: 288,
+                                                                columnNumber: 21
+                                                            }, this)
+                                                        ]
+                                                    }, void 0, true, {
+                                                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                                                        lineNumber: 282,
+                                                        columnNumber: 19
+                                                    }, this)
+                                                }, void 0, false, {
+                                                    fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                                                    lineNumber: 281,
+                                                    columnNumber: 17
+                                                }, this),
+                                                /*#__PURE__*/ _jsxDEV(TableBody, {
+                                                    children: filteredInvoices.length === 0 ? /*#__PURE__*/ _jsxDEV(TableRow, {
+                                                        children: /*#__PURE__*/ _jsxDEV(TableCell, {
+                                                            colSpan: 6,
+                                                            className: "h-28 text-center text-muted-foreground",
+                                                            children: "Tidak ada arsip invoice sesuai filter"
+                                                        }, void 0, false, {
+                                                            fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                                                            lineNumber: 294,
+                                                            columnNumber: 23
+                                                        }, this)
+                                                    }, void 0, false, {
+                                                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                                                        lineNumber: 293,
+                                                        columnNumber: 21
+                                                    }, this) : filteredInvoices.map((transaction)=>/*#__PURE__*/ _jsxDEV(TableRow, {
+                                                            children: [
+                                                                /*#__PURE__*/ _jsxDEV(TableCell, {
+                                                                    className: "font-mono font-semibold text-primary",
+                                                                    children: transaction.nomor_invoice
+                                                                }, void 0, false, {
+                                                                    fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                                                                    lineNumber: 299,
+                                                                    columnNumber: 25
+                                                                }, this),
+                                                                /*#__PURE__*/ _jsxDEV(TableCell, {
+                                                                    children: transaction.nama_pelanggan || "-"
+                                                                }, void 0, false, {
+                                                                    fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                                                                    lineNumber: 300,
+                                                                    columnNumber: 25
+                                                                }, this),
+                                                                /*#__PURE__*/ _jsxDEV(TableCell, {
+                                                                    children: formatDate(transaction.created_at)
+                                                                }, void 0, false, {
+                                                                    fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                                                                    lineNumber: 301,
+                                                                    columnNumber: 25
+                                                                }, this),
+                                                                /*#__PURE__*/ _jsxDEV(TableCell, {
+                                                                    className: "text-right font-semibold",
+                                                                    children: formatCurrency(transaction.total)
+                                                                }, void 0, false, {
+                                                                    fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                                                                    lineNumber: 302,
+                                                                    columnNumber: 25
+                                                                }, this),
+                                                                /*#__PURE__*/ _jsxDEV(TableCell, {
+                                                                    className: "text-center",
+                                                                    children: /*#__PURE__*/ _jsxDEV(Badge, {
+                                                                        variant: "outline",
+                                                                        className: "border-primary/20 bg-primary/10 text-primary",
+                                                                        children: transaction.status
+                                                                    }, void 0, false, {
+                                                                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                                                                        lineNumber: 304,
+                                                                        columnNumber: 27
+                                                                    }, this)
+                                                                }, void 0, false, {
+                                                                    fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                                                                    lineNumber: 303,
+                                                                    columnNumber: 25
+                                                                }, this),
+                                                                /*#__PURE__*/ _jsxDEV(TableCell, {
+                                                                    className: "text-right",
+                                                                    children: /*#__PURE__*/ _jsxDEV(Button, {
+                                                                        size: "sm",
+                                                                        className: "whitespace-normal",
+                                                                        onClick: ()=>printInvoice(transaction),
+                                                                        children: [
+                                                                            /*#__PURE__*/ _jsxDEV(Printer, {
+                                                                                className: "h-4 w-4"
+                                                                            }, void 0, false, {
+                                                                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                                                                                lineNumber: 308,
+                                                                                columnNumber: 29
+                                                                            }, this),
+                                                                            " Cetak Ulang Nota"
+                                                                        ]
+                                                                    }, void 0, true, {
+                                                                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                                                                        lineNumber: 307,
+                                                                        columnNumber: 27
+                                                                    }, this)
+                                                                }, void 0, false, {
+                                                                    fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                                                                    lineNumber: 306,
+                                                                    columnNumber: 25
+                                                                }, this)
+                                                            ]
+                                                        }, transaction.id, true, {
+                                                            fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                                                            lineNumber: 298,
+                                                            columnNumber: 23
+                                                        }, this))
+                                                }, void 0, false, {
+                                                    fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                                                    lineNumber: 291,
+                                                    columnNumber: 17
+                                                }, this)
+                                            ]
+                                        }, void 0, true, {
+                                            fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                                            lineNumber: 280,
+                                            columnNumber: 15
+                                        }, this)
+                                    }, void 0, false, {
+                                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                                        lineNumber: 279,
+                                        columnNumber: 13
+                                    }, this)
+                                ]
+                            }, void 0, true, {
+                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                                lineNumber: 271,
+                                columnNumber: 11
+                            }, this),
+                            /*#__PURE__*/ _jsxDEV(TabsContent, {
+                                value: "surat-jalan",
+                                className: "glass-card overflow-hidden rounded-lg",
+                                children: [
+                                    /*#__PURE__*/ _jsxDEV("div", {
+                                        className: "flex flex-col gap-3 border-b border-border p-5 sm:flex-row sm:items-center sm:justify-between",
+                                        children: [
+                                            /*#__PURE__*/ _jsxDEV("div", {
+                                                className: "flex items-center gap-2",
+                                                children: [
+                                                    /*#__PURE__*/ _jsxDEV(CalendarDays, {
+                                                        className: "h-5 w-5 text-primary"
+                                                    }, void 0, false, {
+                                                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                                                        lineNumber: 322,
+                                                        columnNumber: 17
+                                                    }, this),
+                                                    /*#__PURE__*/ _jsxDEV("h2", {
+                                                        className: "font-heading text-lg font-semibold",
+                                                        children: "Arsip Surat Jalan"
+                                                    }, void 0, false, {
+                                                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                                                        lineNumber: 323,
+                                                        columnNumber: 17
+                                                    }, this)
+                                                ]
+                                            }, void 0, true, {
+                                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                                                lineNumber: 321,
+                                                columnNumber: 15
+                                            }, this),
+                                            /*#__PURE__*/ _jsxDEV(Badge, {
+                                                variant: "outline",
+                                                className: "border-primary/20 bg-primary/10 text-primary",
+                                                children: [
+                                                    filteredDelivery.length,
+                                                    " dokumen"
+                                                ]
+                                            }, void 0, true, {
+                                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                                                lineNumber: 325,
+                                                columnNumber: 15
+                                            }, this)
+                                        ]
+                                    }, void 0, true, {
+                                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                                        lineNumber: 320,
+                                        columnNumber: 13
+                                    }, this),
+                                    /*#__PURE__*/ _jsxDEV("div", {
+                                        className: "overflow-x-auto",
+                                        children: /*#__PURE__*/ _jsxDEV(Table, {
+                                            className: "min-w-[780px]",
+                                            children: [
+                                                /*#__PURE__*/ _jsxDEV(TableHeader, {
+                                                    children: /*#__PURE__*/ _jsxDEV(TableRow, {
+                                                        children: [
+                                                            /*#__PURE__*/ _jsxDEV(TableHead, {
+                                                                children: "No. Surat Jalan"
+                                                            }, void 0, false, {
+                                                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                                                                lineNumber: 331,
+                                                                columnNumber: 21
+                                                            }, this),
+                                                            /*#__PURE__*/ _jsxDEV(TableHead, {
+                                                                children: "No. Invoice"
+                                                            }, void 0, false, {
+                                                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                                                                lineNumber: 332,
+                                                                columnNumber: 21
+                                                            }, this),
+                                                            /*#__PURE__*/ _jsxDEV(TableHead, {
+                                                                children: "Driver / Kendaraan"
+                                                            }, void 0, false, {
+                                                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                                                                lineNumber: 333,
+                                                                columnNumber: 21
+                                                            }, this),
+                                                            /*#__PURE__*/ _jsxDEV(TableHead, {
+                                                                children: "Lokasi Proyek"
+                                                            }, void 0, false, {
+                                                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                                                                lineNumber: 334,
+                                                                columnNumber: 21
+                                                            }, this),
+                                                            /*#__PURE__*/ _jsxDEV(TableHead, {
+                                                                children: "Tanggal Kirim"
+                                                            }, void 0, false, {
+                                                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                                                                lineNumber: 335,
+                                                                columnNumber: 21
+                                                            }, this),
+                                                            /*#__PURE__*/ _jsxDEV(TableHead, {
+                                                                className: "text-right",
+                                                                children: "Aksi"
+                                                            }, void 0, false, {
+                                                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                                                                lineNumber: 336,
+                                                                columnNumber: 21
+                                                            }, this)
+                                                        ]
+                                                    }, void 0, true, {
+                                                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                                                        lineNumber: 330,
+                                                        columnNumber: 19
+                                                    }, this)
+                                                }, void 0, false, {
+                                                    fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                                                    lineNumber: 329,
+                                                    columnNumber: 17
+                                                }, this),
+                                                /*#__PURE__*/ _jsxDEV(TableBody, {
+                                                    children: filteredDelivery.length === 0 ? /*#__PURE__*/ _jsxDEV(TableRow, {
+                                                        children: /*#__PURE__*/ _jsxDEV(TableCell, {
+                                                            colSpan: 6,
+                                                            className: "h-28 text-center text-muted-foreground",
+                                                            children: "Belum ada arsip surat jalan di browser ini"
+                                                        }, void 0, false, {
+                                                            fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                                                            lineNumber: 342,
+                                                            columnNumber: 23
+                                                        }, this)
+                                                    }, void 0, false, {
+                                                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                                                        lineNumber: 341,
+                                                        columnNumber: 21
+                                                    }, this) : filteredDelivery.map((delivery)=>/*#__PURE__*/ _jsxDEV(TableRow, {
+                                                            children: [
+                                                                /*#__PURE__*/ _jsxDEV(TableCell, {
+                                                                    className: "font-mono font-semibold text-primary",
+                                                                    children: generateDeliveryNumber(delivery.nomor_invoice)
+                                                                }, void 0, false, {
+                                                                    fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                                                                    lineNumber: 347,
+                                                                    columnNumber: 25
+                                                                }, this),
+                                                                /*#__PURE__*/ _jsxDEV(TableCell, {
+                                                                    className: "font-mono",
+                                                                    children: delivery.nomor_invoice
+                                                                }, void 0, false, {
+                                                                    fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                                                                    lineNumber: 348,
+                                                                    columnNumber: 25
+                                                                }, this),
+                                                                /*#__PURE__*/ _jsxDEV(TableCell, {
+                                                                    children: [
+                                                                        delivery.driver,
+                                                                        " / ",
+                                                                        delivery.no_polisi
+                                                                    ]
+                                                                }, void 0, true, {
+                                                                    fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                                                                    lineNumber: 349,
+                                                                    columnNumber: 25
+                                                                }, this),
+                                                                /*#__PURE__*/ _jsxDEV(TableCell, {
+                                                                    children: delivery.lokasi_proyek
+                                                                }, void 0, false, {
+                                                                    fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                                                                    lineNumber: 350,
+                                                                    columnNumber: 25
+                                                                }, this),
+                                                                /*#__PURE__*/ _jsxDEV(TableCell, {
+                                                                    children: formatDate(delivery.tanggal_pengiriman)
+                                                                }, void 0, false, {
+                                                                    fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                                                                    lineNumber: 351,
+                                                                    columnNumber: 25
+                                                                }, this),
+                                                                /*#__PURE__*/ _jsxDEV(TableCell, {
+                                                                    className: "text-right",
+                                                                    children: /*#__PURE__*/ _jsxDEV(Button, {
+                                                                        size: "sm",
+                                                                        className: "whitespace-normal",
+                                                                        onClick: ()=>printDelivery(delivery),
+                                                                        children: [
+                                                                            /*#__PURE__*/ _jsxDEV(Printer, {
+                                                                                className: "h-4 w-4"
+                                                                            }, void 0, false, {
+                                                                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                                                                                lineNumber: 354,
+                                                                                columnNumber: 29
+                                                                            }, this),
+                                                                            " Cetak Ulang Surat Jalan"
+                                                                        ]
+                                                                    }, void 0, true, {
+                                                                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                                                                        lineNumber: 353,
+                                                                        columnNumber: 27
+                                                                    }, this)
+                                                                }, void 0, false, {
+                                                                    fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                                                                    lineNumber: 352,
+                                                                    columnNumber: 25
+                                                                }, this)
+                                                            ]
+                                                        }, `${delivery.transaksi_id}-${delivery.created_at}`, true, {
+                                                            fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                                                            lineNumber: 346,
+                                                            columnNumber: 23
+                                                        }, this))
+                                                }, void 0, false, {
+                                                    fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                                                    lineNumber: 339,
+                                                    columnNumber: 17
+                                                }, this)
+                                            ]
+                                        }, void 0, true, {
+                                            fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                                            lineNumber: 328,
+                                            columnNumber: 15
+                                        }, this)
+                                    }, void 0, false, {
+                                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                                        lineNumber: 327,
+                                        columnNumber: 13
+                                    }, this)
+                                ]
+                            }, void 0, true, {
+                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                                lineNumber: 319,
+                                columnNumber: 11
+                            }, this)
+                        ]
+                    }, void 0, true, {
+                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                        lineNumber: 261,
+                        columnNumber: 9
+                    }, this)
+                ]
+            }, void 0, true, {
+                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                lineNumber: 231,
+                columnNumber: 7
+            }, this),
+            /*#__PURE__*/ _jsxDEV("div", {
+                className: "print-area",
+                children: [
+                    printMode === "invoice" && /*#__PURE__*/ _jsxDEV(PrintableInvoice, {
+                        invoice: selectedInvoice
+                    }, void 0, false, {
+                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                        lineNumber: 367,
+                        columnNumber: 37
+                    }, this),
+                    printMode === "delivery" && /*#__PURE__*/ _jsxDEV(PrintableDeliveryNote, {
+                        invoice: selectedInvoice,
+                        delivery: selectedDelivery
+                    }, void 0, false, {
+                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                        lineNumber: 368,
+                        columnNumber: 38
+                    }, this)
+                ]
+            }, void 0, true, {
+                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                lineNumber: 366,
+                columnNumber: 7
+            }, this)
+        ]
+    }, void 0, true, {
+        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+        lineNumber: 230,
+        columnNumber: 5
+    }, this);
+}
+_s(Dokumentasi, "IZ+Ho9dqOnIOhTTviJ9kXlaYjA8=", false, function() {
+    return [
+        useToast
+    ];
+});
+_c = Dokumentasi;
+function InvoiceItemTable({ invoice, showPrice }) {
+    return /*#__PURE__*/ _jsxDEV("table", {
+        className: "print-avoid-break w-full border-collapse text-sm",
+        children: [
+            /*#__PURE__*/ _jsxDEV("thead", {
+                children: /*#__PURE__*/ _jsxDEV("tr", {
+                    className: "bg-primary text-primary-foreground",
+                    children: [
+                        /*#__PURE__*/ _jsxDEV("th", {
+                            className: "border border-primary p-2 text-center",
+                            children: "No"
+                        }, void 0, false, {
+                            fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                            lineNumber: 379,
+                            columnNumber: 11
+                        }, this),
+                        /*#__PURE__*/ _jsxDEV("th", {
+                            className: "border border-primary p-2 text-left",
+                            children: "Nama Barang"
+                        }, void 0, false, {
+                            fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                            lineNumber: 380,
+                            columnNumber: 11
+                        }, this),
+                        /*#__PURE__*/ _jsxDEV("th", {
+                            className: "border border-primary p-2 text-left",
+                            children: "Spesifikasi Ukuran"
+                        }, void 0, false, {
+                            fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                            lineNumber: 381,
+                            columnNumber: 11
+                        }, this),
+                        /*#__PURE__*/ _jsxDEV("th", {
+                            className: "border border-primary p-2 text-center",
+                            children: "Qty"
+                        }, void 0, false, {
+                            fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                            lineNumber: 382,
+                            columnNumber: 11
+                        }, this),
+                        showPrice && /*#__PURE__*/ _jsxDEV("th", {
+                            className: "border border-primary p-2 text-right",
+                            children: "Harga"
+                        }, void 0, false, {
+                            fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                            lineNumber: 383,
+                            columnNumber: 25
+                        }, this),
+                        showPrice && /*#__PURE__*/ _jsxDEV("th", {
+                            className: "border border-primary p-2 text-right",
+                            children: "Subtotal"
+                        }, void 0, false, {
+                            fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                            lineNumber: 384,
+                            columnNumber: 25
+                        }, this)
+                    ]
+                }, void 0, true, {
+                    fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                    lineNumber: 378,
+                    columnNumber: 9
+                }, this)
+            }, void 0, false, {
+                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                lineNumber: 377,
+                columnNumber: 7
+            }, this),
+            /*#__PURE__*/ _jsxDEV("tbody", {
+                children: invoice.items.map((item, index)=>/*#__PURE__*/ _jsxDEV("tr", {
+                        children: [
+                            /*#__PURE__*/ _jsxDEV("td", {
+                                className: "border p-2 text-center",
+                                children: index + 1
+                            }, void 0, false, {
+                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                                lineNumber: 390,
+                                columnNumber: 13
+                            }, this),
+                            /*#__PURE__*/ _jsxDEV("td", {
+                                className: "border p-2 font-medium",
+                                children: item.nama_barang
+                            }, void 0, false, {
+                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                                lineNumber: 391,
+                                columnNumber: 13
+                            }, this),
+                            /*#__PURE__*/ _jsxDEV("td", {
+                                className: "border p-2",
+                                children: item.ukuran || item.kategori
+                            }, void 0, false, {
+                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                                lineNumber: 392,
+                                columnNumber: 13
+                            }, this),
+                            /*#__PURE__*/ _jsxDEV("td", {
+                                className: "border p-2 text-center",
+                                children: item.jumlah
+                            }, void 0, false, {
+                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                                lineNumber: 393,
+                                columnNumber: 13
+                            }, this),
+                            showPrice && /*#__PURE__*/ _jsxDEV("td", {
+                                className: "border p-2 text-right",
+                                children: formatCurrency(item.harga)
+                            }, void 0, false, {
+                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                                lineNumber: 394,
+                                columnNumber: 27
+                            }, this),
+                            showPrice && /*#__PURE__*/ _jsxDEV("td", {
+                                className: "border p-2 text-right font-semibold",
+                                children: formatCurrency(item.subtotal)
+                            }, void 0, false, {
+                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                                lineNumber: 395,
+                                columnNumber: 27
+                            }, this)
+                        ]
+                    }, `${item.barang_id}-${index}`, true, {
+                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                        lineNumber: 389,
+                        columnNumber: 11
+                    }, this))
+            }, void 0, false, {
+                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                lineNumber: 387,
+                columnNumber: 7
+            }, this),
+            showPrice && /*#__PURE__*/ _jsxDEV("tfoot", {
+                children: /*#__PURE__*/ _jsxDEV("tr", {
+                    children: [
+                        /*#__PURE__*/ _jsxDEV("td", {
+                            colSpan: 5,
+                            className: "border p-2 text-right font-bold",
+                            children: "Total"
+                        }, void 0, false, {
+                            fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                            lineNumber: 402,
+                            columnNumber: 13
+                        }, this),
+                        /*#__PURE__*/ _jsxDEV("td", {
+                            className: "border p-2 text-right font-bold",
+                            children: formatCurrency(invoice.total)
+                        }, void 0, false, {
+                            fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                            lineNumber: 403,
+                            columnNumber: 13
+                        }, this)
+                    ]
+                }, void 0, true, {
+                    fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                    lineNumber: 401,
+                    columnNumber: 11
+                }, this)
+            }, void 0, false, {
+                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                lineNumber: 400,
+                columnNumber: 9
+            }, this)
+        ]
+    }, void 0, true, {
+        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+        lineNumber: 376,
+        columnNumber: 5
+    }, this);
+}
+_c1 = InvoiceItemTable;
+function PrintableInvoice({ invoice }) {
+    if (!invoice) return null;
+    return /*#__PURE__*/ _jsxDEV("section", {
+        className: "print-sheet font-sans text-[12px] text-gray-900",
+        children: [
+            /*#__PURE__*/ _jsxDEV("img", {
+                src: LOGO_URL,
+                alt: "",
+                className: "print-watermark"
+            }, void 0, false, {
+                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                lineNumber: 416,
+                columnNumber: 7
+            }, this),
+            /*#__PURE__*/ _jsxDEV("div", {
+                className: "print-content",
+                children: [
+                    /*#__PURE__*/ _jsxDEV("div", {
+                        className: "flex items-start justify-between print-avoid-break",
+                        children: /*#__PURE__*/ _jsxDEV("div", {
+                            children: [
+                                /*#__PURE__*/ _jsxDEV("img", {
+                                    src: LOGO_URL,
+                                    alt: "Logo Fazma Stone",
+                                    className: "print-logo mb-3"
+                                }, void 0, false, {
+                                    fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                                    lineNumber: 420,
+                                    columnNumber: 13
+                                }, this),
+                                /*#__PURE__*/ _jsxDEV("h1", {
+                                    className: "text-2xl font-bold text-emerald-800",
+                                    children: "Fazma Batu Alam"
+                                }, void 0, false, {
+                                    fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                                    lineNumber: 421,
+                                    columnNumber: 13
+                                }, this),
+                                /*#__PURE__*/ _jsxDEV("p", {
+                                    className: "mt-2 max-w-sm leading-relaxed",
+                                    children: [
+                                        "Office: Jl. Alternatif Cibubur - Cileungsi",
+                                        /*#__PURE__*/ _jsxDEV("br", {}, void 0, false, {
+                                            fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                                            lineNumber: 423,
+                                            columnNumber: 57
+                                        }, this),
+                                        "Factory: Desa Lengkong Wetan blok I Sindang Wangi - Majalengka",
+                                        /*#__PURE__*/ _jsxDEV("br", {}, void 0, false, {
+                                            fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                                            lineNumber: 424,
+                                            columnNumber: 77
+                                        }, this),
+                                        "Mobile: 081221131150"
+                                    ]
+                                }, void 0, true, {
+                                    fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                                    lineNumber: 422,
+                                    columnNumber: 13
+                                }, this)
+                            ]
+                        }, void 0, true, {
+                            fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                            lineNumber: 419,
+                            columnNumber: 11
+                        }, this)
+                    }, void 0, false, {
+                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                        lineNumber: 418,
+                        columnNumber: 9
+                    }, this),
+                    /*#__PURE__*/ _jsxDEV("h2", {
+                        className: "my-6 text-center text-2xl font-bold tracking-[0.25em] text-emerald-800",
+                        children: "INVOICE"
+                    }, void 0, false, {
+                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                        lineNumber: 429,
+                        columnNumber: 9
+                    }, this),
+                    /*#__PURE__*/ _jsxDEV("div", {
+                        className: "mb-5 flex justify-between border-y-2 border-emerald-800 py-3 print-avoid-break",
+                        children: [
+                            /*#__PURE__*/ _jsxDEV("div", {
+                                children: [
+                                    /*#__PURE__*/ _jsxDEV("p", {
+                                        className: "font-bold uppercase text-emerald-800",
+                                        children: "Bill To"
+                                    }, void 0, false, {
+                                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                                        lineNumber: 432,
+                                        columnNumber: 13
+                                    }, this),
+                                    /*#__PURE__*/ _jsxDEV("p", {
+                                        className: "text-lg font-bold uppercase",
+                                        children: invoice.nama_pelanggan || "-"
+                                    }, void 0, false, {
+                                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                                        lineNumber: 433,
+                                        columnNumber: 13
+                                    }, this)
+                                ]
+                            }, void 0, true, {
+                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                                lineNumber: 431,
+                                columnNumber: 11
+                            }, this),
+                            /*#__PURE__*/ _jsxDEV("div", {
+                                className: "text-right",
+                                children: [
+                                    /*#__PURE__*/ _jsxDEV("p", {
+                                        children: [
+                                            /*#__PURE__*/ _jsxDEV("strong", {
+                                                children: "Invoice No:"
+                                            }, void 0, false, {
+                                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                                                lineNumber: 436,
+                                                columnNumber: 16
+                                            }, this),
+                                            " ",
+                                            invoice.nomor_invoice
+                                        ]
+                                    }, void 0, true, {
+                                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                                        lineNumber: 436,
+                                        columnNumber: 13
+                                    }, this),
+                                    /*#__PURE__*/ _jsxDEV("p", {
+                                        children: [
+                                            /*#__PURE__*/ _jsxDEV("strong", {
+                                                children: "Date:"
+                                            }, void 0, false, {
+                                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                                                lineNumber: 437,
+                                                columnNumber: 16
+                                            }, this),
+                                            " ",
+                                            formatDate(invoice.created_at)
+                                        ]
+                                    }, void 0, true, {
+                                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                                        lineNumber: 437,
+                                        columnNumber: 13
+                                    }, this)
+                                ]
+                            }, void 0, true, {
+                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                                lineNumber: 435,
+                                columnNumber: 11
+                            }, this)
+                        ]
+                    }, void 0, true, {
+                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                        lineNumber: 430,
+                        columnNumber: 9
+                    }, this),
+                    /*#__PURE__*/ _jsxDEV(InvoiceItemTable, {
+                        invoice: invoice,
+                        showPrice: true
+                    }, void 0, false, {
+                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                        lineNumber: 440,
+                        columnNumber: 9
+                    }, this),
+                    /*#__PURE__*/ _jsxDEV("div", {
+                        className: "mt-6 flex justify-between print-avoid-break",
+                        children: [
+                            /*#__PURE__*/ _jsxDEV("div", {
+                                className: "rounded border border-emerald-100 bg-emerald-50 p-4 text-emerald-900",
+                                children: [
+                                    /*#__PURE__*/ _jsxDEV("p", {
+                                        className: "font-bold",
+                                        children: "Payment Instructions"
+                                    }, void 0, false, {
+                                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                                        lineNumber: 443,
+                                        columnNumber: 13
+                                    }, this),
+                                    /*#__PURE__*/ _jsxDEV("p", {
+                                        children: "BCA: 5680 5186 47"
+                                    }, void 0, false, {
+                                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                                        lineNumber: 444,
+                                        columnNumber: 13
+                                    }, this),
+                                    /*#__PURE__*/ _jsxDEV("p", {
+                                        children: "Mandiri: 90000 2341 1318"
+                                    }, void 0, false, {
+                                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                                        lineNumber: 445,
+                                        columnNumber: 13
+                                    }, this),
+                                    /*#__PURE__*/ _jsxDEV("p", {
+                                        children: "A/n Zia Ulhaq"
+                                    }, void 0, false, {
+                                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                                        lineNumber: 446,
+                                        columnNumber: 13
+                                    }, this)
+                                ]
+                            }, void 0, true, {
+                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                                lineNumber: 442,
+                                columnNumber: 11
+                            }, this),
+                            /*#__PURE__*/ _jsxDEV("div", {
+                                className: "text-center",
+                                children: [
+                                    /*#__PURE__*/ _jsxDEV("p", {
+                                        children: "Terimakasih"
+                                    }, void 0, false, {
+                                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                                        lineNumber: 449,
+                                        columnNumber: 13
+                                    }, this),
+                                    /*#__PURE__*/ _jsxDEV("img", {
+                                        src: SIGNATURE_URL,
+                                        alt: "Tanda Tangan",
+                                        className: "mx-auto mt-2 w-36"
+                                    }, void 0, false, {
+                                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                                        lineNumber: 450,
+                                        columnNumber: 13
+                                    }, this),
+                                    /*#__PURE__*/ _jsxDEV("p", {
+                                        className: "border-t border-gray-900 px-10 pt-1 font-bold",
+                                        children: "( Zia Ulhaq )"
+                                    }, void 0, false, {
+                                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                                        lineNumber: 451,
+                                        columnNumber: 13
+                                    }, this)
+                                ]
+                            }, void 0, true, {
+                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                                lineNumber: 448,
+                                columnNumber: 11
+                            }, this)
+                        ]
+                    }, void 0, true, {
+                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                        lineNumber: 441,
+                        columnNumber: 9
+                    }, this)
+                ]
+            }, void 0, true, {
+                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                lineNumber: 417,
+                columnNumber: 7
+            }, this)
+        ]
+    }, void 0, true, {
+        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+        lineNumber: 415,
+        columnNumber: 5
+    }, this);
+}
+_c2 = PrintableInvoice;
+function PrintableDeliveryNote({ invoice, delivery }) {
+    if (!invoice || !delivery) return null;
+    return /*#__PURE__*/ _jsxDEV("section", {
+        className: "print-sheet font-sans text-[12px] text-gray-900",
+        children: [
+            /*#__PURE__*/ _jsxDEV("img", {
+                src: LOGO_URL,
+                alt: "",
+                className: "print-watermark"
+            }, void 0, false, {
+                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                lineNumber: 464,
+                columnNumber: 7
+            }, this),
+            /*#__PURE__*/ _jsxDEV("div", {
+                className: "print-content",
+                children: [
+                    /*#__PURE__*/ _jsxDEV("div", {
+                        className: "flex items-start justify-between border-b-2 border-emerald-800 pb-4 print-avoid-break",
+                        children: /*#__PURE__*/ _jsxDEV("div", {
+                            children: [
+                                /*#__PURE__*/ _jsxDEV("img", {
+                                    src: LOGO_URL,
+                                    alt: "Logo Fazma Stone",
+                                    className: "print-logo mb-3"
+                                }, void 0, false, {
+                                    fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                                    lineNumber: 468,
+                                    columnNumber: 13
+                                }, this),
+                                /*#__PURE__*/ _jsxDEV("h1", {
+                                    className: "text-2xl font-bold text-emerald-800",
+                                    children: "Fazma Batu Alam"
+                                }, void 0, false, {
+                                    fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                                    lineNumber: 469,
+                                    columnNumber: 13
+                                }, this),
+                                /*#__PURE__*/ _jsxDEV("p", {
+                                    className: "mt-2 max-w-md leading-relaxed",
+                                    children: [
+                                        "Office: Jl. Alternatif Cibubur - Cileungsi",
+                                        /*#__PURE__*/ _jsxDEV("br", {}, void 0, false, {
+                                            fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                                            lineNumber: 471,
+                                            columnNumber: 57
+                                        }, this),
+                                        "Factory: Desa Lengkong Wetan blok I Sindang Wangi - Majalengka",
+                                        /*#__PURE__*/ _jsxDEV("br", {}, void 0, false, {
+                                            fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                                            lineNumber: 472,
+                                            columnNumber: 77
+                                        }, this),
+                                        "Mobile: 081221131150"
+                                    ]
+                                }, void 0, true, {
+                                    fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                                    lineNumber: 470,
+                                    columnNumber: 13
+                                }, this)
+                            ]
+                        }, void 0, true, {
+                            fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                            lineNumber: 467,
+                            columnNumber: 11
+                        }, this)
+                    }, void 0, false, {
+                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                        lineNumber: 466,
+                        columnNumber: 9
+                    }, this),
+                    /*#__PURE__*/ _jsxDEV("h2", {
+                        className: "my-6 text-center text-2xl font-bold tracking-[0.2em] text-emerald-800",
+                        children: "SURAT JALAN"
+                    }, void 0, false, {
+                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                        lineNumber: 477,
+                        columnNumber: 9
+                    }, this),
+                    /*#__PURE__*/ _jsxDEV("div", {
+                        className: "mb-5 grid grid-cols-2 gap-6 print-avoid-break",
+                        children: [
+                            /*#__PURE__*/ _jsxDEV("div", {
+                                className: "space-y-1",
+                                children: [
+                                    /*#__PURE__*/ _jsxDEV("p", {
+                                        children: [
+                                            /*#__PURE__*/ _jsxDEV("strong", {
+                                                children: "No. Surat Jalan:"
+                                            }, void 0, false, {
+                                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                                                lineNumber: 480,
+                                                columnNumber: 16
+                                            }, this),
+                                            " ",
+                                            generateDeliveryNumber(invoice.nomor_invoice)
+                                        ]
+                                    }, void 0, true, {
+                                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                                        lineNumber: 480,
+                                        columnNumber: 13
+                                    }, this),
+                                    /*#__PURE__*/ _jsxDEV("p", {
+                                        children: [
+                                            /*#__PURE__*/ _jsxDEV("strong", {
+                                                children: "No. Invoice:"
+                                            }, void 0, false, {
+                                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                                                lineNumber: 481,
+                                                columnNumber: 16
+                                            }, this),
+                                            " ",
+                                            invoice.nomor_invoice
+                                        ]
+                                    }, void 0, true, {
+                                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                                        lineNumber: 481,
+                                        columnNumber: 13
+                                    }, this),
+                                    /*#__PURE__*/ _jsxDEV("p", {
+                                        children: [
+                                            /*#__PURE__*/ _jsxDEV("strong", {
+                                                children: "Tanggal Kirim:"
+                                            }, void 0, false, {
+                                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                                                lineNumber: 482,
+                                                columnNumber: 16
+                                            }, this),
+                                            " ",
+                                            formatDate(delivery.tanggal_pengiriman)
+                                        ]
+                                    }, void 0, true, {
+                                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                                        lineNumber: 482,
+                                        columnNumber: 13
+                                    }, this)
+                                ]
+                            }, void 0, true, {
+                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                                lineNumber: 479,
+                                columnNumber: 11
+                            }, this),
+                            /*#__PURE__*/ _jsxDEV("div", {
+                                className: "space-y-1",
+                                children: [
+                                    /*#__PURE__*/ _jsxDEV("p", {
+                                        children: [
+                                            /*#__PURE__*/ _jsxDEV("strong", {
+                                                children: "Driver:"
+                                            }, void 0, false, {
+                                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                                                lineNumber: 485,
+                                                columnNumber: 16
+                                            }, this),
+                                            " ",
+                                            delivery.driver
+                                        ]
+                                    }, void 0, true, {
+                                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                                        lineNumber: 485,
+                                        columnNumber: 13
+                                    }, this),
+                                    /*#__PURE__*/ _jsxDEV("p", {
+                                        children: [
+                                            /*#__PURE__*/ _jsxDEV("strong", {
+                                                children: "No. Polisi:"
+                                            }, void 0, false, {
+                                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                                                lineNumber: 486,
+                                                columnNumber: 16
+                                            }, this),
+                                            " ",
+                                            delivery.no_polisi
+                                        ]
+                                    }, void 0, true, {
+                                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                                        lineNumber: 486,
+                                        columnNumber: 13
+                                    }, this),
+                                    /*#__PURE__*/ _jsxDEV("p", {
+                                        children: [
+                                            /*#__PURE__*/ _jsxDEV("strong", {
+                                                children: "Penerima / Lokasi:"
+                                            }, void 0, false, {
+                                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                                                lineNumber: 487,
+                                                columnNumber: 16
+                                            }, this),
+                                            " ",
+                                            delivery.lokasi_proyek
+                                        ]
+                                    }, void 0, true, {
+                                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                                        lineNumber: 487,
+                                        columnNumber: 13
+                                    }, this)
+                                ]
+                            }, void 0, true, {
+                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                                lineNumber: 484,
+                                columnNumber: 11
+                            }, this)
+                        ]
+                    }, void 0, true, {
+                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                        lineNumber: 478,
+                        columnNumber: 9
+                    }, this),
+                    /*#__PURE__*/ _jsxDEV(InvoiceItemTable, {
+                        invoice: invoice
+                    }, void 0, false, {
+                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                        lineNumber: 490,
+                        columnNumber: 9
+                    }, this),
+                    /*#__PURE__*/ _jsxDEV("div", {
+                        className: "mt-10 grid grid-cols-3 gap-8 text-center print-avoid-break",
+                        children: [
+                            /*#__PURE__*/ _jsxDEV("div", {
+                                children: [
+                                    /*#__PURE__*/ _jsxDEV("p", {
+                                        children: "Disiapkan Oleh,"
+                                    }, void 0, false, {
+                                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                                        lineNumber: 493,
+                                        columnNumber: 13
+                                    }, this),
+                                    /*#__PURE__*/ _jsxDEV("div", {
+                                        className: "mt-16 border-t border-gray-900 pt-1",
+                                        children: "Admin Fazma Stone"
+                                    }, void 0, false, {
+                                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                                        lineNumber: 494,
+                                        columnNumber: 13
+                                    }, this)
+                                ]
+                            }, void 0, true, {
+                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                                lineNumber: 492,
+                                columnNumber: 11
+                            }, this),
+                            /*#__PURE__*/ _jsxDEV("div", {
+                                children: [
+                                    /*#__PURE__*/ _jsxDEV("p", {
+                                        children: "Driver,"
+                                    }, void 0, false, {
+                                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                                        lineNumber: 497,
+                                        columnNumber: 13
+                                    }, this),
+                                    /*#__PURE__*/ _jsxDEV("div", {
+                                        className: "mt-16 border-t border-gray-900 pt-1",
+                                        children: delivery.driver
+                                    }, void 0, false, {
+                                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                                        lineNumber: 498,
+                                        columnNumber: 13
+                                    }, this)
+                                ]
+                            }, void 0, true, {
+                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                                lineNumber: 496,
+                                columnNumber: 11
+                            }, this),
+                            /*#__PURE__*/ _jsxDEV("div", {
+                                children: [
+                                    /*#__PURE__*/ _jsxDEV("p", {
+                                        children: "Penerima,"
+                                    }, void 0, false, {
+                                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                                        lineNumber: 501,
+                                        columnNumber: 13
+                                    }, this),
+                                    /*#__PURE__*/ _jsxDEV("div", {
+                                        className: "mt-16 border-t border-gray-900 pt-1",
+                                        children: delivery.lokasi_proyek
+                                    }, void 0, false, {
+                                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                                        lineNumber: 502,
+                                        columnNumber: 13
+                                    }, this)
+                                ]
+                            }, void 0, true, {
+                                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                                lineNumber: 500,
+                                columnNumber: 11
+                            }, this)
+                        ]
+                    }, void 0, true, {
+                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                        lineNumber: 491,
+                        columnNumber: 9
+                    }, this),
+                    /*#__PURE__*/ _jsxDEV("p", {
+                        className: "mt-6 text-[11px] text-gray-600",
+                        children: "Catatan: Surat jalan ini hanya memuat daftar barang dan jumlah pengiriman. Nominal harga tidak ditampilkan pada dokumen logistik."
+                    }, void 0, false, {
+                        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                        lineNumber: 505,
+                        columnNumber: 9
+                    }, this)
+                ]
+            }, void 0, true, {
+                fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+                lineNumber: 465,
+                columnNumber: 7
+            }, this)
+        ]
+    }, void 0, true, {
+        fileName: "C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx",
+        lineNumber: 463,
+        columnNumber: 5
+    }, this);
+}
+_c3 = PrintableDeliveryNote;
+var _c, _c1, _c2, _c3;
+$RefreshReg$(_c, "Dokumentasi");
+$RefreshReg$(_c1, "InvoiceItemTable");
+$RefreshReg$(_c2, "PrintableInvoice");
+$RefreshReg$(_c3, "PrintableDeliveryNote");
+
+
+if (import.meta.hot && !inWebWorker) {
+  window.$RefreshReg$ = prevRefreshReg;
+  window.$RefreshSig$ = prevRefreshSig;
+}
+
+
+if (import.meta.hot && !inWebWorker) {
+  RefreshRuntime.__hmr_import(import.meta.url).then((currentExports) => {
+    RefreshRuntime.registerExportsForReactRefresh("C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx", currentExports);
+    import.meta.hot.accept((nextExports) => {
+      if (!nextExports) return;
+      const invalidateMessage = RefreshRuntime.validateRefreshBoundaryAndEnqueueUpdate("C:/Users/jaela/Downloads/inventarisfazmastone/src/pages/Dokumentasi.tsx", currentExports, nextExports);
+      if (invalidateMessage) import.meta.hot.invalidate(invalidateMessage);
+    });
+  });
+}
+
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIkRva3VtZW50YXNpLnRzeCJdLCJzb3VyY2VzQ29udGVudCI6WyJpbXBvcnQgeyB1c2VFZmZlY3QsIHVzZU1lbW8sIHVzZVN0YXRlIH0gZnJvbSBcInJlYWN0XCI7XG5pbXBvcnQgeyBEYXNoYm9hcmRMYXlvdXQgfSBmcm9tIFwiQC9jb21wb25lbnRzL0Rhc2hib2FyZExheW91dFwiO1xuaW1wb3J0IHsgc3VwYWJhc2UgfSBmcm9tIFwiQC9pbnRlZ3JhdGlvbnMvc3VwYWJhc2UvY2xpZW50XCI7XG5pbXBvcnQgeyBCdXR0b24gfSBmcm9tIFwiQC9jb21wb25lbnRzL3VpL2J1dHRvblwiO1xuaW1wb3J0IHsgSW5wdXQgfSBmcm9tIFwiQC9jb21wb25lbnRzL3VpL2lucHV0XCI7XG5pbXBvcnQgeyBMYWJlbCB9IGZyb20gXCJAL2NvbXBvbmVudHMvdWkvbGFiZWxcIjtcbmltcG9ydCB7IFRhYnMsIFRhYnNDb250ZW50LCBUYWJzTGlzdCwgVGFic1RyaWdnZXIgfSBmcm9tIFwiQC9jb21wb25lbnRzL3VpL3RhYnNcIjtcbmltcG9ydCB7IFRhYmxlLCBUYWJsZUJvZHksIFRhYmxlQ2VsbCwgVGFibGVIZWFkLCBUYWJsZUhlYWRlciwgVGFibGVSb3cgfSBmcm9tIFwiQC9jb21wb25lbnRzL3VpL3RhYmxlXCI7XG5pbXBvcnQgeyBCYWRnZSB9IGZyb20gXCJAL2NvbXBvbmVudHMvdWkvYmFkZ2VcIjtcbmltcG9ydCB7IHVzZVRvYXN0IH0gZnJvbSBcIkAvaG9va3MvdXNlLXRvYXN0XCI7XG5pbXBvcnQgeyBBcmNoaXZlLCBDYWxlbmRhckRheXMsIEZpbGVUZXh0LCBQcmludGVyLCBTZWFyY2gsIFRydWNrIH0gZnJvbSBcImx1Y2lkZS1yZWFjdFwiO1xuaW1wb3J0IExPR09fVVJMIGZyb20gXCJAL2Fzc2V0cy9sb2dvLWZhem1hLnBuZ1wiO1xuXG5jb25zdCBTSUdOQVRVUkVfVVJMID0gZW5jb2RlVVJJKFwiL1NpZ25hdHVyZS5wbmdcIik7XG5jb25zdCBERUxJVkVSWV9TVE9SQUdFX0tFWSA9IFwiZmF6bWFfZGVsaXZlcnlfbm90ZXNcIjtcbmNvbnN0IENVU1RPTUVSX1NUT1JBR0VfS0VZID0gXCJmYXptYV9pbnZvaWNlX2N1c3RvbWVyc1wiO1xuXG50eXBlIFRyYW5zYWtzaVJvdyA9IHtcbiAgaWQ6IHN0cmluZztcbiAgbm9tb3JfaW52b2ljZTogc3RyaW5nO1xuICBjcmVhdGVkX2F0OiBzdHJpbmc7XG4gIHN0YXR1czogc3RyaW5nO1xuICB0b3RhbDogbnVtYmVyO1xuICBzdWJ0b3RhbDogbnVtYmVyO1xuICBqdW1sYWhfYmF5YXI6IG51bWJlcjtcbiAgbWV0b2RlX3BlbWJheWFyYW46IHN0cmluZztcbiAgbmFtYV9wZWxhbmdnYW4/OiBzdHJpbmc7XG59O1xuXG50eXBlIEludm9pY2VJdGVtID0ge1xuICBiYXJhbmdfaWQ6IHN0cmluZztcbiAgbmFtYV9iYXJhbmc6IHN0cmluZztcbiAga2F0ZWdvcmk6IHN0cmluZztcbiAgdWt1cmFuOiBzdHJpbmc7XG4gIGp1bWxhaDogbnVtYmVyO1xuICBoYXJnYTogbnVtYmVyO1xuICBzdWJ0b3RhbDogbnVtYmVyO1xufTtcblxudHlwZSBJbnZvaWNlRGV0YWlsID0gVHJhbnNha3NpUm93ICYge1xuICBpdGVtczogSW52b2ljZUl0ZW1bXTtcbn07XG5cbnR5cGUgRGVsaXZlcnlOb3RlTWV0YSA9IHtcbiAgdHJhbnNha3NpX2lkOiBzdHJpbmc7XG4gIG5vbW9yX2ludm9pY2U6IHN0cmluZztcbiAgZHJpdmVyOiBzdHJpbmc7XG4gIG5vX3BvbGlzaTogc3RyaW5nO1xuICBsb2thc2lfcHJveWVrOiBzdHJpbmc7XG4gIHRhbmdnYWxfcGVuZ2lyaW1hbjogc3RyaW5nO1xuICBjcmVhdGVkX2F0OiBzdHJpbmc7XG59O1xuXG50eXBlIFByaW50TW9kZSA9IFwiaW52b2ljZVwiIHwgXCJkZWxpdmVyeVwiIHwgbnVsbDtcblxuY29uc3QgZm9ybWF0Q3VycmVuY3kgPSAodmFsdWUgPSAwKSA9PlxuICBuZXcgSW50bC5OdW1iZXJGb3JtYXQoXCJpZC1JRFwiLCB7XG4gICAgc3R5bGU6IFwiY3VycmVuY3lcIixcbiAgICBjdXJyZW5jeTogXCJJRFJcIixcbiAgICBtaW5pbXVtRnJhY3Rpb25EaWdpdHM6IDAsXG4gIH0pLmZvcm1hdCh2YWx1ZSk7XG5cbmNvbnN0IGZvcm1hdERhdGUgPSAoZGF0ZT86IHN0cmluZykgPT4ge1xuICBpZiAoIWRhdGUpIHJldHVybiBcIi1cIjtcbiAgcmV0dXJuIG5ldyBEYXRlKGRhdGUpLnRvTG9jYWxlRGF0ZVN0cmluZyhcImlkLUlEXCIsIHtcbiAgICBkYXk6IFwiMi1kaWdpdFwiLFxuICAgIG1vbnRoOiBcImxvbmdcIixcbiAgICB5ZWFyOiBcIm51bWVyaWNcIixcbiAgfSk7XG59O1xuXG5jb25zdCBnZW5lcmF0ZURlbGl2ZXJ5TnVtYmVyID0gKGludm9pY2VOdW1iZXI/OiBzdHJpbmcpID0+XG4gIGBTSi0keyhpbnZvaWNlTnVtYmVyIHx8IFwiSU5WXCIpLnJlcGxhY2UoL1teQS1aYS16MC05XS9nLCBcIi1cIil9YDtcblxuY29uc3QgcmVhZERlbGl2ZXJ5QXJjaGl2ZSA9ICgpOiBEZWxpdmVyeU5vdGVNZXRhW10gPT4ge1xuICB0cnkge1xuICAgIHJldHVybiBKU09OLnBhcnNlKGxvY2FsU3RvcmFnZS5nZXRJdGVtKERFTElWRVJZX1NUT1JBR0VfS0VZKSB8fCBcIltdXCIpO1xuICB9IGNhdGNoIHtcbiAgICByZXR1cm4gW107XG4gIH1cbn07XG5cbmNvbnN0IG5vcm1hbGl6ZURhdGUgPSAoZGF0ZTogc3RyaW5nKSA9PiBuZXcgRGF0ZShkYXRlKS50b0lTT1N0cmluZygpLnNsaWNlKDAsIDEwKTtcblxuY29uc3QgcmVhZEN1c3RvbWVyQ2FjaGUgPSAoKTogUmVjb3JkPHN0cmluZywgc3RyaW5nPiA9PiB7XG4gIHRyeSB7XG4gICAgcmV0dXJuIEpTT04ucGFyc2UobG9jYWxTdG9yYWdlLmdldEl0ZW0oQ1VTVE9NRVJfU1RPUkFHRV9LRVkpIHx8IFwie31cIik7XG4gIH0gY2F0Y2gge1xuICAgIHJldHVybiB7fTtcbiAgfVxufTtcblxuY29uc3QgZ2V0Q2FjaGVkQ3VzdG9tZXIgPSAodHJhbnNhY3Rpb246IFBpY2s8VHJhbnNha3NpUm93LCBcImlkXCIgfCBcIm5vbW9yX2ludm9pY2VcIiB8IFwibmFtYV9wZWxhbmdnYW5cIj4pID0+IHtcbiAgaWYgKHRyYW5zYWN0aW9uLm5hbWFfcGVsYW5nZ2FuPy50cmltKCkpIHJldHVybiB0cmFuc2FjdGlvbi5uYW1hX3BlbGFuZ2dhbjtcbiAgY29uc3QgY2FjaGUgPSByZWFkQ3VzdG9tZXJDYWNoZSgpO1xuICByZXR1cm4gY2FjaGVbdHJhbnNhY3Rpb24uaWRdIHx8IGNhY2hlW3RyYW5zYWN0aW9uLm5vbW9yX2ludm9pY2VdIHx8IFwiXCI7XG59O1xuXG5leHBvcnQgZGVmYXVsdCBmdW5jdGlvbiBEb2t1bWVudGFzaSgpIHtcbiAgY29uc3QgeyB0b2FzdCB9ID0gdXNlVG9hc3QoKTtcbiAgY29uc3QgW3RyYW5zYWN0aW9ucywgc2V0VHJhbnNhY3Rpb25zXSA9IHVzZVN0YXRlPFRyYW5zYWtzaVJvd1tdPihbXSk7XG4gIGNvbnN0IFtkZWxpdmVyeUFyY2hpdmUsIHNldERlbGl2ZXJ5QXJjaGl2ZV0gPSB1c2VTdGF0ZTxEZWxpdmVyeU5vdGVNZXRhW10+KFtdKTtcbiAgY29uc3QgW3NlYXJjaCwgc2V0U2VhcmNoXSA9IHVzZVN0YXRlKFwiXCIpO1xuICBjb25zdCBbc3RhcnREYXRlLCBzZXRTdGFydERhdGVdID0gdXNlU3RhdGUoXCJcIik7XG4gIGNvbnN0IFtlbmREYXRlLCBzZXRFbmREYXRlXSA9IHVzZVN0YXRlKFwiXCIpO1xuICBjb25zdCBbc2VsZWN0ZWRJbnZvaWNlLCBzZXRTZWxlY3RlZEludm9pY2VdID0gdXNlU3RhdGU8SW52b2ljZURldGFpbCB8IG51bGw+KG51bGwpO1xuICBjb25zdCBbc2VsZWN0ZWREZWxpdmVyeSwgc2V0U2VsZWN0ZWREZWxpdmVyeV0gPSB1c2VTdGF0ZTxEZWxpdmVyeU5vdGVNZXRhIHwgbnVsbD4obnVsbCk7XG4gIGNvbnN0IFtwcmludE1vZGUsIHNldFByaW50TW9kZV0gPSB1c2VTdGF0ZTxQcmludE1vZGU+KG51bGwpO1xuXG4gIHVzZUVmZmVjdCgoKSA9PiB7XG4gICAgbG9hZFRyYW5zYWN0aW9ucygpO1xuICAgIHNldERlbGl2ZXJ5QXJjaGl2ZShyZWFkRGVsaXZlcnlBcmNoaXZlKCkpO1xuXG4gICAgY29uc3QgY2xlYXJQcmludFN0YXRlID0gKCkgPT4gc2V0UHJpbnRNb2RlKG51bGwpO1xuICAgIHdpbmRvdy5hZGRFdmVudExpc3RlbmVyKFwiYWZ0ZXJwcmludFwiLCBjbGVhclByaW50U3RhdGUpO1xuICAgIHJldHVybiAoKSA9PiB3aW5kb3cucmVtb3ZlRXZlbnRMaXN0ZW5lcihcImFmdGVycHJpbnRcIiwgY2xlYXJQcmludFN0YXRlKTtcbiAgfSwgW10pO1xuXG4gIGNvbnN0IGxvYWRUcmFuc2FjdGlvbnMgPSBhc3luYyAoKSA9PiB7XG4gICAgY29uc3QgeyBkYXRhLCBlcnJvciB9ID0gYXdhaXQgc3VwYWJhc2VcbiAgICAgIC5mcm9tKFwidHJhbnNha3NpXCIpXG4gICAgICAuc2VsZWN0KFwiKlwiKVxuICAgICAgLm9yZGVyKFwiY3JlYXRlZF9hdFwiLCB7IGFzY2VuZGluZzogZmFsc2UgfSk7XG5cbiAgICBpZiAoZXJyb3IpIHtcbiAgICAgIHRvYXN0KHsgdGl0bGU6IFwiR2FnYWwgbWVtdWF0IGFyc2lwXCIsIGRlc2NyaXB0aW9uOiBlcnJvci5tZXNzYWdlLCB2YXJpYW50OiBcImRlc3RydWN0aXZlXCIgfSk7XG4gICAgICByZXR1cm47XG4gICAgfVxuXG4gICAgc2V0VHJhbnNhY3Rpb25zKCgoZGF0YSB8fCBbXSkgYXMgVHJhbnNha3NpUm93W10pLm1hcCgodHJhbnNhY3Rpb24pID0+ICh7XG4gICAgICAuLi50cmFuc2FjdGlvbixcbiAgICAgIG5hbWFfcGVsYW5nZ2FuOiBnZXRDYWNoZWRDdXN0b21lcih0cmFuc2FjdGlvbiksXG4gICAgfSkpKTtcbiAgfTtcblxuICBjb25zdCBmaWx0ZXJlZEludm9pY2VzID0gdXNlTWVtbygoKSA9PiB7XG4gICAgY29uc3QgcXVlcnkgPSBzZWFyY2gudG9Mb3dlckNhc2UoKS50cmltKCk7XG5cbiAgICByZXR1cm4gdHJhbnNhY3Rpb25zXG4gICAgICAuZmlsdGVyKCh0cmFuc2FjdGlvbikgPT4gW1wibHVuYXNcIiwgXCJzZWxlc2FpXCIsIFwic3Vrc2VzXCJdLmluY2x1ZGVzKCh0cmFuc2FjdGlvbi5zdGF0dXMgfHwgXCJcIikudG9Mb3dlckNhc2UoKSkpXG4gICAgICAuZmlsdGVyKCh0cmFuc2FjdGlvbikgPT4ge1xuICAgICAgICBjb25zdCB0YXJnZXQgPSBgJHt0cmFuc2FjdGlvbi5ub21vcl9pbnZvaWNlfSAke3RyYW5zYWN0aW9uLm5hbWFfcGVsYW5nZ2FuIHx8IFwiXCJ9YC50b0xvd2VyQ2FzZSgpO1xuICAgICAgICByZXR1cm4gIXF1ZXJ5IHx8IHRhcmdldC5pbmNsdWRlcyhxdWVyeSk7XG4gICAgICB9KVxuICAgICAgLmZpbHRlcigodHJhbnNhY3Rpb24pID0+IHtcbiAgICAgICAgY29uc3QgZGF0ZSA9IG5vcm1hbGl6ZURhdGUodHJhbnNhY3Rpb24uY3JlYXRlZF9hdCk7XG4gICAgICAgIGlmIChzdGFydERhdGUgJiYgZGF0ZSA8IHN0YXJ0RGF0ZSkgcmV0dXJuIGZhbHNlO1xuICAgICAgICBpZiAoZW5kRGF0ZSAmJiBkYXRlID4gZW5kRGF0ZSkgcmV0dXJuIGZhbHNlO1xuICAgICAgICByZXR1cm4gdHJ1ZTtcbiAgICAgIH0pO1xuICB9LCBbdHJhbnNhY3Rpb25zLCBzZWFyY2gsIHN0YXJ0RGF0ZSwgZW5kRGF0ZV0pO1xuXG4gIGNvbnN0IGZpbHRlcmVkRGVsaXZlcnkgPSB1c2VNZW1vKCgpID0+IHtcbiAgICBjb25zdCBxdWVyeSA9IHNlYXJjaC50b0xvd2VyQ2FzZSgpLnRyaW0oKTtcblxuICAgIHJldHVybiBkZWxpdmVyeUFyY2hpdmVcbiAgICAgIC5tYXAoKGRlbGl2ZXJ5KSA9PiAoe1xuICAgICAgICAuLi5kZWxpdmVyeSxcbiAgICAgICAgdHJhbnNhY3Rpb246IHRyYW5zYWN0aW9ucy5maW5kKCh0cmFuc2FjdGlvbikgPT4gdHJhbnNhY3Rpb24uaWQgPT09IGRlbGl2ZXJ5LnRyYW5zYWtzaV9pZCksXG4gICAgICB9KSlcbiAgICAgIC5maWx0ZXIoKGRlbGl2ZXJ5KSA9PiB7XG4gICAgICAgIGNvbnN0IHRhcmdldCA9IGAke2RlbGl2ZXJ5Lm5vbW9yX2ludm9pY2V9ICR7ZGVsaXZlcnkudHJhbnNhY3Rpb24/Lm5hbWFfcGVsYW5nZ2FuIHx8IFwiXCJ9ICR7ZGVsaXZlcnkubG9rYXNpX3Byb3lla31gLnRvTG93ZXJDYXNlKCk7XG4gICAgICAgIHJldHVybiAhcXVlcnkgfHwgdGFyZ2V0LmluY2x1ZGVzKHF1ZXJ5KTtcbiAgICAgIH0pXG4gICAgICAuZmlsdGVyKChkZWxpdmVyeSkgPT4ge1xuICAgICAgICBjb25zdCBkYXRlID0gbm9ybWFsaXplRGF0ZShkZWxpdmVyeS50YW5nZ2FsX3BlbmdpcmltYW4pO1xuICAgICAgICBpZiAoc3RhcnREYXRlICYmIGRhdGUgPCBzdGFydERhdGUpIHJldHVybiBmYWxzZTtcbiAgICAgICAgaWYgKGVuZERhdGUgJiYgZGF0ZSA+IGVuZERhdGUpIHJldHVybiBmYWxzZTtcbiAgICAgICAgcmV0dXJuIHRydWU7XG4gICAgICB9KTtcbiAgfSwgW2RlbGl2ZXJ5QXJjaGl2ZSwgdHJhbnNhY3Rpb25zLCBzZWFyY2gsIHN0YXJ0RGF0ZSwgZW5kRGF0ZV0pO1xuXG4gIGNvbnN0IGdldEludm9pY2VEZXRhaWwgPSBhc3luYyAodHJhbnNhY3Rpb246IFRyYW5zYWtzaVJvdykgPT4ge1xuICAgIGNvbnN0IHsgZGF0YSwgZXJyb3IgfSA9IGF3YWl0IHN1cGFiYXNlXG4gICAgICAuZnJvbShcImRldGFpbF90cmFuc2Frc2lcIilcbiAgICAgIC5zZWxlY3QoXCIqLCBiYXJhbmc6YmFyYW5nX2lkKGlkLG5hbWFfYmFyYW5nLGthdGVnb3JpLGhhcmdhX2p1YWwpXCIpXG4gICAgICAuZXEoXCJ0cmFuc2Frc2lfaWRcIiwgdHJhbnNhY3Rpb24uaWQpO1xuXG4gICAgaWYgKGVycm9yKSB7XG4gICAgICB0b2FzdCh7IHRpdGxlOiBcIkdhZ2FsIG1lbXVhdCBkZXRhaWxcIiwgZGVzY3JpcHRpb246IGVycm9yLm1lc3NhZ2UsIHZhcmlhbnQ6IFwiZGVzdHJ1Y3RpdmVcIiB9KTtcbiAgICAgIHJldHVybiBudWxsO1xuICAgIH1cblxuICAgIGNvbnN0IGl0ZW1zID0gKChkYXRhIHx8IFtdKSBhcyBhbnlbXSkubWFwKChkZXRhaWwpID0+ICh7XG4gICAgICBiYXJhbmdfaWQ6IGRldGFpbC5iYXJhbmdfaWQsXG4gICAgICBuYW1hX2JhcmFuZzogZGV0YWlsLmJhcmFuZz8ubmFtYV9iYXJhbmcgfHwgXCJCYXJhbmdcIixcbiAgICAgIGthdGVnb3JpOiBkZXRhaWwuYmFyYW5nPy5rYXRlZ29yaSB8fCBcIi1cIixcbiAgICAgIHVrdXJhbjogZGV0YWlsLnVrdXJhbiB8fCBkZXRhaWwuYmFyYW5nPy5rYXRlZ29yaSB8fCBcIi1cIixcbiAgICAgIGp1bWxhaDogZGV0YWlsLmp1bWxhaCB8fCAwLFxuICAgICAgaGFyZ2E6IGRldGFpbC5oYXJnYSB8fCAwLFxuICAgICAgc3VidG90YWw6IChkZXRhaWwuanVtbGFoIHx8IDApICogKGRldGFpbC5oYXJnYSB8fCAwKSxcbiAgICB9KSk7XG5cbiAgICByZXR1cm4geyAuLi50cmFuc2FjdGlvbiwgbmFtYV9wZWxhbmdnYW46IGdldENhY2hlZEN1c3RvbWVyKHRyYW5zYWN0aW9uKSwgaXRlbXMgfTtcbiAgfTtcblxuICBjb25zdCBwcmludEludm9pY2UgPSBhc3luYyAodHJhbnNhY3Rpb246IFRyYW5zYWtzaVJvdykgPT4ge1xuICAgIGNvbnN0IGRldGFpbCA9IGF3YWl0IGdldEludm9pY2VEZXRhaWwodHJhbnNhY3Rpb24pO1xuICAgIGlmICghZGV0YWlsKSByZXR1cm47XG5cbiAgICBzZXRTZWxlY3RlZEludm9pY2UoZGV0YWlsKTtcbiAgICBzZXRTZWxlY3RlZERlbGl2ZXJ5KG51bGwpO1xuICAgIHNldFByaW50TW9kZShcImludm9pY2VcIik7XG4gICAgd2luZG93LnNldFRpbWVvdXQoKCkgPT4gd2luZG93LnByaW50KCksIDE1MCk7XG4gIH07XG5cbiAgY29uc3QgcHJpbnREZWxpdmVyeSA9IGFzeW5jIChkZWxpdmVyeTogRGVsaXZlcnlOb3RlTWV0YSAmIHsgdHJhbnNhY3Rpb24/OiBUcmFuc2Frc2lSb3cgfSkgPT4ge1xuICAgIGNvbnN0IHRyYW5zYWN0aW9uID0gZGVsaXZlcnkudHJhbnNhY3Rpb24gfHwgdHJhbnNhY3Rpb25zLmZpbmQoKGl0ZW0pID0+IGl0ZW0uaWQgPT09IGRlbGl2ZXJ5LnRyYW5zYWtzaV9pZCk7XG4gICAgaWYgKCF0cmFuc2FjdGlvbikge1xuICAgICAgdG9hc3QoeyB0aXRsZTogXCJJbnZvaWNlIHRpZGFrIGRpdGVtdWthblwiLCBkZXNjcmlwdGlvbjogXCJEYXRhIHRyYW5zYWtzaSBhc2FsIHN1cmF0IGphbGFuIGluaSBiZWx1bSB0ZXJzZWRpYS5cIiwgdmFyaWFudDogXCJkZXN0cnVjdGl2ZVwiIH0pO1xuICAgICAgcmV0dXJuO1xuICAgIH1cblxuICAgIGNvbnN0IGRldGFpbCA9IGF3YWl0IGdldEludm9pY2VEZXRhaWwodHJhbnNhY3Rpb24pO1xuICAgIGlmICghZGV0YWlsKSByZXR1cm47XG5cbiAgICBzZXRTZWxlY3RlZEludm9pY2UoZGV0YWlsKTtcbiAgICBzZXRTZWxlY3RlZERlbGl2ZXJ5KGRlbGl2ZXJ5KTtcbiAgICBzZXRQcmludE1vZGUoXCJkZWxpdmVyeVwiKTtcbiAgICB3aW5kb3cuc2V0VGltZW91dCgoKSA9PiB3aW5kb3cucHJpbnQoKSwgMTUwKTtcbiAgfTtcblxuICBjb25zdCByZXNldEZpbHRlcnMgPSAoKSA9PiB7XG4gICAgc2V0U2VhcmNoKFwiXCIpO1xuICAgIHNldFN0YXJ0RGF0ZShcIlwiKTtcbiAgICBzZXRFbmREYXRlKFwiXCIpO1xuICB9O1xuXG4gIHJldHVybiAoXG4gICAgPERhc2hib2FyZExheW91dD5cbiAgICAgIDxkaXYgY2xhc3NOYW1lPVwibm8tcHJpbnQgbXgtYXV0byBtYXgtdy03eGwgc3BhY2UteS02XCI+XG4gICAgICAgIDxkaXY+XG4gICAgICAgICAgPGgxIGNsYXNzTmFtZT1cImZvbnQtaGVhZGluZyB0ZXh0LTJ4bCBmb250LWJvbGQgdGV4dC1mb3JlZ3JvdW5kXCI+RG9rdW1lbnRhc2k8L2gxPlxuICAgICAgICAgIDxwIGNsYXNzTmFtZT1cInRleHQtc20gdGV4dC1tdXRlZC1mb3JlZ3JvdW5kXCI+QXJzaXAgTm90YS9JbnZvaWNlIGRhbiBTdXJhdCBKYWxhbiBGYXptYSBTdG9uZS48L3A+XG4gICAgICAgIDwvZGl2PlxuXG4gICAgICAgIDxkaXYgY2xhc3NOYW1lPVwiZ2xhc3MtY2FyZCByb3VuZGVkLWxnIHAtNVwiPlxuICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwibWItNCBmbGV4IGl0ZW1zLWNlbnRlciBnYXAtMlwiPlxuICAgICAgICAgICAgPFNlYXJjaCBjbGFzc05hbWU9XCJoLTUgdy01IHRleHQtcHJpbWFyeVwiIC8+XG4gICAgICAgICAgICA8aDIgY2xhc3NOYW1lPVwiZm9udC1oZWFkaW5nIHRleHQtbGcgZm9udC1zZW1pYm9sZFwiPlBlbmNhcmlhbiAmIEZpbHRlcjwvaDI+XG4gICAgICAgICAgPC9kaXY+XG4gICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJncmlkIGdhcC00IG1kOmdyaWQtY29scy00XCI+XG4gICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cInNwYWNlLXktMiBtZDpjb2wtc3Bhbi0yXCI+XG4gICAgICAgICAgICAgIDxMYWJlbD5DYXJpIE5vbW9yIEludm9pY2UgLyBOYW1hIFBlbGFuZ2dhbjwvTGFiZWw+XG4gICAgICAgICAgICAgIDxJbnB1dCB2YWx1ZT17c2VhcmNofSBvbkNoYW5nZT17KGUpID0+IHNldFNlYXJjaChlLnRhcmdldC52YWx1ZSl9IHBsYWNlaG9sZGVyPVwiQ29udG9oOiBGWi8wNTI2IGF0YXUgbmFtYSBwZWxhbmdnYW5cIiAvPlxuICAgICAgICAgICAgPC9kaXY+XG4gICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cInNwYWNlLXktMlwiPlxuICAgICAgICAgICAgICA8TGFiZWw+RGFyaSBUYW5nZ2FsPC9MYWJlbD5cbiAgICAgICAgICAgICAgPElucHV0IHR5cGU9XCJkYXRlXCIgdmFsdWU9e3N0YXJ0RGF0ZX0gb25DaGFuZ2U9eyhlKSA9PiBzZXRTdGFydERhdGUoZS50YXJnZXQudmFsdWUpfSAvPlxuICAgICAgICAgICAgPC9kaXY+XG4gICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cInNwYWNlLXktMlwiPlxuICAgICAgICAgICAgICA8TGFiZWw+U2FtcGFpIFRhbmdnYWw8L0xhYmVsPlxuICAgICAgICAgICAgICA8SW5wdXQgdHlwZT1cImRhdGVcIiB2YWx1ZT17ZW5kRGF0ZX0gb25DaGFuZ2U9eyhlKSA9PiBzZXRFbmREYXRlKGUudGFyZ2V0LnZhbHVlKX0gLz5cbiAgICAgICAgICAgIDwvZGl2PlxuICAgICAgICAgIDwvZGl2PlxuICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwibXQtNCBmbGV4IGp1c3RpZnktZW5kXCI+XG4gICAgICAgICAgICA8QnV0dG9uIHZhcmlhbnQ9XCJvdXRsaW5lXCIgb25DbGljaz17cmVzZXRGaWx0ZXJzfT5SZXNldCBGaWx0ZXI8L0J1dHRvbj5cbiAgICAgICAgICA8L2Rpdj5cbiAgICAgICAgPC9kaXY+XG5cbiAgICAgICAgPFRhYnMgZGVmYXVsdFZhbHVlPVwiaW52b2ljZVwiIGNsYXNzTmFtZT1cInNwYWNlLXktNFwiPlxuICAgICAgICAgIDxUYWJzTGlzdCBjbGFzc05hbWU9XCJncmlkIGgtYXV0byB3LWZ1bGwgbWF4LXctbWQgZ3JpZC1jb2xzLTEgZ2FwLTEgc206Z3JpZC1jb2xzLTJcIj5cbiAgICAgICAgICAgIDxUYWJzVHJpZ2dlciB2YWx1ZT1cImludm9pY2VcIiBjbGFzc05hbWU9XCJ3aGl0ZXNwYWNlLW5vcm1hbFwiPlxuICAgICAgICAgICAgICA8RmlsZVRleHQgY2xhc3NOYW1lPVwibXItMiBoLTQgdy00XCIgLz4gQXJzaXAgTm90YS9JbnZvaWNlXG4gICAgICAgICAgICA8L1RhYnNUcmlnZ2VyPlxuICAgICAgICAgICAgPFRhYnNUcmlnZ2VyIHZhbHVlPVwic3VyYXQtamFsYW5cIiBjbGFzc05hbWU9XCJ3aGl0ZXNwYWNlLW5vcm1hbFwiPlxuICAgICAgICAgICAgICA8VHJ1Y2sgY2xhc3NOYW1lPVwibXItMiBoLTQgdy00XCIgLz4gQXJzaXAgU3VyYXQgSmFsYW5cbiAgICAgICAgICAgIDwvVGFic1RyaWdnZXI+XG4gICAgICAgICAgPC9UYWJzTGlzdD5cblxuICAgICAgICAgIDxUYWJzQ29udGVudCB2YWx1ZT1cImludm9pY2VcIiBjbGFzc05hbWU9XCJnbGFzcy1jYXJkIG92ZXJmbG93LWhpZGRlbiByb3VuZGVkLWxnXCI+XG4gICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cImZsZXggZmxleC1jb2wgZ2FwLTMgYm9yZGVyLWIgYm9yZGVyLWJvcmRlciBwLTUgc206ZmxleC1yb3cgc206aXRlbXMtY2VudGVyIHNtOmp1c3RpZnktYmV0d2VlblwiPlxuICAgICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cImZsZXggaXRlbXMtY2VudGVyIGdhcC0yXCI+XG4gICAgICAgICAgICAgICAgPEFyY2hpdmUgY2xhc3NOYW1lPVwiaC01IHctNSB0ZXh0LXByaW1hcnlcIiAvPlxuICAgICAgICAgICAgICAgIDxoMiBjbGFzc05hbWU9XCJmb250LWhlYWRpbmcgdGV4dC1sZyBmb250LXNlbWlib2xkXCI+QXJzaXAgTm90YS9JbnZvaWNlPC9oMj5cbiAgICAgICAgICAgICAgPC9kaXY+XG4gICAgICAgICAgICAgIDxCYWRnZSB2YXJpYW50PVwib3V0bGluZVwiIGNsYXNzTmFtZT1cImJvcmRlci1wcmltYXJ5LzIwIGJnLXByaW1hcnkvMTAgdGV4dC1wcmltYXJ5XCI+e2ZpbHRlcmVkSW52b2ljZXMubGVuZ3RofSBkb2t1bWVuPC9CYWRnZT5cbiAgICAgICAgICAgIDwvZGl2PlxuICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJvdmVyZmxvdy14LWF1dG9cIj5cbiAgICAgICAgICAgICAgPFRhYmxlIGNsYXNzTmFtZT1cIm1pbi13LVs3NjBweF1cIj5cbiAgICAgICAgICAgICAgICA8VGFibGVIZWFkZXI+XG4gICAgICAgICAgICAgICAgICA8VGFibGVSb3c+XG4gICAgICAgICAgICAgICAgICAgIDxUYWJsZUhlYWQ+Tm8uIEludm9pY2U8L1RhYmxlSGVhZD5cbiAgICAgICAgICAgICAgICAgICAgPFRhYmxlSGVhZD5OYW1hIFBlbGFuZ2dhbjwvVGFibGVIZWFkPlxuICAgICAgICAgICAgICAgICAgICA8VGFibGVIZWFkPlRhbmdnYWwgQ2V0YWs8L1RhYmxlSGVhZD5cbiAgICAgICAgICAgICAgICAgICAgPFRhYmxlSGVhZCBjbGFzc05hbWU9XCJ0ZXh0LXJpZ2h0XCI+VG90YWwgQmF5YXI8L1RhYmxlSGVhZD5cbiAgICAgICAgICAgICAgICAgICAgPFRhYmxlSGVhZCBjbGFzc05hbWU9XCJ0ZXh0LWNlbnRlclwiPlN0YXR1czwvVGFibGVIZWFkPlxuICAgICAgICAgICAgICAgICAgICA8VGFibGVIZWFkIGNsYXNzTmFtZT1cInRleHQtcmlnaHRcIj5Ba3NpPC9UYWJsZUhlYWQ+XG4gICAgICAgICAgICAgICAgICA8L1RhYmxlUm93PlxuICAgICAgICAgICAgICAgIDwvVGFibGVIZWFkZXI+XG4gICAgICAgICAgICAgICAgPFRhYmxlQm9keT5cbiAgICAgICAgICAgICAgICAgIHtmaWx0ZXJlZEludm9pY2VzLmxlbmd0aCA9PT0gMCA/IChcbiAgICAgICAgICAgICAgICAgICAgPFRhYmxlUm93PlxuICAgICAgICAgICAgICAgICAgICAgIDxUYWJsZUNlbGwgY29sU3Bhbj17Nn0gY2xhc3NOYW1lPVwiaC0yOCB0ZXh0LWNlbnRlciB0ZXh0LW11dGVkLWZvcmVncm91bmRcIj5UaWRhayBhZGEgYXJzaXAgaW52b2ljZSBzZXN1YWkgZmlsdGVyPC9UYWJsZUNlbGw+XG4gICAgICAgICAgICAgICAgICAgIDwvVGFibGVSb3c+XG4gICAgICAgICAgICAgICAgICApIDogKFxuICAgICAgICAgICAgICAgICAgICBmaWx0ZXJlZEludm9pY2VzLm1hcCgodHJhbnNhY3Rpb24pID0+IChcbiAgICAgICAgICAgICAgICAgICAgICA8VGFibGVSb3cga2V5PXt0cmFuc2FjdGlvbi5pZH0+XG4gICAgICAgICAgICAgICAgICAgICAgICA8VGFibGVDZWxsIGNsYXNzTmFtZT1cImZvbnQtbW9ubyBmb250LXNlbWlib2xkIHRleHQtcHJpbWFyeVwiPnt0cmFuc2FjdGlvbi5ub21vcl9pbnZvaWNlfTwvVGFibGVDZWxsPlxuICAgICAgICAgICAgICAgICAgICAgICAgPFRhYmxlQ2VsbD57dHJhbnNhY3Rpb24ubmFtYV9wZWxhbmdnYW4gfHwgXCItXCJ9PC9UYWJsZUNlbGw+XG4gICAgICAgICAgICAgICAgICAgICAgICA8VGFibGVDZWxsPntmb3JtYXREYXRlKHRyYW5zYWN0aW9uLmNyZWF0ZWRfYXQpfTwvVGFibGVDZWxsPlxuICAgICAgICAgICAgICAgICAgICAgICAgPFRhYmxlQ2VsbCBjbGFzc05hbWU9XCJ0ZXh0LXJpZ2h0IGZvbnQtc2VtaWJvbGRcIj57Zm9ybWF0Q3VycmVuY3kodHJhbnNhY3Rpb24udG90YWwpfTwvVGFibGVDZWxsPlxuICAgICAgICAgICAgICAgICAgICAgICAgPFRhYmxlQ2VsbCBjbGFzc05hbWU9XCJ0ZXh0LWNlbnRlclwiPlxuICAgICAgICAgICAgICAgICAgICAgICAgICA8QmFkZ2UgdmFyaWFudD1cIm91dGxpbmVcIiBjbGFzc05hbWU9XCJib3JkZXItcHJpbWFyeS8yMCBiZy1wcmltYXJ5LzEwIHRleHQtcHJpbWFyeVwiPnt0cmFuc2FjdGlvbi5zdGF0dXN9PC9CYWRnZT5cbiAgICAgICAgICAgICAgICAgICAgICAgIDwvVGFibGVDZWxsPlxuICAgICAgICAgICAgICAgICAgICAgICAgPFRhYmxlQ2VsbCBjbGFzc05hbWU9XCJ0ZXh0LXJpZ2h0XCI+XG4gICAgICAgICAgICAgICAgICAgICAgICAgIDxCdXR0b24gc2l6ZT1cInNtXCIgY2xhc3NOYW1lPVwid2hpdGVzcGFjZS1ub3JtYWxcIiBvbkNsaWNrPXsoKSA9PiBwcmludEludm9pY2UodHJhbnNhY3Rpb24pfT5cbiAgICAgICAgICAgICAgICAgICAgICAgICAgICA8UHJpbnRlciBjbGFzc05hbWU9XCJoLTQgdy00XCIgLz4gQ2V0YWsgVWxhbmcgTm90YVxuICAgICAgICAgICAgICAgICAgICAgICAgICA8L0J1dHRvbj5cbiAgICAgICAgICAgICAgICAgICAgICAgIDwvVGFibGVDZWxsPlxuICAgICAgICAgICAgICAgICAgICAgIDwvVGFibGVSb3c+XG4gICAgICAgICAgICAgICAgICAgICkpXG4gICAgICAgICAgICAgICAgICApfVxuICAgICAgICAgICAgICAgIDwvVGFibGVCb2R5PlxuICAgICAgICAgICAgICA8L1RhYmxlPlxuICAgICAgICAgICAgPC9kaXY+XG4gICAgICAgICAgPC9UYWJzQ29udGVudD5cblxuICAgICAgICAgIDxUYWJzQ29udGVudCB2YWx1ZT1cInN1cmF0LWphbGFuXCIgY2xhc3NOYW1lPVwiZ2xhc3MtY2FyZCBvdmVyZmxvdy1oaWRkZW4gcm91bmRlZC1sZ1wiPlxuICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJmbGV4IGZsZXgtY29sIGdhcC0zIGJvcmRlci1iIGJvcmRlci1ib3JkZXIgcC01IHNtOmZsZXgtcm93IHNtOml0ZW1zLWNlbnRlciBzbTpqdXN0aWZ5LWJldHdlZW5cIj5cbiAgICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJmbGV4IGl0ZW1zLWNlbnRlciBnYXAtMlwiPlxuICAgICAgICAgICAgICAgIDxDYWxlbmRhckRheXMgY2xhc3NOYW1lPVwiaC01IHctNSB0ZXh0LXByaW1hcnlcIiAvPlxuICAgICAgICAgICAgICAgIDxoMiBjbGFzc05hbWU9XCJmb250LWhlYWRpbmcgdGV4dC1sZyBmb250LXNlbWlib2xkXCI+QXJzaXAgU3VyYXQgSmFsYW48L2gyPlxuICAgICAgICAgICAgICA8L2Rpdj5cbiAgICAgICAgICAgICAgPEJhZGdlIHZhcmlhbnQ9XCJvdXRsaW5lXCIgY2xhc3NOYW1lPVwiYm9yZGVyLXByaW1hcnkvMjAgYmctcHJpbWFyeS8xMCB0ZXh0LXByaW1hcnlcIj57ZmlsdGVyZWREZWxpdmVyeS5sZW5ndGh9IGRva3VtZW48L0JhZGdlPlxuICAgICAgICAgICAgPC9kaXY+XG4gICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cIm92ZXJmbG93LXgtYXV0b1wiPlxuICAgICAgICAgICAgICA8VGFibGUgY2xhc3NOYW1lPVwibWluLXctWzc4MHB4XVwiPlxuICAgICAgICAgICAgICAgIDxUYWJsZUhlYWRlcj5cbiAgICAgICAgICAgICAgICAgIDxUYWJsZVJvdz5cbiAgICAgICAgICAgICAgICAgICAgPFRhYmxlSGVhZD5Oby4gU3VyYXQgSmFsYW48L1RhYmxlSGVhZD5cbiAgICAgICAgICAgICAgICAgICAgPFRhYmxlSGVhZD5Oby4gSW52b2ljZTwvVGFibGVIZWFkPlxuICAgICAgICAgICAgICAgICAgICA8VGFibGVIZWFkPkRyaXZlciAvIEtlbmRhcmFhbjwvVGFibGVIZWFkPlxuICAgICAgICAgICAgICAgICAgICA8VGFibGVIZWFkPkxva2FzaSBQcm95ZWs8L1RhYmxlSGVhZD5cbiAgICAgICAgICAgICAgICAgICAgPFRhYmxlSGVhZD5UYW5nZ2FsIEtpcmltPC9UYWJsZUhlYWQ+XG4gICAgICAgICAgICAgICAgICAgIDxUYWJsZUhlYWQgY2xhc3NOYW1lPVwidGV4dC1yaWdodFwiPkFrc2k8L1RhYmxlSGVhZD5cbiAgICAgICAgICAgICAgICAgIDwvVGFibGVSb3c+XG4gICAgICAgICAgICAgICAgPC9UYWJsZUhlYWRlcj5cbiAgICAgICAgICAgICAgICA8VGFibGVCb2R5PlxuICAgICAgICAgICAgICAgICAge2ZpbHRlcmVkRGVsaXZlcnkubGVuZ3RoID09PSAwID8gKFxuICAgICAgICAgICAgICAgICAgICA8VGFibGVSb3c+XG4gICAgICAgICAgICAgICAgICAgICAgPFRhYmxlQ2VsbCBjb2xTcGFuPXs2fSBjbGFzc05hbWU9XCJoLTI4IHRleHQtY2VudGVyIHRleHQtbXV0ZWQtZm9yZWdyb3VuZFwiPkJlbHVtIGFkYSBhcnNpcCBzdXJhdCBqYWxhbiBkaSBicm93c2VyIGluaTwvVGFibGVDZWxsPlxuICAgICAgICAgICAgICAgICAgICA8L1RhYmxlUm93PlxuICAgICAgICAgICAgICAgICAgKSA6IChcbiAgICAgICAgICAgICAgICAgICAgZmlsdGVyZWREZWxpdmVyeS5tYXAoKGRlbGl2ZXJ5KSA9PiAoXG4gICAgICAgICAgICAgICAgICAgICAgPFRhYmxlUm93IGtleT17YCR7ZGVsaXZlcnkudHJhbnNha3NpX2lkfS0ke2RlbGl2ZXJ5LmNyZWF0ZWRfYXR9YH0+XG4gICAgICAgICAgICAgICAgICAgICAgICA8VGFibGVDZWxsIGNsYXNzTmFtZT1cImZvbnQtbW9ubyBmb250LXNlbWlib2xkIHRleHQtcHJpbWFyeVwiPntnZW5lcmF0ZURlbGl2ZXJ5TnVtYmVyKGRlbGl2ZXJ5Lm5vbW9yX2ludm9pY2UpfTwvVGFibGVDZWxsPlxuICAgICAgICAgICAgICAgICAgICAgICAgPFRhYmxlQ2VsbCBjbGFzc05hbWU9XCJmb250LW1vbm9cIj57ZGVsaXZlcnkubm9tb3JfaW52b2ljZX08L1RhYmxlQ2VsbD5cbiAgICAgICAgICAgICAgICAgICAgICAgIDxUYWJsZUNlbGw+e2RlbGl2ZXJ5LmRyaXZlcn0gLyB7ZGVsaXZlcnkubm9fcG9saXNpfTwvVGFibGVDZWxsPlxuICAgICAgICAgICAgICAgICAgICAgICAgPFRhYmxlQ2VsbD57ZGVsaXZlcnkubG9rYXNpX3Byb3lla308L1RhYmxlQ2VsbD5cbiAgICAgICAgICAgICAgICAgICAgICAgIDxUYWJsZUNlbGw+e2Zvcm1hdERhdGUoZGVsaXZlcnkudGFuZ2dhbF9wZW5naXJpbWFuKX08L1RhYmxlQ2VsbD5cbiAgICAgICAgICAgICAgICAgICAgICAgIDxUYWJsZUNlbGwgY2xhc3NOYW1lPVwidGV4dC1yaWdodFwiPlxuICAgICAgICAgICAgICAgICAgICAgICAgICA8QnV0dG9uIHNpemU9XCJzbVwiIGNsYXNzTmFtZT1cIndoaXRlc3BhY2Utbm9ybWFsXCIgb25DbGljaz17KCkgPT4gcHJpbnREZWxpdmVyeShkZWxpdmVyeSl9PlxuICAgICAgICAgICAgICAgICAgICAgICAgICAgIDxQcmludGVyIGNsYXNzTmFtZT1cImgtNCB3LTRcIiAvPiBDZXRhayBVbGFuZyBTdXJhdCBKYWxhblxuICAgICAgICAgICAgICAgICAgICAgICAgICA8L0J1dHRvbj5cbiAgICAgICAgICAgICAgICAgICAgICAgIDwvVGFibGVDZWxsPlxuICAgICAgICAgICAgICAgICAgICAgIDwvVGFibGVSb3c+XG4gICAgICAgICAgICAgICAgICAgICkpXG4gICAgICAgICAgICAgICAgICApfVxuICAgICAgICAgICAgICAgIDwvVGFibGVCb2R5PlxuICAgICAgICAgICAgICA8L1RhYmxlPlxuICAgICAgICAgICAgPC9kaXY+XG4gICAgICAgICAgPC9UYWJzQ29udGVudD5cbiAgICAgICAgPC9UYWJzPlxuICAgICAgPC9kaXY+XG4gICAgICA8ZGl2IGNsYXNzTmFtZT1cInByaW50LWFyZWFcIj5cbiAgICAgICAge3ByaW50TW9kZSA9PT0gXCJpbnZvaWNlXCIgJiYgPFByaW50YWJsZUludm9pY2UgaW52b2ljZT17c2VsZWN0ZWRJbnZvaWNlfSAvPn1cbiAgICAgICAge3ByaW50TW9kZSA9PT0gXCJkZWxpdmVyeVwiICYmIDxQcmludGFibGVEZWxpdmVyeU5vdGUgaW52b2ljZT17c2VsZWN0ZWRJbnZvaWNlfSBkZWxpdmVyeT17c2VsZWN0ZWREZWxpdmVyeX0gLz59XG4gICAgICA8L2Rpdj5cbiAgICA8L0Rhc2hib2FyZExheW91dD5cbiAgKTtcbn1cblxuZnVuY3Rpb24gSW52b2ljZUl0ZW1UYWJsZSh7IGludm9pY2UsIHNob3dQcmljZSB9OiB7IGludm9pY2U6IEludm9pY2VEZXRhaWw7IHNob3dQcmljZT86IGJvb2xlYW4gfSkge1xuICByZXR1cm4gKFxuICAgIDx0YWJsZSBjbGFzc05hbWU9XCJwcmludC1hdm9pZC1icmVhayB3LWZ1bGwgYm9yZGVyLWNvbGxhcHNlIHRleHQtc21cIj5cbiAgICAgIDx0aGVhZD5cbiAgICAgICAgPHRyIGNsYXNzTmFtZT1cImJnLXByaW1hcnkgdGV4dC1wcmltYXJ5LWZvcmVncm91bmRcIj5cbiAgICAgICAgICA8dGggY2xhc3NOYW1lPVwiYm9yZGVyIGJvcmRlci1wcmltYXJ5IHAtMiB0ZXh0LWNlbnRlclwiPk5vPC90aD5cbiAgICAgICAgICA8dGggY2xhc3NOYW1lPVwiYm9yZGVyIGJvcmRlci1wcmltYXJ5IHAtMiB0ZXh0LWxlZnRcIj5OYW1hIEJhcmFuZzwvdGg+XG4gICAgICAgICAgPHRoIGNsYXNzTmFtZT1cImJvcmRlciBib3JkZXItcHJpbWFyeSBwLTIgdGV4dC1sZWZ0XCI+U3Blc2lmaWthc2kgVWt1cmFuPC90aD5cbiAgICAgICAgICA8dGggY2xhc3NOYW1lPVwiYm9yZGVyIGJvcmRlci1wcmltYXJ5IHAtMiB0ZXh0LWNlbnRlclwiPlF0eTwvdGg+XG4gICAgICAgICAge3Nob3dQcmljZSAmJiA8dGggY2xhc3NOYW1lPVwiYm9yZGVyIGJvcmRlci1wcmltYXJ5IHAtMiB0ZXh0LXJpZ2h0XCI+SGFyZ2E8L3RoPn1cbiAgICAgICAgICB7c2hvd1ByaWNlICYmIDx0aCBjbGFzc05hbWU9XCJib3JkZXIgYm9yZGVyLXByaW1hcnkgcC0yIHRleHQtcmlnaHRcIj5TdWJ0b3RhbDwvdGg+fVxuICAgICAgICA8L3RyPlxuICAgICAgPC90aGVhZD5cbiAgICAgIDx0Ym9keT5cbiAgICAgICAge2ludm9pY2UuaXRlbXMubWFwKChpdGVtLCBpbmRleCkgPT4gKFxuICAgICAgICAgIDx0ciBrZXk9e2Ake2l0ZW0uYmFyYW5nX2lkfS0ke2luZGV4fWB9PlxuICAgICAgICAgICAgPHRkIGNsYXNzTmFtZT1cImJvcmRlciBwLTIgdGV4dC1jZW50ZXJcIj57aW5kZXggKyAxfTwvdGQ+XG4gICAgICAgICAgICA8dGQgY2xhc3NOYW1lPVwiYm9yZGVyIHAtMiBmb250LW1lZGl1bVwiPntpdGVtLm5hbWFfYmFyYW5nfTwvdGQ+XG4gICAgICAgICAgICA8dGQgY2xhc3NOYW1lPVwiYm9yZGVyIHAtMlwiPntpdGVtLnVrdXJhbiB8fCBpdGVtLmthdGVnb3JpfTwvdGQ+XG4gICAgICAgICAgICA8dGQgY2xhc3NOYW1lPVwiYm9yZGVyIHAtMiB0ZXh0LWNlbnRlclwiPntpdGVtLmp1bWxhaH08L3RkPlxuICAgICAgICAgICAge3Nob3dQcmljZSAmJiA8dGQgY2xhc3NOYW1lPVwiYm9yZGVyIHAtMiB0ZXh0LXJpZ2h0XCI+e2Zvcm1hdEN1cnJlbmN5KGl0ZW0uaGFyZ2EpfTwvdGQ+fVxuICAgICAgICAgICAge3Nob3dQcmljZSAmJiA8dGQgY2xhc3NOYW1lPVwiYm9yZGVyIHAtMiB0ZXh0LXJpZ2h0IGZvbnQtc2VtaWJvbGRcIj57Zm9ybWF0Q3VycmVuY3koaXRlbS5zdWJ0b3RhbCl9PC90ZD59XG4gICAgICAgICAgPC90cj5cbiAgICAgICAgKSl9XG4gICAgICA8L3Rib2R5PlxuICAgICAge3Nob3dQcmljZSAmJiAoXG4gICAgICAgIDx0Zm9vdD5cbiAgICAgICAgICA8dHI+XG4gICAgICAgICAgICA8dGQgY29sU3Bhbj17NX0gY2xhc3NOYW1lPVwiYm9yZGVyIHAtMiB0ZXh0LXJpZ2h0IGZvbnQtYm9sZFwiPlRvdGFsPC90ZD5cbiAgICAgICAgICAgIDx0ZCBjbGFzc05hbWU9XCJib3JkZXIgcC0yIHRleHQtcmlnaHQgZm9udC1ib2xkXCI+e2Zvcm1hdEN1cnJlbmN5KGludm9pY2UudG90YWwpfTwvdGQ+XG4gICAgICAgICAgPC90cj5cbiAgICAgICAgPC90Zm9vdD5cbiAgICAgICl9XG4gICAgPC90YWJsZT5cbiAgKTtcbn1cblxuZnVuY3Rpb24gUHJpbnRhYmxlSW52b2ljZSh7IGludm9pY2UgfTogeyBpbnZvaWNlOiBJbnZvaWNlRGV0YWlsIHwgbnVsbCB9KSB7XG4gIGlmICghaW52b2ljZSkgcmV0dXJuIG51bGw7XG5cbiAgcmV0dXJuIChcbiAgICA8c2VjdGlvbiBjbGFzc05hbWU9XCJwcmludC1zaGVldCBmb250LXNhbnMgdGV4dC1bMTJweF0gdGV4dC1ncmF5LTkwMFwiPlxuICAgICAgPGltZyBzcmM9e0xPR09fVVJMfSBhbHQ9XCJcIiBjbGFzc05hbWU9XCJwcmludC13YXRlcm1hcmtcIiAvPlxuICAgICAgPGRpdiBjbGFzc05hbWU9XCJwcmludC1jb250ZW50XCI+XG4gICAgICAgIDxkaXYgY2xhc3NOYW1lPVwiZmxleCBpdGVtcy1zdGFydCBqdXN0aWZ5LWJldHdlZW4gcHJpbnQtYXZvaWQtYnJlYWtcIj5cbiAgICAgICAgICA8ZGl2PlxuICAgICAgICAgICAgPGltZyBzcmM9e0xPR09fVVJMfSBhbHQ9XCJMb2dvIEZhem1hIFN0b25lXCIgY2xhc3NOYW1lPVwicHJpbnQtbG9nbyBtYi0zXCIgLz5cbiAgICAgICAgICAgIDxoMSBjbGFzc05hbWU9XCJ0ZXh0LTJ4bCBmb250LWJvbGQgdGV4dC1lbWVyYWxkLTgwMFwiPkZhem1hIEJhdHUgQWxhbTwvaDE+XG4gICAgICAgICAgICA8cCBjbGFzc05hbWU9XCJtdC0yIG1heC13LXNtIGxlYWRpbmctcmVsYXhlZFwiPlxuICAgICAgICAgICAgICBPZmZpY2U6IEpsLiBBbHRlcm5hdGlmIENpYnVidXIgLSBDaWxldW5nc2k8YnIgLz5cbiAgICAgICAgICAgICAgRmFjdG9yeTogRGVzYSBMZW5na29uZyBXZXRhbiBibG9rIEkgU2luZGFuZyBXYW5naSAtIE1hamFsZW5na2E8YnIgLz5cbiAgICAgICAgICAgICAgTW9iaWxlOiAwODEyMjExMzExNTBcbiAgICAgICAgICAgIDwvcD5cbiAgICAgICAgICA8L2Rpdj5cbiAgICAgICAgPC9kaXY+XG4gICAgICAgIDxoMiBjbGFzc05hbWU9XCJteS02IHRleHQtY2VudGVyIHRleHQtMnhsIGZvbnQtYm9sZCB0cmFja2luZy1bMC4yNWVtXSB0ZXh0LWVtZXJhbGQtODAwXCI+SU5WT0lDRTwvaDI+XG4gICAgICAgIDxkaXYgY2xhc3NOYW1lPVwibWItNSBmbGV4IGp1c3RpZnktYmV0d2VlbiBib3JkZXIteS0yIGJvcmRlci1lbWVyYWxkLTgwMCBweS0zIHByaW50LWF2b2lkLWJyZWFrXCI+XG4gICAgICAgICAgPGRpdj5cbiAgICAgICAgICAgIDxwIGNsYXNzTmFtZT1cImZvbnQtYm9sZCB1cHBlcmNhc2UgdGV4dC1lbWVyYWxkLTgwMFwiPkJpbGwgVG88L3A+XG4gICAgICAgICAgICA8cCBjbGFzc05hbWU9XCJ0ZXh0LWxnIGZvbnQtYm9sZCB1cHBlcmNhc2VcIj57aW52b2ljZS5uYW1hX3BlbGFuZ2dhbiB8fCBcIi1cIn08L3A+XG4gICAgICAgICAgPC9kaXY+XG4gICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJ0ZXh0LXJpZ2h0XCI+XG4gICAgICAgICAgICA8cD48c3Ryb25nPkludm9pY2UgTm86PC9zdHJvbmc+IHtpbnZvaWNlLm5vbW9yX2ludm9pY2V9PC9wPlxuICAgICAgICAgICAgPHA+PHN0cm9uZz5EYXRlOjwvc3Ryb25nPiB7Zm9ybWF0RGF0ZShpbnZvaWNlLmNyZWF0ZWRfYXQpfTwvcD5cbiAgICAgICAgICA8L2Rpdj5cbiAgICAgICAgPC9kaXY+XG4gICAgICAgIDxJbnZvaWNlSXRlbVRhYmxlIGludm9pY2U9e2ludm9pY2V9IHNob3dQcmljZSAvPlxuICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cIm10LTYgZmxleCBqdXN0aWZ5LWJldHdlZW4gcHJpbnQtYXZvaWQtYnJlYWtcIj5cbiAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cInJvdW5kZWQgYm9yZGVyIGJvcmRlci1lbWVyYWxkLTEwMCBiZy1lbWVyYWxkLTUwIHAtNCB0ZXh0LWVtZXJhbGQtOTAwXCI+XG4gICAgICAgICAgICA8cCBjbGFzc05hbWU9XCJmb250LWJvbGRcIj5QYXltZW50IEluc3RydWN0aW9uczwvcD5cbiAgICAgICAgICAgIDxwPkJDQTogNTY4MCA1MTg2IDQ3PC9wPlxuICAgICAgICAgICAgPHA+TWFuZGlyaTogOTAwMDAgMjM0MSAxMzE4PC9wPlxuICAgICAgICAgICAgPHA+QS9uIFppYSBVbGhhcTwvcD5cbiAgICAgICAgICA8L2Rpdj5cbiAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cInRleHQtY2VudGVyXCI+XG4gICAgICAgICAgICA8cD5UZXJpbWFrYXNpaDwvcD5cbiAgICAgICAgICAgIDxpbWcgc3JjPXtTSUdOQVRVUkVfVVJMfSBhbHQ9XCJUYW5kYSBUYW5nYW5cIiBjbGFzc05hbWU9XCJteC1hdXRvIG10LTIgdy0zNlwiIC8+XG4gICAgICAgICAgICA8cCBjbGFzc05hbWU9XCJib3JkZXItdCBib3JkZXItZ3JheS05MDAgcHgtMTAgcHQtMSBmb250LWJvbGRcIj4oIFppYSBVbGhhcSApPC9wPlxuICAgICAgICAgIDwvZGl2PlxuICAgICAgICA8L2Rpdj5cbiAgICAgIDwvZGl2PlxuICAgIDwvc2VjdGlvbj5cbiAgKTtcbn1cblxuZnVuY3Rpb24gUHJpbnRhYmxlRGVsaXZlcnlOb3RlKHsgaW52b2ljZSwgZGVsaXZlcnkgfTogeyBpbnZvaWNlOiBJbnZvaWNlRGV0YWlsIHwgbnVsbDsgZGVsaXZlcnk6IERlbGl2ZXJ5Tm90ZU1ldGEgfCBudWxsIH0pIHtcbiAgaWYgKCFpbnZvaWNlIHx8ICFkZWxpdmVyeSkgcmV0dXJuIG51bGw7XG5cbiAgcmV0dXJuIChcbiAgICA8c2VjdGlvbiBjbGFzc05hbWU9XCJwcmludC1zaGVldCBmb250LXNhbnMgdGV4dC1bMTJweF0gdGV4dC1ncmF5LTkwMFwiPlxuICAgICAgPGltZyBzcmM9e0xPR09fVVJMfSBhbHQ9XCJcIiBjbGFzc05hbWU9XCJwcmludC13YXRlcm1hcmtcIiAvPlxuICAgICAgPGRpdiBjbGFzc05hbWU9XCJwcmludC1jb250ZW50XCI+XG4gICAgICAgIDxkaXYgY2xhc3NOYW1lPVwiZmxleCBpdGVtcy1zdGFydCBqdXN0aWZ5LWJldHdlZW4gYm9yZGVyLWItMiBib3JkZXItZW1lcmFsZC04MDAgcGItNCBwcmludC1hdm9pZC1icmVha1wiPlxuICAgICAgICAgIDxkaXY+XG4gICAgICAgICAgICA8aW1nIHNyYz17TE9HT19VUkx9IGFsdD1cIkxvZ28gRmF6bWEgU3RvbmVcIiBjbGFzc05hbWU9XCJwcmludC1sb2dvIG1iLTNcIiAvPlxuICAgICAgICAgICAgPGgxIGNsYXNzTmFtZT1cInRleHQtMnhsIGZvbnQtYm9sZCB0ZXh0LWVtZXJhbGQtODAwXCI+RmF6bWEgQmF0dSBBbGFtPC9oMT5cbiAgICAgICAgICAgIDxwIGNsYXNzTmFtZT1cIm10LTIgbWF4LXctbWQgbGVhZGluZy1yZWxheGVkXCI+XG4gICAgICAgICAgICAgIE9mZmljZTogSmwuIEFsdGVybmF0aWYgQ2lidWJ1ciAtIENpbGV1bmdzaTxiciAvPlxuICAgICAgICAgICAgICBGYWN0b3J5OiBEZXNhIExlbmdrb25nIFdldGFuIGJsb2sgSSBTaW5kYW5nIFdhbmdpIC0gTWFqYWxlbmdrYTxiciAvPlxuICAgICAgICAgICAgICBNb2JpbGU6IDA4MTIyMTEzMTE1MFxuICAgICAgICAgICAgPC9wPlxuICAgICAgICAgIDwvZGl2PlxuICAgICAgICA8L2Rpdj5cbiAgICAgICAgPGgyIGNsYXNzTmFtZT1cIm15LTYgdGV4dC1jZW50ZXIgdGV4dC0yeGwgZm9udC1ib2xkIHRyYWNraW5nLVswLjJlbV0gdGV4dC1lbWVyYWxkLTgwMFwiPlNVUkFUIEpBTEFOPC9oMj5cbiAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJtYi01IGdyaWQgZ3JpZC1jb2xzLTIgZ2FwLTYgcHJpbnQtYXZvaWQtYnJlYWtcIj5cbiAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cInNwYWNlLXktMVwiPlxuICAgICAgICAgICAgPHA+PHN0cm9uZz5Oby4gU3VyYXQgSmFsYW46PC9zdHJvbmc+IHtnZW5lcmF0ZURlbGl2ZXJ5TnVtYmVyKGludm9pY2Uubm9tb3JfaW52b2ljZSl9PC9wPlxuICAgICAgICAgICAgPHA+PHN0cm9uZz5Oby4gSW52b2ljZTo8L3N0cm9uZz4ge2ludm9pY2Uubm9tb3JfaW52b2ljZX08L3A+XG4gICAgICAgICAgICA8cD48c3Ryb25nPlRhbmdnYWwgS2lyaW06PC9zdHJvbmc+IHtmb3JtYXREYXRlKGRlbGl2ZXJ5LnRhbmdnYWxfcGVuZ2lyaW1hbil9PC9wPlxuICAgICAgICAgIDwvZGl2PlxuICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwic3BhY2UteS0xXCI+XG4gICAgICAgICAgICA8cD48c3Ryb25nPkRyaXZlcjo8L3N0cm9uZz4ge2RlbGl2ZXJ5LmRyaXZlcn08L3A+XG4gICAgICAgICAgICA8cD48c3Ryb25nPk5vLiBQb2xpc2k6PC9zdHJvbmc+IHtkZWxpdmVyeS5ub19wb2xpc2l9PC9wPlxuICAgICAgICAgICAgPHA+PHN0cm9uZz5QZW5lcmltYSAvIExva2FzaTo8L3N0cm9uZz4ge2RlbGl2ZXJ5Lmxva2FzaV9wcm95ZWt9PC9wPlxuICAgICAgICAgIDwvZGl2PlxuICAgICAgICA8L2Rpdj5cbiAgICAgICAgPEludm9pY2VJdGVtVGFibGUgaW52b2ljZT17aW52b2ljZX0gLz5cbiAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJtdC0xMCBncmlkIGdyaWQtY29scy0zIGdhcC04IHRleHQtY2VudGVyIHByaW50LWF2b2lkLWJyZWFrXCI+XG4gICAgICAgICAgPGRpdj5cbiAgICAgICAgICAgIDxwPkRpc2lhcGthbiBPbGVoLDwvcD5cbiAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwibXQtMTYgYm9yZGVyLXQgYm9yZGVyLWdyYXktOTAwIHB0LTFcIj5BZG1pbiBGYXptYSBTdG9uZTwvZGl2PlxuICAgICAgICAgIDwvZGl2PlxuICAgICAgICAgIDxkaXY+XG4gICAgICAgICAgICA8cD5Ecml2ZXIsPC9wPlxuICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJtdC0xNiBib3JkZXItdCBib3JkZXItZ3JheS05MDAgcHQtMVwiPntkZWxpdmVyeS5kcml2ZXJ9PC9kaXY+XG4gICAgICAgICAgPC9kaXY+XG4gICAgICAgICAgPGRpdj5cbiAgICAgICAgICAgIDxwPlBlbmVyaW1hLDwvcD5cbiAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwibXQtMTYgYm9yZGVyLXQgYm9yZGVyLWdyYXktOTAwIHB0LTFcIj57ZGVsaXZlcnkubG9rYXNpX3Byb3lla308L2Rpdj5cbiAgICAgICAgICA8L2Rpdj5cbiAgICAgICAgPC9kaXY+XG4gICAgICAgIDxwIGNsYXNzTmFtZT1cIm10LTYgdGV4dC1bMTFweF0gdGV4dC1ncmF5LTYwMFwiPlxuICAgICAgICAgIENhdGF0YW46IFN1cmF0IGphbGFuIGluaSBoYW55YSBtZW11YXQgZGFmdGFyIGJhcmFuZyBkYW4ganVtbGFoIHBlbmdpcmltYW4uIE5vbWluYWwgaGFyZ2EgdGlkYWsgZGl0YW1waWxrYW4gcGFkYSBkb2t1bWVuIGxvZ2lzdGlrLlxuICAgICAgICA8L3A+XG4gICAgICA8L2Rpdj5cbiAgICA8L3NlY3Rpb24+XG4gICk7XG59XG4iXSwibmFtZXMiOlsidXNlRWZmZWN0IiwidXNlTWVtbyIsInVzZVN0YXRlIiwiRGFzaGJvYXJkTGF5b3V0Iiwic3VwYWJhc2UiLCJCdXR0b24iLCJJbnB1dCIsIkxhYmVsIiwiVGFicyIsIlRhYnNDb250ZW50IiwiVGFic0xpc3QiLCJUYWJzVHJpZ2dlciIsIlRhYmxlIiwiVGFibGVCb2R5IiwiVGFibGVDZWxsIiwiVGFibGVIZWFkIiwiVGFibGVIZWFkZXIiLCJUYWJsZVJvdyIsIkJhZGdlIiwidXNlVG9hc3QiLCJBcmNoaXZlIiwiQ2FsZW5kYXJEYXlzIiwiRmlsZVRleHQiLCJQcmludGVyIiwiU2VhcmNoIiwiVHJ1Y2siLCJMT0dPX1VSTCIsIlNJR05BVFVSRV9VUkwiLCJlbmNvZGVVUkkiLCJERUxJVkVSWV9TVE9SQUdFX0tFWSIsIkNVU1RPTUVSX1NUT1JBR0VfS0VZIiwiZm9ybWF0Q3VycmVuY3kiLCJ2YWx1ZSIsIkludGwiLCJOdW1iZXJGb3JtYXQiLCJzdHlsZSIsImN1cnJlbmN5IiwibWluaW11bUZyYWN0aW9uRGlnaXRzIiwiZm9ybWF0IiwiZm9ybWF0RGF0ZSIsImRhdGUiLCJEYXRlIiwidG9Mb2NhbGVEYXRlU3RyaW5nIiwiZGF5IiwibW9udGgiLCJ5ZWFyIiwiZ2VuZXJhdGVEZWxpdmVyeU51bWJlciIsImludm9pY2VOdW1iZXIiLCJyZXBsYWNlIiwicmVhZERlbGl2ZXJ5QXJjaGl2ZSIsIkpTT04iLCJwYXJzZSIsImxvY2FsU3RvcmFnZSIsImdldEl0ZW0iLCJub3JtYWxpemVEYXRlIiwidG9JU09TdHJpbmciLCJzbGljZSIsInJlYWRDdXN0b21lckNhY2hlIiwiZ2V0Q2FjaGVkQ3VzdG9tZXIiLCJ0cmFuc2FjdGlvbiIsIm5hbWFfcGVsYW5nZ2FuIiwidHJpbSIsImNhY2hlIiwiaWQiLCJub21vcl9pbnZvaWNlIiwiRG9rdW1lbnRhc2kiLCJ0b2FzdCIsInRyYW5zYWN0aW9ucyIsInNldFRyYW5zYWN0aW9ucyIsImRlbGl2ZXJ5QXJjaGl2ZSIsInNldERlbGl2ZXJ5QXJjaGl2ZSIsInNlYXJjaCIsInNldFNlYXJjaCIsInN0YXJ0RGF0ZSIsInNldFN0YXJ0RGF0ZSIsImVuZERhdGUiLCJzZXRFbmREYXRlIiwic2VsZWN0ZWRJbnZvaWNlIiwic2V0U2VsZWN0ZWRJbnZvaWNlIiwic2VsZWN0ZWREZWxpdmVyeSIsInNldFNlbGVjdGVkRGVsaXZlcnkiLCJwcmludE1vZGUiLCJzZXRQcmludE1vZGUiLCJsb2FkVHJhbnNhY3Rpb25zIiwiY2xlYXJQcmludFN0YXRlIiwid2luZG93IiwiYWRkRXZlbnRMaXN0ZW5lciIsInJlbW92ZUV2ZW50TGlzdGVuZXIiLCJkYXRhIiwiZXJyb3IiLCJmcm9tIiwic2VsZWN0Iiwib3JkZXIiLCJhc2NlbmRpbmciLCJ0aXRsZSIsImRlc2NyaXB0aW9uIiwibWVzc2FnZSIsInZhcmlhbnQiLCJtYXAiLCJmaWx0ZXJlZEludm9pY2VzIiwicXVlcnkiLCJ0b0xvd2VyQ2FzZSIsImZpbHRlciIsImluY2x1ZGVzIiwic3RhdHVzIiwidGFyZ2V0IiwiY3JlYXRlZF9hdCIsImZpbHRlcmVkRGVsaXZlcnkiLCJkZWxpdmVyeSIsImZpbmQiLCJ0cmFuc2Frc2lfaWQiLCJsb2thc2lfcHJveWVrIiwidGFuZ2dhbF9wZW5naXJpbWFuIiwiZ2V0SW52b2ljZURldGFpbCIsImVxIiwiaXRlbXMiLCJkZXRhaWwiLCJiYXJhbmdfaWQiLCJuYW1hX2JhcmFuZyIsImJhcmFuZyIsImthdGVnb3JpIiwidWt1cmFuIiwianVtbGFoIiwiaGFyZ2EiLCJzdWJ0b3RhbCIsInByaW50SW52b2ljZSIsInNldFRpbWVvdXQiLCJwcmludCIsInByaW50RGVsaXZlcnkiLCJpdGVtIiwicmVzZXRGaWx0ZXJzIiwiZGl2IiwiY2xhc3NOYW1lIiwiaDEiLCJwIiwiaDIiLCJvbkNoYW5nZSIsImUiLCJwbGFjZWhvbGRlciIsInR5cGUiLCJvbkNsaWNrIiwiZGVmYXVsdFZhbHVlIiwibGVuZ3RoIiwiY29sU3BhbiIsInRvdGFsIiwic2l6ZSIsImRyaXZlciIsIm5vX3BvbGlzaSIsIlByaW50YWJsZUludm9pY2UiLCJpbnZvaWNlIiwiUHJpbnRhYmxlRGVsaXZlcnlOb3RlIiwiSW52b2ljZUl0ZW1UYWJsZSIsInNob3dQcmljZSIsInRhYmxlIiwidGhlYWQiLCJ0ciIsInRoIiwidGJvZHkiLCJpbmRleCIsInRkIiwidGZvb3QiLCJzZWN0aW9uIiwiaW1nIiwic3JjIiwiYWx0IiwiYnIiLCJzdHJvbmciXSwibWFwcGluZ3MiOiI7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7OztBQUFBLFNBQVNBLFNBQVMsRUFBRUMsT0FBTyxFQUFFQyxRQUFRLFFBQVEsUUFBUTtBQUNyRCxTQUFTQyxlQUFlLFFBQVEsK0JBQStCO0FBQy9ELFNBQVNDLFFBQVEsUUFBUSxpQ0FBaUM7QUFDMUQsU0FBU0MsTUFBTSxRQUFRLHlCQUF5QjtBQUNoRCxTQUFTQyxLQUFLLFFBQVEsd0JBQXdCO0FBQzlDLFNBQVNDLEtBQUssUUFBUSx3QkFBd0I7QUFDOUMsU0FBU0MsSUFBSSxFQUFFQyxXQUFXLEVBQUVDLFFBQVEsRUFBRUMsV0FBVyxRQUFRLHVCQUF1QjtBQUNoRixTQUFTQyxLQUFLLEVBQUVDLFNBQVMsRUFBRUMsU0FBUyxFQUFFQyxTQUFTLEVBQUVDLFdBQVcsRUFBRUMsUUFBUSxRQUFRLHdCQUF3QjtB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
