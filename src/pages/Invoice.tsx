@@ -47,7 +47,7 @@ type TransaksiRow = {
   jumlah_bayar: number;
   metode_pembayaran: string;
   nama_pelanggan?: string;
-  items?: Pick<CartItem, "nama_barang" | "ukuran" | "jumlah">[];
+  items?: Pick<CartItem, "barang_id" | "nama_barang" | "kategori" | "ukuran" | "jumlah" | "harga" | "subtotal">[];
 };
 
 type InvoiceDetail = TransaksiRow & {
