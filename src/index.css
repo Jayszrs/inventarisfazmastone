@@ -216,12 +216,24 @@
     position: absolute !important;
     left: 50% !important;
     top: 50% !important;
-    width: 135mm !important;
+    width: 128mm !important;
     max-width: 70% !important;
     transform: translate(-50%, -50%) rotate(18deg) !important;
-    opacity: 0.06 !important;
+    opacity: 0.09 !important;
     pointer-events: none !important;
     z-index: 0 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .print-logo {
+    display: block !important;
+    width: 48mm !important;
+    max-width: 48mm !important;
+    height: auto !important;
+    object-fit: contain !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
 
   .print-content {

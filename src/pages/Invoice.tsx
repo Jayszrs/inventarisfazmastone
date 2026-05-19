@@ -11,8 +11,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { CalendarDays, CheckCircle2, ClipboardList, Clock, DollarSign, Eye, Maximize2, Package, PackagePlus, Pencil, Printer, Save, Send, Trash2, Truck } from "lucide-react";
+import LOGO_URL from "@/assets/logo-fazma.png";
 
-const LOGO_URL = encodeURI("/Logo Fazma Stone Hitam.png");
 const SIGNATURE_URL = encodeURI("/Signature.png");
 const DELIVERY_STORAGE_KEY = "fazma_delivery_notes";
 const CUSTOMER_STORAGE_KEY = "fazma_invoice_customers";
@@ -888,14 +888,14 @@ export default function Invoice() {
               <Input value={formatCurrency((Number(itemJumlah) || 0) * (Number(itemHarga) || 0))} readOnly />
             </div>
             <div className="flex items-end">
-              <Button type="button" onClick={addCartItem} className="w-full">
+              <Button type="button" onClick={addCartItem} className="w-full whitespace-normal">
                 <PackagePlus className="h-4 w-4" /> Tambah Item
               </Button>
             </div>
           </div>
 
-          <div className="mt-5 overflow-hidden rounded-lg border border-border">
-            <Table>
+          <div className="mt-5 overflow-x-auto rounded-lg border border-border">
+            <Table className="min-w-[760px]">
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-12 text-center">No</TableHead>
@@ -936,7 +936,7 @@ export default function Invoice() {
             <div className="space-y-2">
               <Label>Metode Pembayaran</Label>
               <Select value={form.metode_pembayaran} onValueChange={(value) => setForm({ ...form, metode_pembayaran: value })}>
-                <SelectTrigger className="w-56"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="w-full sm:w-56"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="cash">Cash / Tunai</SelectItem>
                   <SelectItem value="transfer">Transfer Bank</SelectItem>
@@ -948,7 +948,7 @@ export default function Invoice() {
                 <p className="text-xs uppercase text-muted-foreground">Grand Total</p>
                 <p className="font-heading text-2xl font-bold text-primary">{formatCurrency(grandTotal)}</p>
               </div>
-              <Button type="submit" disabled={loading || cart.length === 0} size="lg">
+              <Button type="submit" disabled={loading || cart.length === 0} size="lg" className="w-full sm:w-auto">
                 <Save className="h-4 w-4" /> {loading ? "Menyimpan..." : "Simpan Invoice"}
               </Button>
             </div>
@@ -979,7 +979,7 @@ export default function Invoice() {
             </div>
           </div>
           <div className="overflow-x-auto">
-            <Table>
+            <Table className="min-w-[980px]">
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-12 text-center">No</TableHead>
@@ -1057,9 +1057,9 @@ export default function Invoice() {
         </div>
 
         <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
-          <DialogContent className="max-h-[92vh] max-w-4xl overflow-y-auto bg-background p-0">
+          <DialogContent className="max-h-[92vh] w-[calc(100vw-1.5rem)] max-w-4xl overflow-y-auto bg-background p-0">
             <InvoicePreview invoice={selectedInvoice} />
-            <div className="no-print flex gap-3 border-t border-border bg-muted/40 p-5">
+            <div className="no-print flex flex-col gap-3 border-t border-border bg-muted/40 p-5 sm:flex-row">
               <Button className="flex-1" onClick={() => printCurrent("invoice")}>
                 <Printer className="h-4 w-4" /> Detail Invoice (Cetak Nota)
               </Button>
@@ -1069,7 +1069,7 @@ export default function Invoice() {
         </Dialog>
 
         <Dialog open={deliveryOpen} onOpenChange={setDeliveryOpen}>
-          <DialogContent className="max-w-xl bg-background">
+          <DialogContent className="max-h-[92vh] w-[calc(100vw-1.5rem)] max-w-xl overflow-y-auto bg-background">
             <DialogHeader>
               <DialogTitle className="font-heading">Buat/Cetak Surat Jalan</DialogTitle>
             </DialogHeader>
@@ -1092,7 +1092,7 @@ export default function Invoice() {
                   <Input type="date" value={deliveryForm.tanggal_pengiriman} onChange={(e) => setDeliveryForm({ ...deliveryForm, tanggal_pengiriman: e.target.value })} required />
                 </div>
               </div>
-              <div className="flex justify-end gap-3 pt-2">
+              <div className="flex flex-col justify-end gap-3 pt-2 sm:flex-row">
                 <Button type="button" variant="outline" onClick={() => setDeliveryOpen(false)}>Batal</Button>
                 <Button type="submit">
                   <Send className="h-4 w-4" /> Cetak Surat Jalan
@@ -1103,7 +1103,7 @@ export default function Invoice() {
         </Dialog>
 
         <Dialog open={editOpen} onOpenChange={setEditOpen}>
-          <DialogContent className="max-h-[92vh] max-w-5xl overflow-y-auto bg-background">
+          <DialogContent className="max-h-[92vh] w-[calc(100vw-1.5rem)] max-w-5xl overflow-y-auto bg-background">
             <DialogHeader>
               <DialogTitle className="font-heading">Edit Invoice</DialogTitle>
             </DialogHeader>
@@ -1181,14 +1181,14 @@ export default function Invoice() {
                   <Input value={formatCurrency((Number(editItemJumlah) || 0) * (Number(editItemHarga) || 0))} readOnly />
                 </div>
                 <div className="flex items-end">
-                  <Button type="button" onClick={addEditCartItem} className="w-full">
+                  <Button type="button" onClick={addEditCartItem} className="w-full whitespace-normal">
                     <PackagePlus className="h-4 w-4" /> Tambah
                   </Button>
                 </div>
               </div>
 
-              <div className="overflow-hidden rounded-lg border border-border">
-                <Table>
+              <div className="overflow-x-auto rounded-lg border border-border">
+                <Table className="min-w-[900px]">
                   <TableHeader>
                     <TableRow>
                       <TableHead className="w-12 text-center">No</TableHead>
@@ -1258,7 +1258,7 @@ export default function Invoice() {
                 <div className="space-y-2">
                   <Label>Metode Pembayaran</Label>
                   <Select value={editForm.metode_pembayaran} onValueChange={(value) => setEditForm({ ...editForm, metode_pembayaran: value })}>
-                    <SelectTrigger className="w-56"><SelectValue /></SelectTrigger>
+                    <SelectTrigger className="w-full sm:w-56"><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="cash">Cash / Tunai</SelectItem>
                       <SelectItem value="transfer">Transfer Bank</SelectItem>
@@ -1270,7 +1270,7 @@ export default function Invoice() {
                     <p className="text-xs uppercase text-muted-foreground">Grand Total</p>
                     <p className="font-heading text-2xl font-bold text-primary">{formatCurrency(editGrandTotal)}</p>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
                     <Button type="button" variant="outline" onClick={() => setEditOpen(false)}>Batal</Button>
                     <Button type="submit" disabled={loading || editCart.length === 0}>
                       <Save className="h-4 w-4" /> Simpan Perubahan
@@ -1425,6 +1425,7 @@ function PrintableInvoice({ invoice }: { invoice: InvoiceDetail | null }) {
       <div className="print-content">
         <div className="flex items-start justify-between print-avoid-break">
           <div>
+            <img src={LOGO_URL} alt="Logo Fazma Stone" className="print-logo mb-3" />
             <h1 className="text-2xl font-bold text-emerald-800">Fazma Batu Alam</h1>
             <p className="mt-2 max-w-sm leading-relaxed">
               Office: Jl. Alternatif Cibubur - Cileungsi<br />
@@ -1432,7 +1433,6 @@ function PrintableInvoice({ invoice }: { invoice: InvoiceDetail | null }) {
               Mobile: 081221131150
             </p>
           </div>
-          <img src={LOGO_URL} alt="Logo Fazma Stone" className="w-52" />
         </div>
         <h2 className="my-6 text-center text-2xl font-bold tracking-[0.25em] text-emerald-800">INVOICE</h2>
         <div className="mb-5 flex justify-between border-y-2 border-emerald-800 py-3 print-avoid-break">
@@ -1473,6 +1473,7 @@ function PrintableDeliveryNote({ invoice, delivery }: { invoice: InvoiceDetail |
       <div className="print-content">
         <div className="flex items-start justify-between border-b-2 border-emerald-800 pb-4 print-avoid-break">
           <div>
+            <img src={LOGO_URL} alt="Logo Fazma Stone" className="print-logo mb-3" />
             <h1 className="text-2xl font-bold text-emerald-800">Fazma Batu Alam</h1>
             <p className="mt-2 max-w-md leading-relaxed">
               Office: Jl. Alternatif Cibubur - Cileungsi<br />
@@ -1480,7 +1481,6 @@ function PrintableDeliveryNote({ invoice, delivery }: { invoice: InvoiceDetail |
               Mobile: 081221131150
             </p>
           </div>
-          <img src={LOGO_URL} alt="Logo Fazma Stone" className="w-52" />
         </div>
         <h2 className="my-6 text-center text-2xl font-bold tracking-[0.2em] text-emerald-800">SURAT JALAN</h2>
         <div className="mb-5 grid grid-cols-2 gap-6 print-avoid-break">

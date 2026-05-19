@@ -153,87 +153,26 @@ export default function Login() {
 
   const fieldClass =
     "h-[50px] rounded-none border-white/55 bg-transparent pl-12 text-[15px] text-white shadow-[inset_0_0_0_1px_rgba(255,255,255,0.06)] placeholder:text-slate-300/62 focus-visible:border-emerald-300 focus-visible:ring-1 focus-visible:ring-emerald-400";
-  const desktopFieldClass =
-    "h-[5.7vh] min-h-[42px] max-h-[50px] rounded-none border border-white/45 bg-[#030a07]/85 pl-12 text-[14px] text-white shadow-none placeholder:text-slate-300/70 focus-visible:border-emerald-300 focus-visible:ring-1 focus-visible:ring-emerald-400";
   const labelClass = "text-xs font-black uppercase tracking-[0.05em] text-white";
   const primaryButtonClass =
     "h-[50px] w-full rounded-none bg-gradient-to-r from-[#10b98a] via-[#10a57c] to-[#078761] text-sm font-black uppercase tracking-wide text-white shadow-[0_18px_45px_rgba(0,148,103,0.28)] transition-all hover:from-[#18c998] hover:to-[#0d946b]";
-  const desktopButtonClass =
-    "h-[5.7vh] min-h-[42px] max-h-[50px] w-full rounded-none bg-[#12b88a] text-[13px] font-black uppercase tracking-wide text-white shadow-none hover:bg-[#14c494]";
 
   return (
-    <main className="relative min-h-screen overflow-hidden bg-[#020806] text-white">
-      <img
-        src={LOGIN_REFERENCE_URL}
-        alt=""
-        className="absolute inset-0 hidden h-full w-full object-cover object-center lg:block"
-        aria-hidden="true"
-      />
+    <main className="min-h-screen overflow-hidden bg-[#020806] text-white lg:flex">
+      <section className="relative hidden min-h-screen overflow-hidden lg:block lg:w-[56%]">
+        <img
+          src={LOGIN_REFERENCE_URL}
+          alt=""
+          className="absolute inset-0 h-full w-full object-cover object-left"
+          aria-hidden="true"
+        />
+      </section>
 
-      <section className="relative z-10 hidden min-h-screen lg:block">
-        {mode === "login" ? (
-          <div className="absolute left-[62%] top-[17%] h-[72vh] w-[25.1vw] min-w-[360px] max-w-[460px]">
-            <a href="/" className="absolute left-0 top-0 h-8 w-48 text-transparent" aria-label="Kembali ke beranda">
-              Kembali ke beranda
-            </a>
+      <section className="relative hidden min-h-screen overflow-hidden bg-[#020806] lg:flex lg:w-[44%] lg:items-center lg:justify-center lg:px-12 xl:px-20">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_86%_93%,rgba(6,170,112,0.28),transparent_24%),radial-gradient(circle_at_20%_4%,rgba(255,255,255,0.07),transparent_18%)]" />
+        <div className="pointer-events-none absolute inset-y-0 left-0 w-px bg-white/12" />
 
-            <form onSubmit={handleLogin} className="absolute left-0 top-[31.6vh] w-full">
-              <div>
-                <Label htmlFor="desktop-login-identifier" className="sr-only">
-                  Email / Username
-                </Label>
-                <div className="relative">
-                  <Mail className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-200/85" />
-                  <Input
-                    id="desktop-login-identifier"
-                    type="text"
-                    value={identifier}
-                    onChange={(event) => setIdentifier(event.target.value)}
-                    placeholder="admin atau email@fazmastone.com"
-                    className={desktopFieldClass}
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="mt-[6.9vh]">
-                <Label htmlFor="desktop-login-password" className="sr-only">
-                  Password
-                </Label>
-                <div className="relative">
-                  <Lock className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-200/85" />
-                  <Input
-                    id="desktop-login-password"
-                    type="password"
-                    value={password}
-                    onChange={(event) => setPassword(event.target.value)}
-                    placeholder="Masukkan password"
-                    className={desktopFieldClass}
-                    required
-                    minLength={6}
-                  />
-                </div>
-                <div className="mt-[1.4vh] flex justify-end">
-                  <button type="button" onClick={() => setMode("reset")} className="text-[12px] font-bold text-[#13d190] hover:text-emerald-300">
-                    Lupa password?
-                  </button>
-                </div>
-              </div>
-
-              <Button type="submit" className={`${desktopButtonClass} mt-[2.9vh]`} disabled={loading}>
-                {loading ? "Memproses..." : "Masuk ke Dashboard"}
-              </Button>
-
-              <p className="mt-[2.9vh] text-center text-[14px] text-white/90">
-                Belum punya akun?{" "}
-                <button type="button" className="font-bold text-[#10d38f] hover:text-emerald-300" onClick={() => setMode("signup")}>
-                  Buat akun
-                </button>
-              </p>
-            </form>
-          </div>
-        ) : (
-          <div className="absolute left-[62%] top-[17%] w-[25.1vw] min-w-[360px] max-w-[460px] bg-[#020806]/92 py-8 backdrop-blur-sm">
+        <div className="relative z-10 w-full max-w-[458px]">
             <a href="/" className="mb-10 inline-flex items-center gap-2 text-sm font-semibold text-white/82 transition-colors hover:text-white">
               <ArrowLeft className="h-4 w-4" />
               Kembali ke beranda
@@ -244,10 +183,14 @@ export default function Login() {
               <span className="text-xs font-black uppercase tracking-[0.58em] text-[#20df9c]">Area Terbatas</span>
             </div>
             <h2 className="font-heading text-[38px] font-black tracking-normal text-white drop-shadow-[0_5px_0_rgba(255,255,255,0.1)]">
-              {mode === "signup" ? "Buat Akun" : "Reset Password"}
+              {mode === "signup" ? "Buat Akun" : mode === "reset" ? "Reset Password" : "Login Admin"}
             </h2>
             <p className="mt-4 max-w-[420px] text-base leading-8 text-white/88">
-              {mode === "signup" ? "Daftarkan akses baru untuk tim Fazma Stone." : "Masukkan username atau email untuk menerima instruksi reset."}
+              {mode === "signup"
+                ? "Daftarkan akses baru untuk tim Fazma Stone."
+                : mode === "reset"
+                  ? "Masukkan username atau email untuk menerima instruksi reset."
+                  : "Masuk untuk mengelola inventaris dan dashboard operasional."}
             </p>
 
             {mode === "reset" ? (
@@ -279,7 +222,7 @@ export default function Login() {
                   Kembali ke login
                 </button>
               </form>
-            ) : (
+            ) : mode === "signup" ? (
               <form onSubmit={handleSignUp} className="mt-10 space-y-6">
                 <div className="space-y-3">
                   <Label htmlFor="desktop-signup-name" className={labelClass}>
@@ -343,9 +286,63 @@ export default function Login() {
                   </button>
                 </p>
               </form>
+            ) : (
+              <form onSubmit={handleLogin} className="mt-10 space-y-6">
+                <div className="space-y-3">
+                  <Label htmlFor="desktop-login-identifier" className={labelClass}>
+                    Email / Username
+                  </Label>
+                  <div className="relative">
+                    <Mail className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-white/72" />
+                    <Input
+                      id="desktop-login-identifier"
+                      type="text"
+                      value={identifier}
+                      onChange={(event) => setIdentifier(event.target.value)}
+                      placeholder="admin atau email@fazmastone.com"
+                      className={fieldClass}
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <Label htmlFor="desktop-login-password" className={labelClass}>
+                    Password
+                  </Label>
+                  <div className="relative">
+                    <Lock className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-white/72" />
+                    <Input
+                      id="desktop-login-password"
+                      type="password"
+                      value={password}
+                      onChange={(event) => setPassword(event.target.value)}
+                      placeholder="Masukkan password"
+                      className={fieldClass}
+                      required
+                      minLength={6}
+                    />
+                  </div>
+                  <div className="flex justify-end">
+                    <button type="button" onClick={() => setMode("reset")} className="text-xs font-bold text-emerald-400 hover:text-emerald-300">
+                      Lupa password?
+                    </button>
+                  </div>
+                </div>
+
+                <Button type="submit" className={primaryButtonClass} disabled={loading}>
+                  {loading ? "Memproses..." : "Masuk ke Dashboard"}
+                </Button>
+
+                <p className="text-center text-sm text-white/52">
+                  Belum punya akun?{" "}
+                  <button type="button" className="font-bold text-emerald-400 hover:text-emerald-300" onClick={() => setMode("signup")}>
+                    Buat akun
+                  </button>
+                </p>
+              </form>
             )}
           </div>
-        )}
       </section>
 
       <section className="relative z-10 flex min-h-screen w-full items-center justify-start overflow-hidden bg-[#020806] px-6 py-20 lg:hidden">

@@ -9,8 +9,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { Archive, CalendarDays, FileText, Printer, Search, Truck } from "lucide-react";
+import LOGO_URL from "@/assets/logo-fazma.png";
 
-const LOGO_URL = encodeURI("/Logo Fazma Stone Hitam.png");
 const SIGNATURE_URL = encodeURI("/Signature.png");
 const DELIVERY_STORAGE_KEY = "fazma_delivery_notes";
 const CUSTOMER_STORAGE_KEY = "fazma_invoice_customers";
@@ -259,17 +259,17 @@ export default function Dokumentasi() {
         </div>
 
         <Tabs defaultValue="invoice" className="space-y-4">
-          <TabsList className="grid w-full max-w-md grid-cols-2">
-            <TabsTrigger value="invoice">
+          <TabsList className="grid h-auto w-full max-w-md grid-cols-1 gap-1 sm:grid-cols-2">
+            <TabsTrigger value="invoice" className="whitespace-normal">
               <FileText className="mr-2 h-4 w-4" /> Arsip Nota/Invoice
             </TabsTrigger>
-            <TabsTrigger value="surat-jalan">
+            <TabsTrigger value="surat-jalan" className="whitespace-normal">
               <Truck className="mr-2 h-4 w-4" /> Arsip Surat Jalan
             </TabsTrigger>
           </TabsList>
 
           <TabsContent value="invoice" className="glass-card overflow-hidden rounded-lg">
-            <div className="flex items-center justify-between border-b border-border p-5">
+            <div className="flex flex-col gap-3 border-b border-border p-5 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center gap-2">
                 <Archive className="h-5 w-5 text-primary" />
                 <h2 className="font-heading text-lg font-semibold">Arsip Nota/Invoice</h2>
@@ -277,7 +277,7 @@ export default function Dokumentasi() {
               <Badge variant="outline" className="border-primary/20 bg-primary/10 text-primary">{filteredInvoices.length} dokumen</Badge>
             </div>
             <div className="overflow-x-auto">
-              <Table>
+              <Table className="min-w-[760px]">
                 <TableHeader>
                   <TableRow>
                     <TableHead>No. Invoice</TableHead>
@@ -304,7 +304,7 @@ export default function Dokumentasi() {
                           <Badge variant="outline" className="border-primary/20 bg-primary/10 text-primary">{transaction.status}</Badge>
                         </TableCell>
                         <TableCell className="text-right">
-                          <Button size="sm" onClick={() => printInvoice(transaction)}>
+                          <Button size="sm" className="whitespace-normal" onClick={() => printInvoice(transaction)}>
                             <Printer className="h-4 w-4" /> Cetak Ulang Nota
                           </Button>
                         </TableCell>
@@ -317,7 +317,7 @@ export default function Dokumentasi() {
           </TabsContent>
 
           <TabsContent value="surat-jalan" className="glass-card overflow-hidden rounded-lg">
-            <div className="flex items-center justify-between border-b border-border p-5">
+            <div className="flex flex-col gap-3 border-b border-border p-5 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center gap-2">
                 <CalendarDays className="h-5 w-5 text-primary" />
                 <h2 className="font-heading text-lg font-semibold">Arsip Surat Jalan</h2>
@@ -325,7 +325,7 @@ export default function Dokumentasi() {
               <Badge variant="outline" className="border-primary/20 bg-primary/10 text-primary">{filteredDelivery.length} dokumen</Badge>
             </div>
             <div className="overflow-x-auto">
-              <Table>
+              <Table className="min-w-[780px]">
                 <TableHeader>
                   <TableRow>
                     <TableHead>No. Surat Jalan</TableHead>
@@ -350,7 +350,7 @@ export default function Dokumentasi() {
                         <TableCell>{delivery.lokasi_proyek}</TableCell>
                         <TableCell>{formatDate(delivery.tanggal_pengiriman)}</TableCell>
                         <TableCell className="text-right">
-                          <Button size="sm" onClick={() => printDelivery(delivery)}>
+                          <Button size="sm" className="whitespace-normal" onClick={() => printDelivery(delivery)}>
                             <Printer className="h-4 w-4" /> Cetak Ulang Surat Jalan
                           </Button>
                         </TableCell>
@@ -417,6 +417,7 @@ function PrintableInvoice({ invoice }: { invoice: InvoiceDetail | null }) {
       <div className="print-content">
         <div className="flex items-start justify-between print-avoid-break">
           <div>
+            <img src={LOGO_URL} alt="Logo Fazma Stone" className="print-logo mb-3" />
             <h1 className="text-2xl font-bold text-emerald-800">Fazma Batu Alam</h1>
             <p className="mt-2 max-w-sm leading-relaxed">
               Office: Jl. Alternatif Cibubur - Cileungsi<br />
@@ -424,7 +425,6 @@ function PrintableInvoice({ invoice }: { invoice: InvoiceDetail | null }) {
               Mobile: 081221131150
             </p>
           </div>
-          <img src={LOGO_URL} alt="Logo Fazma Stone" className="w-52" />
         </div>
         <h2 className="my-6 text-center text-2xl font-bold tracking-[0.25em] text-emerald-800">INVOICE</h2>
         <div className="mb-5 flex justify-between border-y-2 border-emerald-800 py-3 print-avoid-break">
@@ -465,6 +465,7 @@ function PrintableDeliveryNote({ invoice, delivery }: { invoice: InvoiceDetail |
       <div className="print-content">
         <div className="flex items-start justify-between border-b-2 border-emerald-800 pb-4 print-avoid-break">
           <div>
+            <img src={LOGO_URL} alt="Logo Fazma Stone" className="print-logo mb-3" />
             <h1 className="text-2xl font-bold text-emerald-800">Fazma Batu Alam</h1>
             <p className="mt-2 max-w-md leading-relaxed">
               Office: Jl. Alternatif Cibubur - Cileungsi<br />
@@ -472,7 +473,6 @@ function PrintableDeliveryNote({ invoice, delivery }: { invoice: InvoiceDetail |
               Mobile: 081221131150
             </p>
           </div>
-          <img src={LOGO_URL} alt="Logo Fazma Stone" className="w-52" />
         </div>
         <h2 className="my-6 text-center text-2xl font-bold tracking-[0.2em] text-emerald-800">SURAT JALAN</h2>
         <div className="mb-5 grid grid-cols-2 gap-6 print-avoid-break">
