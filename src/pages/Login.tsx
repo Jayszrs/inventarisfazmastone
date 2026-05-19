@@ -512,11 +512,8 @@ export default function Login() {
                 {loading ? "Memproses..." : "Masuk ke Dashboard"}
               </Button>
 
-              <p className="text-center text-sm text-white/52">
-                Belum punya akun?{" "}
-                <button type="button" className="font-bold text-emerald-400 hover:text-emerald-300" onClick={() => setMode("signup")}>
-                  Buat akun
-                </button>
+              <p className="text-center text-xs text-white/52">
+                Akun baru hanya dapat dibuat oleh admin melalui Role Management.
               </p>
             </form>
           )}
