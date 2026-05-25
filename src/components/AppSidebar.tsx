@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { AppRole, useAuth } from "@/contexts/AuthContext";
+import LOGO_URL from "@/assets/logo-fazma.png";
 import {
   Sidebar,
   SidebarContent,
@@ -26,8 +27,6 @@ const menuItems: Array<{ title: string; url: string; icon: typeof LayoutDashboar
   { title: "Dokumentasi", url: "/dokumentasi", icon: FolderOpen, roles: ["admin"] },
   { title: "Role Management", url: "/roles", icon: UserCog, roles: ["admin"] },
 ];
-
-const LOGO_URL = encodeURI("/Logo Fazma Stone Hitam.png");
 
 export function AppSidebar() {
   const { state } = useSidebar();

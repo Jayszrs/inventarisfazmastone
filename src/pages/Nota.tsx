@@ -6,10 +6,8 @@ import { Printer, Eye, CheckCircle2, Clock, AlertCircle } from "lucide-react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-
-// Menggunakan encodeURI untuk menangani spasi pada nama file di folder public
-const LOGO_URL = encodeURI("/Logo Fazma Stone Hitam.png"); 
-const SIGNATURE_URL = encodeURI("/Signature.png");
+import LOGO_URL from "@/assets/logo-fazma.png";
+import SIGNATURE_URL from "@/assets/signature.png";
 
 interface TransaksiDetail {
   id: string;
@@ -126,7 +124,7 @@ export default function Nota() {
           </style>
         </head>
         <body>
-            ${printRef.current.innerHTML.replace(/\/Logo/g, base + "/Logo").replace(/\/Signature/g, base + "/Signature")}
+            ${printRef.current.innerHTML.replace(/src="\//g, `src="${base}/`)}
         </body>
       </html>
     `);

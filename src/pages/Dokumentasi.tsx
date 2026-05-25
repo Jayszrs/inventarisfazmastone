@@ -10,8 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { Archive, CalendarDays, FileText, Printer, Search, Truck } from "lucide-react";
 import LOGO_URL from "@/assets/logo-fazma.png";
-
-const SIGNATURE_URL = encodeURI("/Signature.png");
+import SIGNATURE_URL from "@/assets/signature.png";
 const DELIVERY_STORAGE_KEY = "fazma_delivery_notes";
 const CUSTOMER_STORAGE_KEY = "fazma_invoice_customers";
 

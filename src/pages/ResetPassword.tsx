@@ -5,8 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-
-const LOGO_URL = encodeURI("/Logo Fazma Stone Hitam.png");
+import LOGO_URL from "@/assets/logo-fazma.png";
 
 export default function ResetPassword() {
   const [password, setPassword] = useState("");

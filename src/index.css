@@ -216,10 +216,10 @@
     position: absolute !important;
     left: 50% !important;
     top: 50% !important;
-    width: 128mm !important;
-    max-width: 70% !important;
-    transform: translate(-50%, -50%) rotate(18deg) !important;
-    opacity: 0.09 !important;
+    width: 120mm !important;
+    max-width: 68% !important;
+    transform: translate(-50%, -50%) !important;
+    opacity: 0.08 !important;
     pointer-events: none !important;
     z-index: 0 !important;
     -webkit-print-color-adjust: exact !important;
