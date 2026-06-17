@@ -202,6 +202,46 @@
   table-layout: fixed;
 }
 
+.invoice-table-priced .invoice-col-no {
+  width: 5%;
+}
+
+.invoice-table-priced .invoice-col-name {
+  width: 22%;
+}
+
+.invoice-table-priced .invoice-col-spec {
+  width: 21%;
+}
+
+.invoice-table-priced .invoice-col-qty {
+  width: 7%;
+}
+
+.invoice-table-priced .invoice-col-price {
+  width: 18%;
+}
+
+.invoice-table-priced .invoice-col-total {
+  width: 27%;
+}
+
+.invoice-table-delivery .invoice-col-no {
+  width: 8%;
+}
+
+.invoice-table-delivery .invoice-col-name {
+  width: 36%;
+}
+
+.invoice-table-delivery .invoice-col-spec {
+  width: 40%;
+}
+
+.invoice-table-delivery .invoice-col-qty {
+  width: 16%;
+}
+
 .print-sheet th,
 .print-sheet td {
   overflow-wrap: anywhere;
@@ -230,12 +270,42 @@
   }
 
   .print-sheet table {
-    font-size: 7px;
+    font-size: 6px;
+    line-height: 1.25;
   }
 
   .print-sheet th,
   .print-sheet td {
-    padding: 0.25rem;
+    padding: 0.18rem;
+  }
+
+  .invoice-item-table th,
+  .invoice-item-table td {
+    vertical-align: middle;
+  }
+
+  .invoice-table-priced .invoice-col-no {
+    width: 5%;
+  }
+
+  .invoice-table-priced .invoice-col-name {
+    width: 21%;
+  }
+
+  .invoice-table-priced .invoice-col-spec {
+    width: 19%;
+  }
+
+  .invoice-table-priced .invoice-col-qty {
+    width: 7%;
+  }
+
+  .invoice-table-priced .invoice-col-price {
+    width: 19%;
+  }
+
+  .invoice-table-priced .invoice-col-total {
+    width: 29%;
   }
 
   .print-sheet .w-36 {

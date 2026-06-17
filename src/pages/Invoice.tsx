@@ -230,13 +230,13 @@ const buildInvoiceImageFile = async (invoice: InvoiceDetail) => {
 
   const tableX = margin;
   let tableY = 394;
-  const colWidths = [48, 176, 178, 64, 122, 138];
-  const headers = ["No", "Nama Barang", "Spesifikasi Ukuran", "Qty", "Harga", "Subtotal"];
+  const colWidths = [34, 148, 144, 44, 118, 178];
+  const headers = ["No", "Nama Barang", "Spesifikasi", "Qty", "Harga", "Total"];
 
   context.fillStyle = "#13823a";
   context.fillRect(tableX, tableY, contentWidth, 28);
   context.fillStyle = "#ffffff";
-  context.font = "800 9px Manrope, Arial, sans-serif";
+  context.font = "800 8px Manrope, Arial, sans-serif";
   let cursorX = tableX;
   headers.forEach((header, index) => {
     const colWidth = colWidths[index];
@@ -251,7 +251,7 @@ const buildInvoiceImageFile = async (invoice: InvoiceDetail) => {
   context.strokeStyle = border;
   context.lineWidth = 1;
   context.fillStyle = text;
-  context.font = "600 9px Manrope, Arial, sans-serif";
+  context.font = "600 8px Manrope, Arial, sans-serif";
 
   invoice.items.forEach((item, index) => {
     const rowHeight = 42;
@@ -274,15 +274,15 @@ const buildInvoiceImageFile = async (invoice: InvoiceDetail) => {
     cursorX += colWidths[3];
     context.fillText(formatCurrency(item.harga), cursorX + colWidths[4] - 8, tableY + 24);
     cursorX += colWidths[4];
-    context.font = "800 9px Manrope, Arial, sans-serif";
+    context.font = "800 8px Manrope, Arial, sans-serif";
     context.fillText(formatCurrency(item.subtotal), cursorX + colWidths[5] - 8, tableY + 24);
-    context.font = "600 9px Manrope, Arial, sans-serif";
+    context.font = "600 8px Manrope, Arial, sans-serif";
     context.textAlign = "left";
     tableY += rowHeight;
   });
 
   context.strokeRect(tableX, tableY, contentWidth, 28);
-  context.font = "800 9px Manrope, Arial, sans-serif";
+  context.font = "800 8px Manrope, Arial, sans-serif";
   context.textAlign = "right";
   context.fillText("Total", tableX + colWidths.slice(0, 5).reduce((sum, value) => sum + value, 0) - 8, tableY + 18);
   context.fillText(formatCurrency(invoice.total), tableX + contentWidth - 8, tableY + 18);
@@ -1670,15 +1670,23 @@ function InvoicePreview({ invoice }: { invoice: InvoiceDetail | null }) {
 
 function InvoiceItemTable({ invoice, showPrice }: { invoice: InvoiceDetail; showPrice?: boolean }) {
   return (
-    <table className="print-avoid-break w-full border-collapse text-sm">
+    <table className={`invoice-item-table ${showPrice ? "invoice-table-priced" : "invoice-table-delivery"} print-avoid-break w-full border-collapse text-sm`}>
+      <colgroup>
+        <col className="invoice-col-no" />
+        <col className="invoice-col-name" />
+        <col className="invoice-col-spec" />
+        <col className="invoice-col-qty" />
+        {showPrice && <col className="invoice-col-price" />}
+        {showPrice && <col className="invoice-col-total" />}
+      </colgroup>
       <thead>
         <tr className="bg-primary text-primary-foreground">
           <th className="border border-primary p-2 text-center">No</th>
           <th className="border border-primary p-2 text-left">Nama Barang</th>
-          <th className="border border-primary p-2 text-left">Spesifikasi Ukuran</th>
+          <th className="border border-primary p-2 text-left">Spesifikasi</th>
           <th className="border border-primary p-2 text-center">Qty</th>
           {showPrice && <th className="border border-primary p-2 text-right">Harga</th>}
-          {showPrice && <th className="border border-primary p-2 text-right">Subtotal</th>}
+          {showPrice && <th className="border border-primary p-2 text-right">Total</th>}
         </tr>
       </thead>
       <tbody>
@@ -1688,8 +1696,8 @@ function InvoiceItemTable({ invoice, showPrice }: { invoice: InvoiceDetail; show
             <td className="border p-2 font-medium">{item.nama_barang}</td>
             <td className="border p-2">{item.ukuran || item.kategori}</td>
             <td className="border p-2 text-center">{item.jumlah}</td>
-            {showPrice && <td className="border p-2 text-right">{formatCurrency(item.harga)}</td>}
-            {showPrice && <td className="border p-2 text-right font-semibold">{formatCurrency(item.subtotal)}</td>}
+            {showPrice && <td className="border p-2 text-right tabular-nums whitespace-nowrap">{formatCurrency(item.harga)}</td>}
+            {showPrice && <td className="border p-2 text-right font-semibold tabular-nums whitespace-nowrap">{formatCurrency(item.subtotal)}</td>}
           </tr>
         ))}
       </tbody>
@@ -1697,7 +1705,7 @@ function InvoiceItemTable({ invoice, showPrice }: { invoice: InvoiceDetail; show
         <tfoot>
           <tr>
             <td colSpan={5} className="border p-2 text-right font-bold">Total</td>
-            <td className="border p-2 text-right font-bold">{formatCurrency(invoice.total)}</td>
+            <td className="border p-2 text-right font-bold tabular-nums whitespace-nowrap">{formatCurrency(invoice.total)}</td>
           </tr>
         </tfoot>
       )}
