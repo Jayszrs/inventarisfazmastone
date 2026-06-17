@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
-import { CalendarDays, CheckCircle2, ClipboardList, Clock, DollarSign, Eye, Maximize2, Package, PackagePlus, Pencil, Printer, Save, Send, Trash2, Truck } from "lucide-react";
+import { CalendarDays, CheckCircle2, ClipboardList, Clock, DollarSign, Eye, Maximize2, Package, PackagePlus, Pencil, Printer, Save, Send, Share2, Trash2, Truck } from "lucide-react";
 import LOGO_URL from "@/assets/logo-fazma.png";
 import SIGNATURE_URL from "@/assets/signature.png";
 const DELIVERY_STORAGE_KEY = "fazma_delivery_notes";
@@ -94,6 +94,242 @@ const formatDate = (date?: string) => {
 const formatDateInput = (date?: string) => {
   if (!date) return today();
   return new Date(date).toISOString().slice(0, 10);
+};
+
+const waitForNextFrame = () =>
+  new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+
+const preloadImage = (src: string) =>
+  new Promise<HTMLImageElement>((resolve, reject) => {
+    const image = new Image();
+    image.crossOrigin = "anonymous";
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error(`Gagal memuat gambar: ${src}`));
+    image.src = src;
+    if (image.complete && image.naturalWidth > 0) resolve(image);
+  });
+
+const preloadInvoiceAssets = async () => {
+  await Promise.allSettled([preloadImage(LOGO_URL), preloadImage(SIGNATURE_URL)]);
+};
+
+const drawWrappedText = (
+  context: CanvasRenderingContext2D,
+  text: string,
+  x: number,
+  y: number,
+  maxWidth: number,
+  lineHeight: number,
+  maxLines = 3,
+) => {
+  const words = text.split(/\s+/).filter(Boolean);
+  const lines: string[] = [];
+  let line = "";
+
+  words.forEach((word) => {
+    const nextLine = line ? `${line} ${word}` : word;
+    if (context.measureText(nextLine).width <= maxWidth) {
+      line = nextLine;
+      return;
+    }
+    if (line) lines.push(line);
+    line = word;
+  });
+
+  if (line) lines.push(line);
+
+  lines.slice(0, maxLines).forEach((lineText, index) => {
+    const isLastVisibleLine = index === maxLines - 1 && lines.length > maxLines;
+    context.fillText(isLastVisibleLine ? `${lineText.replace(/\.+$/, "")}...` : lineText, x, y + index * lineHeight);
+  });
+
+  return Math.min(lines.length, maxLines) * lineHeight;
+};
+
+const canvasToBlob = (canvas: HTMLCanvasElement) =>
+  new Promise<Blob>((resolve, reject) => {
+    canvas.toBlob((blob) => {
+      if (blob) resolve(blob);
+      else reject(new Error("Gagal membuat gambar invoice."));
+    }, "image/png", 0.95);
+  });
+
+const buildInvoiceImageFile = async (invoice: InvoiceDetail) => {
+  const [logo, signature] = await Promise.all([preloadImage(LOGO_URL), preloadImage(SIGNATURE_URL)]);
+  const canvas = document.createElement("canvas");
+  const scale = 2;
+  const width = 794;
+  const height = 1123;
+  canvas.width = width * scale;
+  canvas.height = height * scale;
+
+  const context = canvas.getContext("2d");
+  if (!context) throw new Error("Browser tidak mendukung pembuatan gambar invoice.");
+  context.scale(scale, scale);
+  context.fillStyle = "#ffffff";
+  context.fillRect(0, 0, width, height);
+
+  const green = "#166534";
+  const greenDark = "#065f46";
+  const text = "#111827";
+  const muted = "#4b5563";
+  const border = "#d1d5db";
+  const margin = 64;
+  const contentWidth = width - margin * 2;
+
+  context.save();
+  context.globalAlpha = 0.08;
+  const watermarkWidth = 430;
+  const watermarkHeight = watermarkWidth * (logo.naturalHeight / logo.naturalWidth);
+  context.drawImage(logo, (width - watermarkWidth) / 2, 410, watermarkWidth, watermarkHeight);
+  context.restore();
+
+  const logoWidth = 116;
+  context.drawImage(logo, margin + 14, 56, logoWidth, logoWidth * (logo.naturalHeight / logo.naturalWidth));
+
+  context.fillStyle = greenDark;
+  context.font = "700 18px Sora, Arial, sans-serif";
+  context.fillText("Fazma Batu Alam", margin, 176);
+  context.fillStyle = muted;
+  context.font = "500 9px Manrope, Arial, sans-serif";
+  context.fillText("Office: Jl. Alternatif Cibubur - Cileungsi", margin, 200);
+  context.fillText("Factory: Desa Lengkong Wetan blok I Sindang Wangi - Majalengka", margin, 216);
+  context.fillText("Mobile: 081221131150", margin, 232);
+
+  context.fillStyle = greenDark;
+  context.font = "800 22px Sora, Arial, sans-serif";
+  context.textAlign = "center";
+  context.fillText("I N V O I C E", width / 2, 278);
+  context.textAlign = "left";
+
+  context.strokeStyle = greenDark;
+  context.lineWidth = 2;
+  context.beginPath();
+  context.moveTo(margin, 306);
+  context.lineTo(width - margin, 306);
+  context.stroke();
+
+  context.fillStyle = greenDark;
+  context.font = "800 10px Manrope, Arial, sans-serif";
+  context.fillText("BILL TO", margin, 330);
+  context.fillStyle = text;
+  context.font = "800 13px Manrope, Arial, sans-serif";
+  context.fillText(invoice.nama_pelanggan || "-", margin, 352);
+
+  context.textAlign = "right";
+  context.font = "700 9px Manrope, Arial, sans-serif";
+  context.fillText(`Invoice No: ${invoice.nomor_invoice}`, width - margin, 330);
+  context.fillText(`Date: ${formatDate(invoice.created_at)}`, width - margin, 346);
+  context.textAlign = "left";
+
+  context.beginPath();
+  context.moveTo(margin, 376);
+  context.lineTo(width - margin, 376);
+  context.stroke();
+
+  const tableX = margin;
+  let tableY = 394;
+  const colWidths = [48, 176, 178, 64, 122, 138];
+  const headers = ["No", "Nama Barang", "Spesifikasi Ukuran", "Qty", "Harga", "Subtotal"];
+
+  context.fillStyle = "#13823a";
+  context.fillRect(tableX, tableY, contentWidth, 28);
+  context.fillStyle = "#ffffff";
+  context.font = "800 9px Manrope, Arial, sans-serif";
+  let cursorX = tableX;
+  headers.forEach((header, index) => {
+    const colWidth = colWidths[index];
+    context.textAlign = index >= 3 ? "right" : index === 0 ? "center" : "left";
+    const textX = index === 0 ? cursorX + colWidth / 2 : index >= 3 ? cursorX + colWidth - 8 : cursorX + 8;
+    context.fillText(header, textX, tableY + 18);
+    cursorX += colWidth;
+  });
+  context.textAlign = "left";
+  tableY += 28;
+
+  context.strokeStyle = border;
+  context.lineWidth = 1;
+  context.fillStyle = text;
+  context.font = "600 9px Manrope, Arial, sans-serif";
+
+  invoice.items.forEach((item, index) => {
+    const rowHeight = 42;
+    context.strokeRect(tableX, tableY, contentWidth, rowHeight);
+    cursorX = tableX;
+
+    context.textAlign = "center";
+    context.fillText(String(index + 1), cursorX + colWidths[0] / 2, tableY + 24);
+    cursorX += colWidths[0];
+
+    context.textAlign = "left";
+    drawWrappedText(context, item.nama_barang, cursorX + 8, tableY + 18, colWidths[1] - 16, 12, 2);
+    cursorX += colWidths[1];
+
+    drawWrappedText(context, item.ukuran || item.kategori || "-", cursorX + 8, tableY + 18, colWidths[2] - 16, 12, 2);
+    cursorX += colWidths[2];
+
+    context.textAlign = "right";
+    context.fillText(String(item.jumlah), cursorX + colWidths[3] - 8, tableY + 24);
+    cursorX += colWidths[3];
+    context.fillText(formatCurrency(item.harga), cursorX + colWidths[4] - 8, tableY + 24);
+    cursorX += colWidths[4];
+    context.font = "800 9px Manrope, Arial, sans-serif";
+    context.fillText(formatCurrency(item.subtotal), cursorX + colWidths[5] - 8, tableY + 24);
+    context.font = "600 9px Manrope, Arial, sans-serif";
+    context.textAlign = "left";
+    tableY += rowHeight;
+  });
+
+  context.strokeRect(tableX, tableY, contentWidth, 28);
+  context.font = "800 9px Manrope, Arial, sans-serif";
+  context.textAlign = "right";
+  context.fillText("Total", tableX + colWidths.slice(0, 5).reduce((sum, value) => sum + value, 0) - 8, tableY + 18);
+  context.fillText(formatCurrency(invoice.total), tableX + contentWidth - 8, tableY + 18);
+  context.textAlign = "left";
+
+  const footerY = Math.max(tableY + 68, 620);
+  context.fillStyle = "#ecfdf5";
+  context.strokeStyle = "#bbf7d0";
+  context.fillRect(margin, footerY, 146, 92);
+  context.strokeRect(margin, footerY, 146, 92);
+  context.fillStyle = green;
+  context.font = "800 9px Manrope, Arial, sans-serif";
+  context.fillText("Payment Instructions", margin + 14, footerY + 24);
+  context.font = "600 9px Manrope, Arial, sans-serif";
+  context.fillText("BCA: 5680 5186 47", margin + 14, footerY + 40);
+  context.fillText("Mandiri: 90000 2341 1318", margin + 14, footerY + 56);
+  context.fillText("A/n Zia Ulhaq", margin + 14, footerY + 72);
+
+  const signatureX = width - margin - 190;
+  context.fillStyle = text;
+  context.font = "600 9px Manrope, Arial, sans-serif";
+  context.textAlign = "center";
+  context.fillText("Terimakasih", signatureX + 95, footerY + 16);
+  const signatureWidth = 116;
+  context.drawImage(signature, signatureX + 37, footerY + 26, signatureWidth, signatureWidth * (signature.naturalHeight / signature.naturalWidth));
+  context.strokeStyle = text;
+  context.beginPath();
+  context.moveTo(signatureX + 26, footerY + 94);
+  context.lineTo(signatureX + 164, footerY + 94);
+  context.stroke();
+  context.font = "800 9px Manrope, Arial, sans-serif";
+  context.fillText("( Zia Ulhaq )", signatureX + 95, footerY + 110);
+  context.textAlign = "left";
+
+  const blob = await canvasToBlob(canvas);
+  const safeNumber = invoice.nomor_invoice.replace(/[^A-Za-z0-9-]/g, "-");
+  return new File([blob], `invoice-${safeNumber}.png`, { type: "image/png" });
+};
+
+const downloadFile = (file: File) => {
+  const url = URL.createObjectURL(file);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = file.name;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
 };
 
 const generateInvoiceNumber = () => {
