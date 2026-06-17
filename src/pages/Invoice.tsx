@@ -322,17 +322,6 @@ const buildInvoiceImageFile = async (invoice: InvoiceDetail) => {
   return new File([blob], `${safeNumber}.png`, { type: "image/png" });
 };
 
-const downloadFile = (file: File) => {
-  const url = URL.createObjectURL(file);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = file.name;
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  URL.revokeObjectURL(url);
-};
-
 const generateInvoiceNumber = () => {
   const date = new Date();
   const period = `${String(date.getMonth() + 1).padStart(2, "0")}${String(date.getFullYear()).slice(-2)}`;
@@ -1031,10 +1020,10 @@ export default function Invoice() {
         return;
       }
 
-      downloadFile(file);
       toast({
-        title: "PNG invoice sudah diunduh",
-        description: "Browser ini belum mendukung share gambar langsung. Kirim file PNG tersebut lewat WhatsApp.",
+        title: "Share WhatsApp tidak didukung di browser ini",
+        description: "Buka aplikasi dari HP memakai Chrome/Safari, lalu pilih WhatsApp dari menu share.",
+        variant: "destructive",
       });
     } catch (error) {
       toast({
