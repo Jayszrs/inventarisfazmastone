@@ -8,6 +8,7 @@ import Login from "./pages/Login";
 import ResetPassword from "./pages/ResetPassword";
 import Dashboard from "./pages/Dashboard";
 import Invoice from "./pages/Invoice";
+import Inventaris from "./pages/Inventaris";
 import Dokumentasi from "./pages/Dokumentasi";
 import RoleManagement from "./pages/RoleManagement";
 import NotFound from "./pages/NotFound";
@@ -48,6 +49,7 @@ const App = () => (
             <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+            <Route path="/stok-barang" element={<ProtectedRoute allowedRoles={["admin", "staff"]}><Inventaris /></ProtectedRoute>} />
             <Route path="/invoice" element={<ProtectedRoute allowedRoles={["admin", "staff"]}><Invoice /></ProtectedRoute>} />
             <Route path="/dokumentasi" element={<ProtectedRoute allowedRoles={["admin"]}><Dokumentasi /></ProtectedRoute>} />
             <Route path="/roles" element={<ProtectedRoute allowedRoles={["admin"]}><RoleManagement /></ProtectedRoute>} />

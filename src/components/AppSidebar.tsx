@@ -3,6 +3,7 @@ import {
   FileText,
   FolderOpen,
   LogOut,
+  Package,
   UserCog,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
@@ -23,6 +24,7 @@ import {
 
 const menuItems: Array<{ title: string; url: string; icon: typeof LayoutDashboard; roles?: AppRole[] }> = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard },
+  { title: "Stok Barang", url: "/stok-barang", icon: Package, roles: ["admin", "staff"] },
   { title: "Invoice", url: "/invoice", icon: FileText, roles: ["admin", "staff"] },
   { title: "Dokumentasi", url: "/dokumentasi", icon: FolderOpen, roles: ["admin"] },
   { title: "Role Management", url: "/roles", icon: UserCog, roles: ["admin"] },
