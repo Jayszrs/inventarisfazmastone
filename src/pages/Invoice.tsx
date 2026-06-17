@@ -155,6 +155,7 @@ const canvasToBlob = (canvas: HTMLCanvasElement) =>
   });
 
 const buildInvoiceImageFile = async (invoice: InvoiceDetail) => {
+  await document.fonts?.ready;
   const [logo, signature] = await Promise.all([preloadImage(LOGO_URL), preloadImage(SIGNATURE_URL)]);
   const canvas = document.createElement("canvas");
   const scale = 2;
@@ -318,7 +319,7 @@ const buildInvoiceImageFile = async (invoice: InvoiceDetail) => {
 
   const blob = await canvasToBlob(canvas);
   const safeNumber = invoice.nomor_invoice.replace(/[^A-Za-z0-9-]/g, "-");
-  return new File([blob], `invoice-${safeNumber}.png`, { type: "image/png" });
+  return new File([blob], `${safeNumber}.png`, { type: "image/png" });
 };
 
 const downloadFile = (file: File) => {
@@ -417,6 +418,7 @@ export default function Invoice() {
   const [transactions, setTransactions] = useState<TransaksiRow[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [loading, setLoading] = useState(false);
+  const [sharingInvoiceId, setSharingInvoiceId] = useState<string | null>(null);
   const [itemNamaBarang, setItemNamaBarang] = useState("");
   const [itemUkuran, setItemUkuran] = useState("");
   const [itemJumlah, setItemJumlah] = useState<NumberInputValue>("");
@@ -997,12 +999,52 @@ export default function Invoice() {
     setDeliveryOpen(true);
   };
 
-  const printCurrent = (mode: Exclude<PrintMode, null>, detail = selectedInvoice, meta = deliveryMeta) => {
+  const printCurrent = async (mode: Exclude<PrintMode, null>, detail = selectedInvoice, meta = deliveryMeta) => {
     if (!detail) return;
     setSelectedInvoice(detail);
     setDeliveryMeta(meta || null);
     setPrintMode(mode);
-    window.setTimeout(() => window.print(), 150);
+    await preloadInvoiceAssets();
+    await waitForNextFrame();
+    window.print();
+  };
+
+  const shareInvoiceAsImage = async (detail = selectedInvoice) => {
+    if (!detail) return;
+
+    setSharingInvoiceId(detail.id);
+    try {
+      const file = await buildInvoiceImageFile(detail);
+      const shareData = {
+        title: `Invoice ${detail.nomor_invoice}`,
+        text: `Invoice ${detail.nomor_invoice} - Fazma Batu Alam`,
+        files: [file],
+      };
+      const shareNavigator = navigator as Navigator & {
+        canShare?: (data: ShareData) => boolean;
+        share?: (data: ShareData) => Promise<void>;
+      };
+
+      if (shareNavigator.share && (!shareNavigator.canShare || shareNavigator.canShare(shareData))) {
+        await shareNavigator.share(shareData);
+        toast({ title: "Invoice siap dibagikan", description: "Pilih WhatsApp untuk mengirim PNG invoice." });
+        return;
+      }
+
+      downloadFile(file);
+      toast({
+        title: "PNG invoice sudah diunduh",
+        description: "Browser ini belum mendukung share gambar langsung. Kirim file PNG tersebut lewat WhatsApp.",
+      });
+    } catch (error) {
+      toast({
+        title: "Gagal membuat gambar invoice",
+        description: error instanceof Error ? error.message : "Silakan coba lagi.",
+        variant: "destructive",
+      });
+    } finally {
+      setSharingInvoiceId(null);
+    }
   };
 
   const submitDeliveryPrint = (event: FormEvent) => {
@@ -1271,6 +1313,19 @@ export default function Invoice() {
                             <Button variant="outline" size="sm" onClick={() => openInvoiceDetail(transaction)}>
                               <Eye className="h-4 w-4" /> Detail Invoice
                             </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={async () => {
+                                setSharingInvoiceId(transaction.id);
+                                const detail = await getInvoiceDetail(transaction);
+                                if (detail) await shareInvoiceAsImage(detail);
+                                else setSharingInvoiceId(null);
+                              }}
+                              disabled={sharingInvoiceId === transaction.id}
+                            >
+                              <Share2 className="h-4 w-4" /> {sharingInvoiceId === transaction.id ? "Menyiapkan..." : "Share WA"}
+                            </Button>
                             <Button variant="outline" size="sm" onClick={() => openEditInvoice(transaction)}>
                               <Pencil className="h-4 w-4" /> Edit
                             </Button>
@@ -1293,10 +1348,20 @@ export default function Invoice() {
 
         <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
           <DialogContent className="max-h-[92vh] w-[calc(100vw-1.5rem)] max-w-4xl overflow-y-auto bg-background p-0">
-            <InvoicePreview invoice={selectedInvoice} />
+            <div className="invoice-preview-viewport">
+              <PrintableInvoice invoice={selectedInvoice} />
+            </div>
             <div className="no-print flex flex-col gap-3 border-t border-border bg-muted/40 p-5 sm:flex-row">
               <Button className="flex-1" onClick={() => printCurrent("invoice")}>
                 <Printer className="h-4 w-4" /> Detail Invoice (Cetak Nota)
+              </Button>
+              <Button
+                className="flex-1"
+                variant="outline"
+                onClick={() => shareInvoiceAsImage()}
+                disabled={!selectedInvoice || sharingInvoiceId === selectedInvoice.id}
+              >
+                <Share2 className="h-4 w-4" /> {selectedInvoice && sharingInvoiceId === selectedInvoice.id ? "Menyiapkan PNG..." : "Share PNG ke WhatsApp"}
               </Button>
               <Button variant="outline" onClick={() => setDetailOpen(false)}>Tutup</Button>
             </div>
@@ -1670,25 +1735,25 @@ function PrintableInvoice({ invoice }: { invoice: InvoiceDetail | null }) {
           </div>
         </div>
         <h2 className="my-6 text-center text-2xl font-bold tracking-[0.25em] text-emerald-800">INVOICE</h2>
-        <div className="mb-5 flex justify-between border-y-2 border-emerald-800 py-3 print-avoid-break">
-          <div>
+        <div className="mb-5 flex flex-wrap justify-between gap-3 border-y-2 border-emerald-800 py-3 print-avoid-break">
+          <div className="min-w-0">
             <p className="font-bold uppercase text-emerald-800">Bill To</p>
             <p className="text-lg font-bold uppercase">{invoice.nama_pelanggan || "-"}</p>
           </div>
-          <div className="text-right">
+          <div className="min-w-0 text-right">
             <p><strong>Invoice No:</strong> {invoice.nomor_invoice}</p>
             <p><strong>Date:</strong> {formatDate(invoice.created_at)}</p>
           </div>
         </div>
         <InvoiceItemTable invoice={invoice} showPrice />
-        <div className="mt-6 flex justify-between print-avoid-break">
-          <div className="rounded border border-emerald-100 bg-emerald-50 p-4 text-emerald-900">
+        <div className="mt-6 flex flex-wrap justify-between gap-5 print-avoid-break">
+          <div className="min-w-[9rem] rounded border border-emerald-100 bg-emerald-50 p-4 text-emerald-900">
             <p className="font-bold">Payment Instructions</p>
             <p>BCA: 5680 5186 47</p>
             <p>Mandiri: 90000 2341 1318</p>
             <p>A/n Zia Ulhaq</p>
           </div>
-          <div className="text-center">
+          <div className="min-w-[9rem] text-center">
             <p>Terimakasih</p>
             <img src={SIGNATURE_URL} alt="Tanda Tangan" className="mx-auto mt-2 w-36" />
             <p className="border-t border-gray-900 px-10 pt-1 font-bold">( Zia Ulhaq )</p>

@@ -151,6 +151,98 @@
   display: none;
 }
 
+.invoice-preview-viewport {
+  overflow-x: auto;
+  background: hsl(var(--muted));
+  padding: 1rem;
+}
+
+.invoice-preview-viewport .print-sheet {
+  margin: 0 auto;
+  box-shadow: 0 18px 45px hsl(142 70% 10% / 0.14);
+}
+
+.print-sheet {
+  position: relative;
+  box-sizing: border-box;
+  width: min(794px, 100%);
+  min-height: min(1123px, calc((100vw - 3rem) * 1.414));
+  overflow: visible;
+  background: white;
+  padding: clamp(1.25rem, 6vw, 4rem);
+  color: #111827;
+}
+
+.print-content {
+  position: relative;
+  z-index: 1;
+}
+
+.print-watermark {
+  position: absolute;
+  left: 50%;
+  top: 48%;
+  width: min(430px, 66%);
+  height: auto;
+  transform: translate(-50%, -50%);
+  opacity: 0.08;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.print-logo {
+  display: block;
+  width: clamp(5.5rem, 20vw, 12rem);
+  max-width: 48mm;
+  height: auto;
+  object-fit: contain;
+}
+
+.print-sheet table {
+  table-layout: fixed;
+}
+
+.print-sheet th,
+.print-sheet td {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+@media (max-width: 640px) {
+  .invoice-preview-viewport {
+    padding: 0.75rem;
+  }
+
+  .print-sheet {
+    min-height: calc((100vw - 2.5rem) * 1.414);
+    font-size: 8px;
+  }
+
+  .print-sheet h1 {
+    font-size: 1rem;
+    line-height: 1.35;
+  }
+
+  .print-sheet h2 {
+    font-size: 0.95rem;
+    line-height: 1.35;
+    letter-spacing: 0.18em;
+  }
+
+  .print-sheet table {
+    font-size: 7px;
+  }
+
+  .print-sheet th,
+  .print-sheet td {
+    padding: 0.25rem;
+  }
+
+  .print-sheet .w-36 {
+    width: 5.5rem;
+  }
+}
+
 @media print {
   @page {
     size: A4 portrait;
